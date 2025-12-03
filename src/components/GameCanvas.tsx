@@ -72,31 +72,27 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
     uiCanvas.addEventListener('mousemove', handleMouseMove)
     uiCanvas.addEventListener('click', handleClick)
 
-    let lastRenderTime = 0
-    const targetFPS = 60
-    const frameTime = 1000 / targetFPS
+    let animationFrameId: number
 
-    const render = (currentTime: number) => {
-      if (currentTime - lastRenderTime >= frameTime) {
-        renderEngine.render(engine)
-        
-        uiManager.clear()
-        if (showStatUI) {
-          const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
-          if (availablePoints > 0) {
-            const statPoints = engine.upgradeManager.getStatPoints()
-            uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
-          }
+    const render = () => {
+      renderEngine.render(engine)
+      
+      uiManager.clear()
+      if (showStatUI) {
+        const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
+        if (availablePoints > 0) {
+          const statPoints = engine.upgradeManager.getStatPoints()
+          uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
         }
-        lastRenderTime = currentTime
       }
-      requestAnimationFrame(render)
+      
+      animationFrameId = requestAnimationFrame(render)
     }
 
-    const animationFrame = requestAnimationFrame(render)
+    animationFrameId = requestAnimationFrame(render)
 
     return () => {
-      cancelAnimationFrame(animationFrame)
+      cancelAnimationFrame(animationFrameId)
       window.removeEventListener('resize', updateCanvasSize)
       uiCanvas.removeEventListener('mousemove', handleMouseMove)
       uiCanvas.removeEventListener('click', handleClick)
