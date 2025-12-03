@@ -174,7 +174,7 @@ function App() {
       }
 
       hudUpdateInterval.current++
-      if (hudUpdateInterval.current >= 3) {
+      if (hudUpdateInterval.current >= 10) {
         hudUpdateInterval.current = 0
         setHudData({
           health: engine.player.health,

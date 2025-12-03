@@ -72,16 +72,31 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
     uiCanvas.addEventListener('mousemove', handleMouseMove)
     uiCanvas.addEventListener('click', handleClick)
 
+    let lastStatPoints = ''
+    let lastAvailablePoints = 0
+    
     engine.setRenderCallback(() => {
       renderEngine.render(engine)
       
-      uiManager.clear()
       if (showStatUI) {
         const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
-        if (availablePoints > 0) {
-          const statPoints = engine.upgradeManager.getStatPoints()
+        const statPoints = engine.upgradeManager.getStatPoints()
+        const statPointsStr = JSON.stringify(statPoints)
+        
+        if (availablePoints > 0 && (statPointsStr !== lastStatPoints || availablePoints !== lastAvailablePoints)) {
+          uiManager.clear()
           uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
+          lastStatPoints = statPointsStr
+          lastAvailablePoints = availablePoints
+        } else if (availablePoints === 0 && lastAvailablePoints > 0) {
+          uiManager.clear()
+          lastStatPoints = ''
+          lastAvailablePoints = 0
         }
+      } else if (lastAvailablePoints > 0) {
+        uiManager.clear()
+        lastStatPoints = ''
+        lastAvailablePoints = 0
       }
     })
 

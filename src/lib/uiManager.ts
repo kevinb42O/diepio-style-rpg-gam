@@ -26,9 +26,15 @@ export class UIManager {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
-    const context = canvas.getContext('2d')
+    const context = canvas.getContext('2d', { 
+      alpha: true,
+      desynchronized: false,
+      willReadFrequently: false
+    })
     if (!context) throw new Error('Failed to get UI 2D context')
     this.ctx = context
+    this.ctx.imageSmoothingEnabled = true
+    this.ctx.imageSmoothingQuality = 'low'
   }
 
   drawStatUpgradeUI(

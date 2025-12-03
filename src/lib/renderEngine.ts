@@ -6,15 +6,21 @@ export class RenderEngine {
   private ctx: CanvasRenderingContext2D
   private canvas: HTMLCanvasElement
   private lastViewBounds = { left: 0, right: 0, top: 0, bottom: 0 }
+  private offscreenCanvas: HTMLCanvasElement | null = null
+  private offscreenCtx: CanvasRenderingContext2D | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     const context = canvas.getContext('2d', { 
       alpha: false,
-      desynchronized: true
+      desynchronized: false,
+      willReadFrequently: false
     })
     if (!context) throw new Error('Failed to get 2D context')
     this.ctx = context
+    
+    this.ctx.imageSmoothingEnabled = true
+    this.ctx.imageSmoothingQuality = 'low'
   }
 
   render(engine: GameEngine) {
