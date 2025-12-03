@@ -850,6 +850,9 @@ export class GameEngine {
 
   applyStatsToPlayer() {
     const stats = this.upgradeManager.getStats()
+    const oldMaxHealth = this.player.maxHealth
+    const healthPercentage = this.player.health / oldMaxHealth
+    
     this.player.maxHealth = Math.floor(stats.maxHealth)
     this.player.damage = Math.floor(stats.bulletDamage)
     this.player.fireRate = Math.floor(stats.reload)
@@ -858,7 +861,8 @@ export class GameEngine {
     this.player.bulletPenetration = Math.floor(stats.bulletPenetration)
     this.player.bodyDamage = Math.floor(stats.bodyDamage)
     this.player.healthRegen = stats.healthRegen
-    this.player.health = Math.min(this.player.health, this.player.maxHealth)
+    
+    this.player.health = Math.floor(healthPercentage * this.player.maxHealth)
   }
 
   cleanupEntities() {
