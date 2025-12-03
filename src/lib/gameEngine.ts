@@ -22,10 +22,15 @@ export class GameEngine {
   barrelRecoil = 0
   muzzleFlashes: MuzzleFlash[] = []
   onLevelUp: (() => void) | null = null
+  private renderCallback: (() => void) | null = null
 
   constructor() {
     this.upgradeManager = new UpgradeManager()
     this.player = this.createPlayer()
+  }
+
+  setRenderCallback(callback: (() => void) | null) {
+    this.renderCallback = callback
   }
 
   createPlayer(): Player {
@@ -184,6 +189,10 @@ export class GameEngine {
     this.spawnLootBoxes()
     this.checkCollisions()
     this.cleanupEntities()
+
+    if (this.renderCallback) {
+      this.renderCallback()
+    }
   }
 
   updateRecoilAndFlash(deltaTime: number) {

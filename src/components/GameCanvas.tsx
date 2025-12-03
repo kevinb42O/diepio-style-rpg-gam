@@ -72,9 +72,7 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
     uiCanvas.addEventListener('mousemove', handleMouseMove)
     uiCanvas.addEventListener('click', handleClick)
 
-    let animationFrameId: number
-
-    const render = () => {
+    engine.setRenderCallback(() => {
       renderEngine.render(engine)
       
       uiManager.clear()
@@ -85,14 +83,10 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
           uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
         }
       }
-      
-      animationFrameId = requestAnimationFrame(render)
-    }
-
-    animationFrameId = requestAnimationFrame(render)
+    })
 
     return () => {
-      cancelAnimationFrame(animationFrameId)
+      engine.setRenderCallback(null)
       window.removeEventListener('resize', updateCanvasSize)
       uiCanvas.removeEventListener('mousemove', handleMouseMove)
       uiCanvas.removeEventListener('click', handleClick)
