@@ -20,7 +20,21 @@ type GameState = 'menu' | 'playing' | 'paused' | 'statupgrade' | 'classupgrade' 
 
 function App() {
   const [gameState, setGameState] = useState<GameState>('menu')
-  const [, setTick] = useState(0)
+  const [hudData, setHudData] = useState({
+    health: 100,
+    maxHealth: 100,
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 100,
+    kills: 0,
+    damage: 10,
+    fireRate: 500,
+    speed: 150,
+    weapon: null as any,
+    armor: null as any,
+  })
+  const [gameTime, setGameTime] = useState(0)
+  const [xpProgress, setXpProgress] = useState({ current: 0, required: 100 })
   const engineRef = useRef<GameEngine>(new GameEngine())
   const lastTimeRef = useRef<number>(Date.now())
   const animationFrameRef = useRef<number | undefined>(undefined)
@@ -33,6 +47,7 @@ function App() {
   const [deathStats, setDeathStats] = useState<GameStats | null>(null)
   const isMobile = useIsMobile()
   const mobileInputRef = useRef({ x: 0, y: 0, shootX: 0, shootY: 0 })
+  const hudUpdateInterval = useRef<number>(0)
 
   useEffect(() => {
     const engine = engineRef.current
@@ -158,7 +173,29 @@ function App() {
         return
       }
 
-      setTick(t => t + 1)
+      hudUpdateInterval.current++
+      if (hudUpdateInterval.current >= 3) {
+        hudUpdateInterval.current = 0
+        setHudData({
+          health: engine.player.health,
+          maxHealth: engine.player.maxHealth,
+          level: engine.player.level,
+          xp: engine.player.xp,
+          xpToNextLevel: engine.player.xpToNextLevel,
+          kills: engine.player.kills,
+          damage: engine.player.damage,
+          fireRate: engine.player.fireRate,
+          speed: engine.player.speed,
+          weapon: engine.player.weapon,
+          armor: engine.player.armor,
+        })
+        setGameTime(engine.gameTime)
+        setXpProgress({
+          current: engine.upgradeManager.getCurrentXPInLevel(),
+          required: engine.upgradeManager.getXPRequiredForCurrentLevel(),
+        })
+      }
+
       animationFrameRef.current = requestAnimationFrame(gameLoop)
     }
 
@@ -176,6 +213,23 @@ function App() {
   const startGame = () => {
     engineRef.current.reset()
     lastTimeRef.current = Date.now()
+    hudUpdateInterval.current = 0
+    const engine = engineRef.current
+    setHudData({
+      health: engine.player.health,
+      maxHealth: engine.player.maxHealth,
+      level: engine.player.level,
+      xp: engine.player.xp,
+      xpToNextLevel: engine.player.xpToNextLevel,
+      kills: engine.player.kills,
+      damage: engine.player.damage,
+      fireRate: engine.player.fireRate,
+      speed: engine.player.speed,
+      weapon: engine.player.weapon,
+      armor: engine.player.armor,
+    })
+    setGameTime(0)
+    setXpProgress({ current: 0, required: 100 })
     setGameState('playing')
   }
 
@@ -290,10 +344,10 @@ function App() {
         {gameState === 'playing' && (
           <>
             <HUD 
-              player={engineRef.current.player} 
-              gameTime={engineRef.current.gameTime}
-              currentXPInLevel={engineRef.current.upgradeManager.getCurrentXPInLevel()}
-              xpRequiredForLevel={engineRef.current.upgradeManager.getXPRequiredForCurrentLevel()}
+              player={hudData} 
+              gameTime={gameTime}
+              currentXPInLevel={xpProgress.current}
+              xpRequiredForLevel={xpProgress.required}
             />
             <MobileControls 
               onMove={handleMobileMove}

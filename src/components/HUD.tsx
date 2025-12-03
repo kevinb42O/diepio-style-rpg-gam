@@ -2,21 +2,31 @@ import { Heart, Sword, Lightning, Wind, Star } from '@phosphor-icons/react'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { useIsMobile } from '@/hooks/use-mobile'
-import type { Player } from '@/lib/types'
+import type { Weapon, Armor } from '@/lib/types'
 
 interface HUDProps {
-  player: Player
+  player: {
+    health: number
+    maxHealth: number
+    level: number
+    kills: number
+    damage: number
+    fireRate: number
+    speed: number
+    weapon: Weapon | null
+    armor: Armor | null
+  }
   gameTime: number
   currentXPInLevel?: number
   xpRequiredForLevel?: number
 }
 
-export function HUD({ player, gameTime, currentXPInLevel, xpRequiredForLevel }: HUDProps) {
+export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel = 100 }: HUDProps) {
   const isMobile = useIsMobile()
   const healthPercentage = (player.health / player.maxHealth) * 100
   
-  const xpInLevel = currentXPInLevel ?? player.xp
-  const xpRequired = xpRequiredForLevel ?? player.xpToNextLevel
+  const xpInLevel = currentXPInLevel
+  const xpRequired = xpRequiredForLevel
   const xpPercentage = xpRequired > 0 ? (xpInLevel / xpRequired) * 100 : 0
   
   const minutes = Math.floor(gameTime / 60000)
