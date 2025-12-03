@@ -86,8 +86,11 @@ export class RenderEngine {
       '#00B2E1',
       tankConfig.barrels,
       aimAngle,
-      player.radius
+      player.radius,
+      engine.barrelRecoil
     )
+
+    this.drawMuzzleFlashes(engine)
   }
 
   drawTank(
@@ -96,14 +99,15 @@ export class RenderEngine {
     color: string,
     barrelConfig: BarrelConfig[],
     rotation: number = 0,
-    bodyRadius: number = 15
+    bodyRadius: number = 15,
+    recoilOffset: number = 0
   ) {
     this.ctx.save()
     this.ctx.translate(x, y)
     this.ctx.rotate(rotation)
 
     for (const barrel of barrelConfig) {
-      this.drawBarrel(barrel, color)
+      this.drawBarrel(barrel, color, recoilOffset)
     }
 
     this.ctx.beginPath()
@@ -117,11 +121,11 @@ export class RenderEngine {
     this.ctx.restore()
   }
 
-  private drawBarrel(barrel: BarrelConfig, color: string) {
+  private drawBarrel(barrel: BarrelConfig, color: string, recoilOffset: number = 0) {
     this.ctx.save()
     this.ctx.rotate((barrel.angle * Math.PI) / 180)
 
-    const offsetX = barrel.offsetX || 0
+    const offsetX = (barrel.offsetX || 0) - recoilOffset
     const offsetY = barrel.offsetY || 0
 
     if (barrel.isTrapezoid) {
@@ -297,6 +301,43 @@ export class RenderEngine {
       this.ctx.fill()
     }
     this.ctx.globalAlpha = 1
+  }
+
+  private drawMuzzleFlashes(engine: GameEngine) {
+    for (const flash of engine.muzzleFlashes) {
+      this.ctx.save()
+      this.ctx.globalAlpha = flash.alpha
+      this.ctx.translate(flash.position.x, flash.position.y)
+      this.ctx.rotate(flash.angle)
+
+      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, flash.size)
+      gradient.addColorStop(0, '#FFFFFF')
+      gradient.addColorStop(0.3, '#FFDD44')
+      gradient.addColorStop(0.6, '#FF8800')
+      gradient.addColorStop(1, 'rgba(255, 136, 0, 0)')
+
+      this.ctx.fillStyle = gradient
+      this.ctx.beginPath()
+      this.ctx.ellipse(0, 0, flash.size * 1.5, flash.size * 0.8, 0, 0, Math.PI * 2)
+      this.ctx.fill()
+
+      for (let i = 0; i < 6; i++) {
+        const rayAngle = (Math.PI / 3) * i
+        const rayLength = flash.size * (1.5 + Math.random() * 0.5)
+        
+        this.ctx.beginPath()
+        this.ctx.moveTo(0, 0)
+        this.ctx.lineTo(
+          Math.cos(rayAngle) * rayLength,
+          Math.sin(rayAngle) * rayLength
+        )
+        this.ctx.strokeStyle = `rgba(255, 221, 68, ${flash.alpha * 0.6})`
+        this.ctx.lineWidth = 2
+        this.ctx.stroke()
+      }
+
+      this.ctx.restore()
+    }
   }
 
   resize(width: number, height: number) {

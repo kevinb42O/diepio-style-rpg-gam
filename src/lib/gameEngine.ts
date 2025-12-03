@@ -19,6 +19,8 @@ export class GameEngine {
   camera: Vector2 = { x: 0, y: 0 }
   viewportWidth = 800
   viewportHeight = 600
+  barrelRecoil = 0
+  muzzleFlashes: MuzzleFlash[] = []
 
   constructor() {
     this.upgradeManager = new UpgradeManager()
@@ -176,10 +178,24 @@ export class GameEngine {
     this.updateProjectiles(deltaTime)
     this.updateLoot(deltaTime)
     this.updateParticles(deltaTime)
+    this.updateRecoilAndFlash(deltaTime)
     this.updateCamera()
     this.spawnLootBoxes()
     this.checkCollisions()
     this.cleanupEntities()
+  }
+
+  updateRecoilAndFlash(deltaTime: number) {
+    if (this.barrelRecoil > 0) {
+      this.barrelRecoil = Math.max(0, this.barrelRecoil - deltaTime * 20)
+    }
+
+    for (const flash of this.muzzleFlashes) {
+      flash.life -= deltaTime
+      flash.alpha = Math.max(0, flash.life / flash.maxLife)
+    }
+
+    this.muzzleFlashes = this.muzzleFlashes.filter(f => f.life > 0)
   }
 
   updateCamera() {
@@ -243,6 +259,21 @@ export class GameEngine {
         this.mousePosition.x - this.player.position.x
       )
     }
+
+    this.barrelRecoil = 8
+
+    const barrelTipDistance = this.player.radius + 35
+    const barrelTipX = this.player.position.x + Math.cos(angle) * barrelTipDistance
+    const barrelTipY = this.player.position.y + Math.sin(angle) * barrelTipDistance
+
+    this.muzzleFlashes.push({
+      position: { x: barrelTipX, y: barrelTipY },
+      angle: angle,
+      life: 0.1,
+      maxLife: 0.1,
+      alpha: 1,
+      size: 15,
+    })
 
     const projectile: Projectile = {
       id: `proj_${Date.now()}_${Math.random()}`,
@@ -659,5 +690,14 @@ interface Particle {
   maxLife: number
   alpha: number
   color: string
+  size: number
+}
+
+interface MuzzleFlash {
+  position: Vector2
+  angle: number
+  life: number
+  maxLife: number
+  alpha: number
   size: number
 }
