@@ -4,6 +4,7 @@ import { GameEngine } from '@/lib/gameEngine'
 import { GameCanvas } from '@/components/GameCanvas'
 import { HUD } from '@/components/HUD'
 import { StatUpgradeModal } from '@/components/StatUpgradeModal'
+import { ClassUpgradeModal } from '@/components/ClassUpgradeModal'
 import { DeathScreen } from '@/components/DeathScreen'
 import { MobileControls } from '@/components/MobileControls'
 import { Button } from '@/components/ui/button'
@@ -13,8 +14,9 @@ import { toast } from 'sonner'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HighScore, GameStats } from '@/lib/types'
 import type { StatType } from '@/lib/upgradeSystem'
+import { getAvailableUpgrades } from '@/lib/tankConfigs'
 
-type GameState = 'menu' | 'playing' | 'paused' | 'statupgrade' | 'dead'
+type GameState = 'menu' | 'playing' | 'paused' | 'statupgrade' | 'classupgrade' | 'dead'
 
 function App() {
   const [gameState, setGameState] = useState<GameState>('menu')
@@ -55,11 +57,23 @@ function App() {
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isMobile || gameState !== 'playing') return
-      engine.keys.add(e.key.toLowerCase())
-      if (e.key === ' ') {
-        e.preventDefault()
-        engine.isShooting = true
+      if (isMobile) return
+      
+      if (gameState === 'playing') {
+        engine.keys.add(e.key.toLowerCase())
+        
+        if (e.key >= '1' && e.key <= '8') {
+          const statIndex = parseInt(e.key) - 1
+          const statKeys: StatType[] = ['healthRegen', 'maxHealth', 'bodyDamage', 'bulletSpeed', 'bulletPenetration', 'bulletDamage', 'reload', 'movementSpeed']
+          if (engine.upgradeManager.getAvailableSkillPoints() > 0) {
+            handleAllocateStat(statKeys[statIndex])
+          }
+        }
+        
+        if (e.key === ' ') {
+          e.preventDefault()
+          engine.isShooting = true
+        }
       }
     }
 
@@ -114,6 +128,14 @@ function App() {
 
         if (result === 'levelup' && engine.player.xp >= engine.player.xpToNextLevel) {
           engine.levelUp()
+          
+          const availableClasses = getAvailableUpgrades(engine.player.tankClass, engine.player.level)
+          if (availableClasses.length > 0) {
+            setGameState('classupgrade')
+            toast.success(`Level ${engine.player.level} reached! Choose your class!`)
+            return
+          }
+          
           if (engine.upgradeManager.getAvailableSkillPoints() > 0) {
             setGameState('statupgrade')
             toast.success(`Level ${engine.player.level} reached!`)
@@ -172,6 +194,16 @@ function App() {
   }
 
   const handleCloseStatUpgrade = () => {
+    setGameState('playing')
+  }
+
+  const handleSelectClass = (className: string) => {
+    engineRef.current.player.tankClass = className
+    toast.success(`Class upgraded to ${className}!`)
+    setGameState('playing')
+  }
+
+  const handleCloseClassUpgrade = () => {
     setGameState('playing')
   }
 
@@ -258,7 +290,11 @@ function App() {
         isMobile ? 'fixed inset-0' : 'min-h-screen p-2 md:p-8'
       }`}>
       <div className={`relative ${isMobile ? 'w-full h-full' : 'w-full max-w-[800px]'}`}>
-        <GameCanvas engine={engineRef.current} />
+        <GameCanvas 
+          engine={engineRef.current} 
+          showStatUI={gameState === 'playing'}
+          onStatClick={handleAllocateStat}
+        />
         
         {gameState === 'playing' && (
           <>
@@ -283,6 +319,14 @@ function App() {
           statPoints={engineRef.current.upgradeManager.getStatPoints()}
           onAllocate={handleAllocateStat}
           onClose={handleCloseStatUpgrade}
+        />
+      )}
+
+      {gameState === 'classupgrade' && (
+        <ClassUpgradeModal
+          availableClasses={getAvailableUpgrades(engineRef.current.player.tankClass, engineRef.current.player.level)}
+          onSelect={handleSelectClass}
+          onClose={handleCloseClassUpgrade}
         />
       )}
 

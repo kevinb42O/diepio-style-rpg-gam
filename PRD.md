@@ -1,37 +1,37 @@
 # Planning Guide
 
-An exploration-focused action RPG where players control a hero destroying loot boxes across a vast world, collecting experience to grow stronger until inevitable death resets all progress.
+A diep.io-inspired tank evolution game where players control a tank shooting geometric shapes (polygons) for XP, upgrading stats through a bottom-left UI panel (hotkeys 1-8), and choosing tank classes at levels 15/30/45 that change barrel configurations and firing patterns.
 
 **Experience Qualities**: 
-1. **Expansive** - A large open world rewards exploration with valuable loot scattered across the map
-2. **Satisfying** - Destroying boxes and collecting XP provides continuous dopamine hits that drive engagement
-3. **Progressive** - Level-ups provide meaningful character advancement through stat allocation
+1. **Minimalist** - Clean vector graphics with thick borders, flat colors, and geometric shapes create instant visual clarity
+2. **Strategic** - Stat allocation (capped at 7 per stat, 33 total points) forces meaningful build choices that define playstyle
+3. **Progressive** - Tank class evolution at key levels (15/30/45) provides exciting moments of transformation and specialization
 
 **Complexity Level**: Light Application (multiple features with basic state)
-  - Core gameplay loop of exploration, destruction, and progression with persistent high score tracking but session-based character state
+  - Core gameplay loop of shooting polygons, gaining XP, allocating stats, and evolving tank classes with persistent high score tracking
 
 ## Essential Features
 
-### Player Movement & Combat
-- **Functionality**: WASD movement, mouse aim, click/space to shoot projectiles
-- **Purpose**: Provides the core moment-to-moment gameplay interaction
-- **Trigger**: Keyboard and mouse input (desktop) or virtual joystick controls (mobile)
-- **Progression**: Press W/A/S/D → Player moves smoothly → Mouse position determines aim → Click/Space fires projectile → Projectile travels and hits loot box
-- **Success criteria**: Smooth 60fps movement with camera following player, accurate mouse-based aiming, visible projectiles with hit detection
+### Tank Rendering & Visual System
+- **Functionality**: Vector-style tank rendering with circular body and rectangular barrels, thick black outlines, diep.io aesthetic
+- **Purpose**: Creates the iconic diep.io look and allows for visual tank class differentiation
+- **Trigger**: Canvas rendering loop at 60fps
+- **Progression**: RenderEngine draws grid background → Draws polygons with rotation → Draws tank with barrels under body layer → Draws projectiles and particles
+- **Success criteria**: Tanks render with proper barrel configurations, barrels appear behind body, thick outlines on all shapes, smooth rotation
 
-### Large World Exploration
-- **Functionality**: 4000x4000 pixel world with camera following player, smooth scrolling
-- **Purpose**: Encourages exploration and discovery of valuable loot
-- **Trigger**: Player movement
-- **Progression**: Player moves → Camera smoothly follows → World boundaries visible → Loot boxes discovered across map
-- **Success criteria**: No performance issues with large world, smooth camera movement, clear boundaries
-
-### Loot Box System (diep.io style distribution)
-- **Functionality**: Loot boxes scattered across world in clusters, varying sizes and rewards, must be destroyed to collect XP
-- **Purpose**: Core progression mechanic through exploration and destruction
+### Polygon Enemies (XP Sources)
+- **Functionality**: Geometric shapes (squares, triangles, pentagons, hexagons) that slowly rotate and drop XP when destroyed
+- **Purpose**: Replaces generic "loot boxes" with diep.io-style polygon enemies
 - **Trigger**: World generation and periodic spawning
-- **Progression**: Boxes spawn in clusters → Player finds and shoots boxes → Boxes take damage and show health bars → Box breaks → XP gems scatter → Player collects gems → Level up
-- **Success criteria**: Diep.io-style distribution with 25+ clusters across map, denser in some areas, larger/more valuable boxes toward edges
+- **Progression**: Polygons spawn across world → Rotate slowly → Player shoots → Health bar appears → Polygon breaks → XP gems scatter → Player collects
+- **Success criteria**: Squares (yellow/4 sides/low XP), Triangles (red/3 sides/medium XP), Pentagons (purple/5 sides/high XP), Hexagons (orange/6 sides/very high XP)
+
+### Stat Upgrade UI (Bottom-Left Panel)
+- **Functionality**: Persistent on-screen UI showing 8 horizontal stat bars, clickable or activated via hotkeys 1-8
+- **Purpose**: Allows real-time stat upgrades without pausing gameplay, matches diep.io UX
+- **Trigger**: Always visible during gameplay, available points shown at top
+- **Progression**: Level up → Gain skill point → Click stat bar or press 1-8 → Bar fills one segment → Stat immediately applied
+- **Success criteria**: 8 bars with distinct colors, each divided into 7 segments, hover feedback, hotkey support, available points counter
 
 ### Level & Stat Progression (diep.io system)
 - **Functionality**: Gaining XP levels up character (max level 45), skill points awarded to allocate across 8 stats with strategic cap of 33 total points
@@ -50,12 +50,12 @@ An exploration-focused action RPG where players control a hero destroying loot b
 - **Reload**: Exponential reduction (base × 0.93^points) - faster fire rate with diminishing returns
 - **Movement Speed**: Multiplicative (base × 1.07^points) - tank movement velocity
 
-### Tank Class Evolution (Future Feature)
-- **Tier 0 (Level 1)**: Basic Tank - single barrel foundation
-- **Tier 1 (Level 15)**: Twin, Sniper, Machine Gun, Flank Guard - first specialization branch
-- **Tier 2 (Level 30)**: Triple Shot, Quad Tank, Assassin, Overseer, Destroyer, Tri-Angle - advanced specializations
-- **Tier 3 (Level 45)**: Penta Shot, Octo Tank, Ranger, Overlord, Annihilator, Booster - ultimate class evolutions
-- Each upgrade changes barrel configuration and firing pattern while maintaining allocated stat points
+### Tank Class Evolution System
+- **Tier 0 (Level 1)**: Basic Tank - single forward-facing barrel
+- **Tier 1 (Level 15)**: Twin (dual barrels), Sniper (long narrow barrel), Machine Gun (trapezoid barrel), Flank Guard (front + back barrels)
+- **Tier 2 (Level 30)**: Triple Shot (3 barrels), Quad Tank (4 directions), Assassin (longer sniper), Destroyer (huge barrel), Tri-Angle (front + 2 back)
+- **Tier 3 (Level 45)**: Penta Shot (5 barrels), Octo Tank (8 directions), Ranger (longest barrel), Annihilator (massive barrel), Booster (1 front + 4 back)
+- Each upgrade changes only barrel configuration and visual appearance while maintaining stat allocation
 
 ### Equipment System
 - **Functionality**: Find weapons and armor with rarity tiers (Common/Rare/Epic/Legendary)

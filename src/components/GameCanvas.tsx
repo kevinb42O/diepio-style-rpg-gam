@@ -1,30 +1,51 @@
 import { useEffect, useRef } from 'react'
 import type { GameEngine } from '@/lib/gameEngine'
+import { RenderEngine } from '@/lib/renderEngine'
+import { UIManager } from '@/lib/uiManager'
 import { useIsMobile } from '@/hooks/use-mobile'
+import type { StatType } from '@/lib/upgradeSystem'
 
 interface GameCanvasProps {
   engine: GameEngine
+  showStatUI?: boolean
+  onStatClick?: (stat: StatType) => void
 }
 
-export function GameCanvas({ engine }: GameCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanvasProps) {
+  const gameCanvasRef = useRef<HTMLCanvasElement>(null)
+  const uiCanvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const renderEngineRef = useRef<RenderEngine | null>(null)
+  const uiManagerRef = useRef<UIManager | null>(null)
   const isMobile = useIsMobile()
 
   useEffect(() => {
-    const canvas = canvasRef.current
+    const gameCanvas = gameCanvasRef.current
+    const uiCanvas = uiCanvasRef.current
     const container = containerRef.current
-    if (!canvas || !container) return
+    if (!gameCanvas || !uiCanvas || !container) return
+
+    if (!renderEngineRef.current) {
+      renderEngineRef.current = new RenderEngine(gameCanvas)
+    }
+    if (!uiManagerRef.current) {
+      uiManagerRef.current = new UIManager(uiCanvas)
+    }
+
+    const renderEngine = renderEngineRef.current
+    const uiManager = uiManagerRef.current
 
     const updateCanvasSize = () => {
       if (isMobile) {
-        canvas.width = window.innerWidth
-        canvas.height = window.innerHeight
-        engine.viewportWidth = window.innerWidth
-        engine.viewportHeight = window.innerHeight
+        const width = window.innerWidth
+        const height = window.innerHeight
+        renderEngine.resize(width, height)
+        uiManager.resize(width, height)
+        engine.viewportWidth = width
+        engine.viewportHeight = height
       } else {
-        canvas.width = 800
-        canvas.height = 600
+        renderEngine.resize(800, 600)
+        uiManager.resize(800, 600)
         engine.viewportWidth = 800
         engine.viewportHeight = 600
       }
@@ -33,24 +54,33 @@ export function GameCanvas({ engine }: GameCanvasProps) {
     updateCanvasSize()
     window.addEventListener('resize', updateCanvasSize)
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = uiCanvas.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      uiManager.handleMouseMove(x, y)
+    }
+
+    const handleClick = (e: MouseEvent) => {
+      if (!onStatClick) return
+      const rect = uiCanvas.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      uiManager.handleClick(x, y, onStatClick)
+    }
+
+    uiCanvas.addEventListener('mousemove', handleMouseMove)
+    uiCanvas.addEventListener('click', handleClick)
 
     const render = () => {
-      ctx.fillStyle = '#1a1a2e'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-      ctx.save()
-      ctx.translate(-engine.camera.x, -engine.camera.y)
-
-      drawGrid(ctx, engine)
-      drawParticles(ctx, engine)
-      drawLoot(ctx, engine)
-      drawPlayer(ctx, engine)
-      drawProjectiles(ctx, engine)
-      drawWorldBorder(ctx, engine)
-
-      ctx.restore()
+      renderEngine.render(engine)
+      
+      uiManager.clear()
+      if (showStatUI) {
+        const statPoints = engine.upgradeManager.getStatPoints()
+        const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
+        uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
+      }
     }
 
     const animationFrame = requestAnimationFrame(function loop() {
@@ -61,15 +91,22 @@ export function GameCanvas({ engine }: GameCanvasProps) {
     return () => {
       cancelAnimationFrame(animationFrame)
       window.removeEventListener('resize', updateCanvasSize)
+      uiCanvas.removeEventListener('mousemove', handleMouseMove)
+      uiCanvas.removeEventListener('click', handleClick)
     }
-  }, [engine, isMobile])
+  }, [engine, isMobile, showStatUI, onStatClick])
 
   return (
-    <div ref={containerRef} className={isMobile ? 'w-full h-full' : 'w-full'}>
+    <div ref={containerRef} className={isMobile ? 'w-full h-full relative' : 'w-full relative'}>
       <canvas
-        ref={canvasRef}
+        ref={gameCanvasRef}
         className={isMobile ? '' : 'border-2 border-border rounded-lg max-w-full'}
         style={{ touchAction: 'none', display: 'block' }}
+      />
+      <canvas
+        ref={uiCanvasRef}
+        className="absolute top-0 left-0 pointer-events-auto"
+        style={{ touchAction: 'none' }}
       />
     </div>
   )
