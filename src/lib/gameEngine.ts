@@ -8,10 +8,14 @@ export class GameEngine {
   keys: Set<string> = new Set()
   isShooting = false
   lastBoxSpawnTime = 0
-  boxSpawnInterval = 5000
+  boxSpawnInterval = 3000
   gameTime = 0
   particles: Particle[] = []
   mobileInput: Vector2 = { x: 0, y: 0 }
+  worldSize = 4000
+  camera: Vector2 = { x: 0, y: 0 }
+  viewportWidth = 800
+  viewportHeight = 600
 
   constructor() {
     this.player = this.createPlayer()
@@ -20,7 +24,7 @@ export class GameEngine {
   createPlayer(): Player {
     return {
       id: 'player',
-      position: { x: 400, y: 300 },
+      position: { x: this.worldSize / 2, y: this.worldSize / 2 },
       velocity: { x: 0, y: 0 },
       radius: 15,
       health: 100,
@@ -46,40 +50,104 @@ export class GameEngine {
     this.gameTime = 0
     this.lastBoxSpawnTime = 0
     
-    this.spawnInitialLootBoxes()
+    this.generateWorldLoot()
   }
 
-  spawnInitialLootBoxes() {
-    const positions = [
-      { x: 200, y: 150 },
-      { x: 600, y: 150 },
-      { x: 400, y: 450 },
-    ]
-
-    positions.forEach((pos, i) => {
+  generateWorldLoot() {
+    const clusters = 25
+    
+    for (let c = 0; c < clusters; c++) {
+      const clusterX = Math.random() * this.worldSize
+      const clusterY = Math.random() * this.worldSize
+      const clusterRadius = 200 + Math.random() * 300
+      const boxCount = 15 + Math.floor(Math.random() * 20)
+      
+      for (let i = 0; i < boxCount; i++) {
+        const angle = Math.random() * Math.PI * 2
+        const distance = Math.random() * clusterRadius
+        const x = clusterX + Math.cos(angle) * distance
+        const y = clusterY + Math.sin(angle) * distance
+        
+        if (x < 100 || x > this.worldSize - 100 || y < 100 || y > this.worldSize - 100) continue
+        
+        const distFromCenter = Math.sqrt(
+          Math.pow(x - this.worldSize / 2, 2) + Math.pow(y - this.worldSize / 2, 2)
+        )
+        const normalizedDist = distFromCenter / (this.worldSize / 2)
+        
+        const size = Math.random() + normalizedDist * 0.5
+        let radius: number, health: number, contactDamage: number, xpValue: number
+        
+        if (size < 0.6) {
+          radius = 15
+          health = 20
+          contactDamage = 5
+          xpValue = 15
+        } else if (size < 1.2) {
+          radius = 25
+          health = 50
+          contactDamage = 15
+          xpValue = 40
+        } else if (size < 1.8) {
+          radius = 35
+          health = 100
+          contactDamage = 30
+          xpValue = 80
+        } else {
+          radius = 50
+          health = 200
+          contactDamage = 50
+          xpValue = 150
+        }
+        
+        this.loot.push({
+          id: `box_initial_${c}_${i}`,
+          position: { x, y },
+          type: 'box',
+          value: xpValue,
+          health,
+          maxHealth: health,
+          radius,
+          contactDamage,
+        })
+      }
+    }
+    
+    const edgeBoxCount = 50
+    for (let i = 0; i < edgeBoxCount; i++) {
+      const side = Math.floor(Math.random() * 4)
+      let x, y
+      
+      switch (side) {
+        case 0: x = Math.random() * this.worldSize; y = 100 + Math.random() * 200; break
+        case 1: x = Math.random() * this.worldSize; y = this.worldSize - 300 + Math.random() * 200; break
+        case 2: x = 100 + Math.random() * 200; y = Math.random() * this.worldSize; break
+        default: x = this.worldSize - 300 + Math.random() * 200; y = Math.random() * this.worldSize; break
+      }
+      
       const size = Math.random()
       let radius: number, health: number, contactDamage: number, xpValue: number
-
-      if (size < 0.5) {
-        radius = 15
-        health = 20
-        contactDamage = 5
-        xpValue = 15
-      } else if (size < 0.8) {
-        radius = 25
-        health = 50
-        contactDamage = 15
-        xpValue = 40
-      } else {
+      
+      if (size < 0.3) {
         radius = 35
         health = 100
         contactDamage = 30
         xpValue = 80
+      } else if (size < 0.7) {
+        radius = 50
+        health = 200
+        contactDamage = 50
+        xpValue = 150
+      } else {
+        radius = 70
+        health = 400
+        contactDamage = 80
+        xpValue = 300
       }
-
+      
       this.loot.push({
-        id: `box_initial_${i}`,
-        position: pos,
+        id: `box_edge_${i}`,
+        position: { x, y },
         type: 'box',
         value: xpValue,
         health,
@@ -87,7 +155,7 @@ export class GameEngine {
         radius,
         contactDamage,
       })
-    })
+    }
   }
 
   update(deltaTime: number) {
@@ -97,9 +165,18 @@ export class GameEngine {
     this.updateProjectiles(deltaTime)
     this.updateLoot(deltaTime)
     this.updateParticles(deltaTime)
+    this.updateCamera()
     this.spawnLootBoxes()
     this.checkCollisions()
     this.cleanupEntities()
+  }
+
+  updateCamera() {
+    this.camera.x = this.player.position.x - this.viewportWidth / 2
+    this.camera.y = this.player.position.y - this.viewportHeight / 2
+    
+    this.camera.x = Math.max(0, Math.min(this.worldSize - this.viewportWidth, this.camera.x))
+    this.camera.y = Math.max(0, Math.min(this.worldSize - this.viewportHeight, this.camera.y))
   }
 
   updatePlayer(deltaTime: number) {
@@ -126,8 +203,8 @@ export class GameEngine {
     this.player.position.x += this.player.velocity.x * deltaTime
     this.player.position.y += this.player.velocity.y * deltaTime
 
-    this.player.position.x = Math.max(this.player.radius, Math.min(800 - this.player.radius, this.player.position.x))
-    this.player.position.y = Math.max(this.player.radius, Math.min(600 - this.player.radius, this.player.position.y))
+    this.player.position.x = Math.max(this.player.radius, Math.min(this.worldSize - this.player.radius, this.player.position.x))
+    this.player.position.y = Math.max(this.player.radius, Math.min(this.worldSize - this.player.radius, this.player.position.y))
 
     if (this.isShooting && this.gameTime - this.player.lastShotTime > this.player.fireRate) {
       this.shootProjectile()
@@ -202,9 +279,25 @@ export class GameEngine {
   spawnLootBoxes() {
     if (this.gameTime - this.lastBoxSpawnTime < this.boxSpawnInterval) return
 
-    const numBoxes = 1 + Math.floor(Math.random() * 2)
+    const numBoxes = 3 + Math.floor(Math.random() * 5)
 
     for (let i = 0; i < numBoxes; i++) {
+      const clusterNearPlayer = Math.random() < 0.3
+      let x, y
+      
+      if (clusterNearPlayer) {
+        const angle = Math.random() * Math.PI * 2
+        const distance = 300 + Math.random() * 500
+        x = this.player.position.x + Math.cos(angle) * distance
+        y = this.player.position.y + Math.sin(angle) * distance
+      } else {
+        x = Math.random() * this.worldSize
+        y = Math.random() * this.worldSize
+      }
+      
+      x = Math.max(100, Math.min(this.worldSize - 100, x))
+      y = Math.max(100, Math.min(this.worldSize - 100, y))
+      
       const size = Math.random()
       let radius: number, health: number, contactDamage: number, xpValue: number
 
@@ -218,15 +311,17 @@ export class GameEngine {
         health = 50
         contactDamage = 15
         xpValue = 40
-      } else {
+      } else if (size < 0.95) {
         radius = 35
         health = 100
         contactDamage = 30
         xpValue = 80
+      } else {
+        radius = 50
+        health = 200
+        contactDamage = 50
+        xpValue = 150
       }
-
-      const x = 50 + Math.random() * 700
-      const y = 50 + Math.random() * 500
 
       this.loot.push({
         id: `box_${Date.now()}_${i}`,
@@ -241,7 +336,7 @@ export class GameEngine {
     }
 
     this.lastBoxSpawnTime = this.gameTime
-    this.boxSpawnInterval = 4000 + Math.random() * 4000
+    this.boxSpawnInterval = 3000 + Math.random() * 3000
   }
 
 
@@ -437,11 +532,16 @@ export class GameEngine {
 
   cleanupEntities() {
     this.projectiles = this.projectiles.filter(
-      p => p.position.x > -50 && p.position.x < 850 && p.position.y > -50 && p.position.y < 650
+      p => p.position.x > -50 && p.position.x < this.worldSize + 50 && p.position.y > -50 && p.position.y < this.worldSize + 50
     )
 
-    if (this.loot.length > 100) {
-      this.loot.splice(0, this.loot.length - 100)
+    if (this.loot.length > 500) {
+      this.loot.sort((a, b) => {
+        const distA = this.getDistance(a.position, this.player.position)
+        const distB = this.getDistance(b.position, this.player.position)
+        return distB - distA
+      })
+      this.loot.splice(400)
     }
 
     this.particles = this.particles.filter(p => p.life > 0)

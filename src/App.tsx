@@ -38,8 +38,8 @@ function App() {
       if (isMobile) return
       const rect = (e.target as HTMLElement).getBoundingClientRect?.()
       if (rect) {
-        engine.mousePosition.x = e.clientX - rect.left
-        engine.mousePosition.y = e.clientY - rect.top
+        engine.mousePosition.x = (e.clientX - rect.left) + engine.camera.x
+        engine.mousePosition.y = (e.clientY - rect.top) + engine.camera.y
       }
     }
 
@@ -191,7 +191,7 @@ function App() {
             Azeroth Survivors
           </h1>
           <p className="text-sm md:text-xl text-muted-foreground max-w-2xl px-4">
-            Destroy loot boxes, collect experience, and level up your character. Bigger boxes are tougher but more rewarding. Death is permanent - when you fall, you start from the beginning.
+            Explore a vast world filled with loot boxes. Destroy them to collect experience and level up your character. Bigger boxes are tougher but more rewarding. Venture to the edges to find the most valuable treasure!
           </p>
         </div>
 
@@ -212,7 +212,7 @@ function App() {
               </div>
               <div>
                 <div className="text-xl md:text-2xl font-bold">{highScore.enemiesKilled}</div>
-                <div className="text-xs text-muted-foreground">Kills</div>
+                <div className="text-xs text-muted-foreground">Boxes</div>
               </div>
             </div>
           </div>

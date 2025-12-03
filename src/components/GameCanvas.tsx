@@ -19,11 +19,17 @@ export function GameCanvas({ engine }: GameCanvasProps) {
       ctx.fillStyle = '#1a1a2e'
       ctx.fillRect(0, 0, 800, 600)
 
-      drawGrid(ctx)
+      ctx.save()
+      ctx.translate(-engine.camera.x, -engine.camera.y)
+
+      drawGrid(ctx, engine)
       drawParticles(ctx, engine)
       drawLoot(ctx, engine)
       drawPlayer(ctx, engine)
       drawProjectiles(ctx, engine)
+      drawWorldBorder(ctx, engine)
+
+      ctx.restore()
     }
 
     const animationFrame = requestAnimationFrame(function loop() {
@@ -45,23 +51,38 @@ export function GameCanvas({ engine }: GameCanvasProps) {
   )
 }
 
-function drawGrid(ctx: CanvasRenderingContext2D) {
+function drawGrid(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.strokeStyle = '#2a2a3e'
   ctx.lineWidth = 1
 
-  for (let x = 0; x < 800; x += 40) {
+  const startX = Math.floor(engine.camera.x / 40) * 40
+  const startY = Math.floor(engine.camera.y / 40) * 40
+  const endX = engine.camera.x + 800
+  const endY = engine.camera.y + 600
+
+  for (let x = startX; x < endX; x += 40) {
     ctx.beginPath()
-    ctx.moveTo(x, 0)
-    ctx.lineTo(x, 600)
+    ctx.moveTo(x, engine.camera.y)
+    ctx.lineTo(x, endY)
     ctx.stroke()
   }
 
-  for (let y = 0; y < 600; y += 40) {
+  for (let y = startY; y < endY; y += 40) {
     ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(800, y)
+    ctx.moveTo(engine.camera.x, y)
+    ctx.lineTo(endX, y)
     ctx.stroke()
   }
+}
+
+function drawWorldBorder(ctx: CanvasRenderingContext2D, engine: GameEngine) {
+  ctx.strokeStyle = '#ff4444'
+  ctx.lineWidth = 4
+  ctx.strokeRect(0, 0, engine.worldSize, engine.worldSize)
+  
+  ctx.strokeStyle = '#ff444444'
+  ctx.lineWidth = 20
+  ctx.strokeRect(-10, -10, engine.worldSize + 20, engine.worldSize + 20)
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, engine: GameEngine) {

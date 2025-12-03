@@ -1,4 +1,4 @@
-import { Skull, Trophy, Clock, Star } from '@phosphor-icons/react'
+import { Package, Trophy, Clock, Star } from '@phosphor-icons/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,7 +35,7 @@ export function DeathScreen({ stats, highScore, onRestart }: DeathScreenProps) {
                 animate={{ rotate: [0, -10, 10, -10, 0] }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <Skull size={isMobile ? 60 : 80} weight="fill" className="text-destructive" />
+                <Package size={isMobile ? 60 : 80} weight="fill" className="text-destructive" />
               </motion.div>
             </div>
             <CardTitle className={`${isMobile ? 'text-3xl' : 'text-5xl'} font-title text-destructive`}>
@@ -61,9 +61,9 @@ export function DeathScreen({ stats, highScore, onRestart }: DeathScreenProps) {
               </div>
 
               <div className={`flex flex-col items-center gap-2 ${isMobile ? 'p-3' : 'p-4'} bg-muted rounded-lg`}>
-                <Skull size={isMobile ? 24 : 32} className="text-destructive" />
+                <Package size={isMobile ? 24 : 32} className="text-secondary" />
                 <div className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>{stats.enemiesKilled}</div>
-                <div className="text-xs text-muted-foreground">Kills</div>
+                <div className="text-xs text-muted-foreground">Boxes</div>
               </div>
             </div>
 
@@ -100,7 +100,7 @@ export function DeathScreen({ stats, highScore, onRestart }: DeathScreenProps) {
                   </div>
                   <div>
                     <div className="font-semibold text-sm md:text-base">{highScore.enemiesKilled}</div>
-                    <div className="text-xs text-muted-foreground">Kills</div>
+                    <div className="text-xs text-muted-foreground">Boxes</div>
                   </div>
                 </div>
               </div>

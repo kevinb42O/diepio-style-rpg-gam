@@ -1,66 +1,73 @@
 # Planning Guide
 
-A top-down action RPG where players control a hero battling monsters in an ever-dangerous world, collecting loot to grow stronger until inevitable death resets all progress.
+An exploration-focused action RPG where players control a hero destroying loot boxes across a vast world, collecting experience to grow stronger until inevitable death resets all progress.
 
 **Experience Qualities**: 
-1. **Visceral** - Combat feels immediate and satisfying with impactful hit feedback and smooth movement
-2. **Tense** - The constant threat of permadeath creates meaningful stakes for every encounter
-3. **Rewarding** - Loot drops and level-ups provide continuous dopamine hits that drive engagement
+1. **Expansive** - A large open world rewards exploration with valuable loot scattered across the map
+2. **Satisfying** - Destroying boxes and collecting XP provides continuous dopamine hits that drive engagement
+3. **Progressive** - Level-ups provide meaningful character advancement through stat allocation
 
 **Complexity Level**: Light Application (multiple features with basic state)
-  - Core gameplay loop of combat, looting, and progression with persistent high score tracking but session-based character state
+  - Core gameplay loop of exploration, destruction, and progression with persistent high score tracking but session-based character state
 
 ## Essential Features
 
 ### Player Movement & Combat
 - **Functionality**: WASD movement, mouse aim, click/space to shoot projectiles
 - **Purpose**: Provides the core moment-to-moment gameplay interaction
-- **Trigger**: Keyboard and mouse input
-- **Progression**: Press W/A/S/D → Player moves in 8 directions → Mouse position determines aim → Click/Space fires projectile → Projectile travels and hits enemy
-- **Success criteria**: Smooth 60fps movement, accurate mouse-based aiming, visible projectiles with hit detection
+- **Trigger**: Keyboard and mouse input (desktop) or virtual joystick controls (mobile)
+- **Progression**: Press W/A/S/D → Player moves smoothly → Mouse position determines aim → Click/Space fires projectile → Projectile travels and hits loot box
+- **Success criteria**: Smooth 60fps movement with camera following player, accurate mouse-based aiming, visible projectiles with hit detection
 
-### Enemy AI & Spawning
-- **Functionality**: Enemies spawn at increasing difficulty, move toward player, deal contact damage
-- **Purpose**: Creates challenge and provides loot sources
-- **Trigger**: Time-based spawning system
-- **Progression**: Timer triggers spawn → Enemy appears at map edge → AI pathfinds toward player → Enemy takes damage or damages player on contact → Enemy dies and drops loot
-- **Success criteria**: Enemies consistently spawn, pursue intelligently, and scale in difficulty
+### Large World Exploration
+- **Functionality**: 4000x4000 pixel world with camera following player, smooth scrolling
+- **Purpose**: Encourages exploration and discovery of valuable loot
+- **Trigger**: Player movement
+- **Progression**: Player moves → Camera smoothly follows → World boundaries visible → Loot boxes discovered across map
+- **Success criteria**: No performance issues with large world, smooth camera movement, clear boundaries
 
-### Loot System (diep.io style)
-- **Functionality**: Enemies drop XP gems and equipment on death, player collects by proximity
-- **Purpose**: Core progression mechanic that drives engagement
-- **Trigger**: Enemy death
-- **Progression**: Enemy defeated → Gems/items drop at death location → Player moves near loot → Automatic collection → XP bar fills or equipment upgrades → Level up triggers stat increase
-- **Success criteria**: Visible loot drops, smooth pickup animation, clear XP progression feedback
+### Loot Box System (diep.io style distribution)
+- **Functionality**: Loot boxes scattered across world in clusters, varying sizes and rewards, must be destroyed to collect XP
+- **Purpose**: Core progression mechanic through exploration and destruction
+- **Trigger**: World generation and periodic spawning
+- **Progression**: Boxes spawn in clusters → Player finds and shoots boxes → Boxes take damage and show health bars → Box breaks → XP gems scatter → Player collects gems → Level up
+- **Success criteria**: Diep.io-style distribution with 25+ clusters across map, denser in some areas, larger/more valuable boxes toward edges
 
 ### Level & Stat Progression
 - **Functionality**: Gaining XP levels up character, each level offers stat point to allocate
 - **Purpose**: Provides RPG depth and player agency in build customization
 - **Trigger**: XP threshold reached
-- **Progression**: Kill enemies → Collect XP gems → Reach level threshold → Level up modal appears → Player allocates stat point (Health/Damage/Speed/Fire Rate) → Stats immediately update
+- **Progression**: Destroy boxes → Collect XP gems → Reach level threshold → Level up modal appears → Player allocates stat point (Health/Damage/Speed/Fire Rate) → Stats immediately update
 - **Success criteria**: Clear XP bar, satisfying level-up moment, visible stat changes
 
 ### Equipment System
-- **Functionality**: Find weapons, armor, accessories with rarity tiers (Common/Rare/Epic/Legendary)
+- **Functionality**: Find weapons and armor with rarity tiers (Common/Rare/Epic/Legendary)
 - **Purpose**: Provides exciting moments of discovery and power spikes
-- **Trigger**: Enemy drops or chest spawns
-- **Progression**: Loot drops → Player sees rarity color → Pickup → Equipment auto-equips if better → Stats update → Visual appearance changes
-- **Success criteria**: Clear rarity indication, immediate power feedback, visible character changes
+- **Trigger**: Box destruction (30% drop chance)
+- **Progression**: Box destroyed → Equipment drops → Player collects → Equipment auto-equips if better → Stats update
+- **Success criteria**: Clear rarity indication, immediate power feedback
+
+### Mobile Touch Controls
+- **Functionality**: Virtual joystick for movement (left), tap button for shooting (right)
+- **Purpose**: Enables full gameplay on mobile devices
+- **Trigger**: Touch input detection
+- **Progression**: Touch joystick → Character moves in direction → Release returns to neutral → Touch shoot button → Continuous fire while held
+- **Success criteria**: No page scrolling/zooming, joystick shows visual feedback, no sudden direction changes when releasing
 
 ### Permadeath & High Score
 - **Functionality**: Death resets character but tracks best survival time and level reached
 - **Purpose**: Creates meaningful stakes and replayability through competition with self
-- **Trigger**: Health reaches zero
-- **Progression**: Take fatal damage → Death animation plays → Stats screen shows (time survived, level reached, enemies killed) → Compare to previous best → Restart button returns to level 1
+- **Trigger**: Health reaches zero from box contact damage
+- **Progression**: Take fatal damage → Death animation plays → Stats screen shows (time survived, level reached, boxes destroyed) → Compare to previous best → Restart button returns to level 1
 - **Success criteria**: Death feels fair, stats are preserved, motivation to try again
 
 ## Edge Case Handling
 
-- **Off-screen enemies**: Despawn enemies too far from player to prevent memory issues
-- **Loot overflow**: Cap maximum loot items on ground, oldest despawn first
+- **Off-screen loot**: Cull loot rendering beyond visible area, keep nearest 500 boxes in memory
+- **Loot overflow**: Cap maximum loot items, remove farthest from player
 - **Rapid level-ups**: Queue level-up screens if multiple thresholds crossed simultaneously
-- **Zero damage builds**: Ensure minimum damage even with no stat investment
-- **Movement stuck**: Collision detection prevents wall-clipping, enemies push apart to prevent stacking
+- **Mobile scrolling**: Prevent default touch behavior on control elements with touch-action: none
+- **Boundary collision**: Smooth collision with world edges prevents player from leaving bounds
 
 ## Design Direction
 
