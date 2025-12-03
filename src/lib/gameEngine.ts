@@ -12,6 +12,7 @@ export class GameEngine {
   gameTime = 0
   particles: Particle[] = []
   mobileInput: Vector2 = { x: 0, y: 0 }
+  mobileShootDirection: Vector2 = { x: 0, y: 0 }
   worldSize = 4000
   camera: Vector2 = { x: 0, y: 0 }
   viewportWidth = 800
@@ -215,8 +216,8 @@ export class GameEngine {
   shootProjectile() {
     let angle: number
 
-    if (this.mobileInput.x !== 0 || this.mobileInput.y !== 0) {
-      angle = Math.atan2(this.mobileInput.y, this.mobileInput.x)
+    if (this.mobileShootDirection.x !== 0 || this.mobileShootDirection.y !== 0) {
+      angle = Math.atan2(this.mobileShootDirection.y, this.mobileShootDirection.x)
     } else {
       angle = Math.atan2(
         this.mousePosition.y - this.player.position.y,

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { GameEngine } from '@/lib/gameEngine'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface GameCanvasProps {
   engine: GameEngine
@@ -7,17 +8,37 @@ interface GameCanvasProps {
 
 export function GameCanvas({ engine }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    const container = containerRef.current
+    if (!canvas || !container) return
+
+    const updateCanvasSize = () => {
+      if (isMobile) {
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+        engine.viewportWidth = window.innerWidth
+        engine.viewportHeight = window.innerHeight
+      } else {
+        canvas.width = 800
+        canvas.height = 600
+        engine.viewportWidth = 800
+        engine.viewportHeight = 600
+      }
+    }
+
+    updateCanvasSize()
+    window.addEventListener('resize', updateCanvasSize)
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
     const render = () => {
       ctx.fillStyle = '#1a1a2e'
-      ctx.fillRect(0, 0, 800, 600)
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
 
       ctx.save()
       ctx.translate(-engine.camera.x, -engine.camera.y)
@@ -37,17 +58,20 @@ export function GameCanvas({ engine }: GameCanvasProps) {
       requestAnimationFrame(loop)
     })
 
-    return () => cancelAnimationFrame(animationFrame)
-  }, [engine])
+    return () => {
+      cancelAnimationFrame(animationFrame)
+      window.removeEventListener('resize', updateCanvasSize)
+    }
+  }, [engine, isMobile])
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={800}
-      height={600}
-      className="border-2 border-border rounded-lg max-w-full"
-      style={{ touchAction: 'none' }}
-    />
+    <div ref={containerRef} className={isMobile ? 'w-full h-full' : 'w-full'}>
+      <canvas
+        ref={canvasRef}
+        className={isMobile ? '' : 'border-2 border-border rounded-lg max-w-full'}
+        style={{ touchAction: 'none', display: 'block' }}
+      />
+    </div>
   )
 }
 
@@ -57,8 +81,8 @@ function drawGrid(ctx: CanvasRenderingContext2D, engine: GameEngine) {
 
   const startX = Math.floor(engine.camera.x / 40) * 40
   const startY = Math.floor(engine.camera.y / 40) * 40
-  const endX = engine.camera.x + 800
-  const endY = engine.camera.y + 600
+  const endX = engine.camera.x + engine.viewportWidth
+  const endY = engine.camera.y + engine.viewportHeight
 
   for (let x = startX; x < endX; x += 40) {
     ctx.beginPath()
@@ -100,8 +124,8 @@ function drawPlayer(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.stroke()
 
   let angle: number
-  if (engine.mobileInput.x !== 0 || engine.mobileInput.y !== 0) {
-    angle = Math.atan2(engine.mobileInput.y, engine.mobileInput.x)
+  if (engine.mobileShootDirection.x !== 0 || engine.mobileShootDirection.y !== 0) {
+    angle = Math.atan2(engine.mobileShootDirection.y, engine.mobileShootDirection.x)
   } else {
     angle = Math.atan2(
       engine.mousePosition.y - player.position.y,

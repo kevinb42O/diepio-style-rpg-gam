@@ -29,7 +29,7 @@ function App() {
   })
   const [deathStats, setDeathStats] = useState<GameStats | null>(null)
   const isMobile = useIsMobile()
-  const mobileInputRef = useRef({ x: 0, y: 0, shooting: false })
+  const mobileInputRef = useRef({ x: 0, y: 0, shootX: 0, shootY: 0 })
 
   useEffect(() => {
     const engine = engineRef.current
@@ -98,7 +98,8 @@ function App() {
       if (isMobile) {
         const input = mobileInputRef.current
         engine.mobileInput = { x: input.x, y: input.y }
-        engine.isShooting = input.shooting
+        engine.mobileShootDirection = { x: input.shootX, y: input.shootY }
+        engine.isShooting = input.shootX !== 0 || input.shootY !== 0
       }
 
       const nearbyLoot = engine.loot.find(item => {
@@ -177,8 +178,9 @@ function App() {
     mobileInputRef.current.y = y
   }
 
-  const handleMobileShoot = (active: boolean) => {
-    mobileInputRef.current.shooting = active
+  const handleMobileShootDirection = (x: number, y: number) => {
+    mobileInputRef.current.shootX = x
+    mobileInputRef.current.shootY = y
   }
 
   if (gameState === 'menu') {
@@ -246,8 +248,10 @@ function App() {
   return (
     <>
       <Toaster />
-      <div className="min-h-screen flex flex-col items-center justify-center p-2 md:p-8 relative overflow-hidden">
-      <div className="relative w-full max-w-[800px]">
+      <div className={`flex flex-col items-center justify-center relative overflow-hidden ${
+        isMobile ? 'fixed inset-0' : 'min-h-screen p-2 md:p-8'
+      }`}>
+      <div className={`relative ${isMobile ? 'w-full h-full' : 'w-full max-w-[800px]'}`}>
         <GameCanvas engine={engineRef.current} />
         
         {gameState === 'playing' && (
@@ -258,7 +262,7 @@ function App() {
             />
             <MobileControls 
               onMove={handleMobileMove}
-              onShoot={handleMobileShoot}
+              onShootDirection={handleMobileShootDirection}
             />
           </>
         )}
