@@ -124,7 +124,7 @@ function App() {
 
     const gameLoop = () => {
       const now = Date.now()
-      const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1)
+      const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.033)
       lastTimeRef.current = now
 
       if (isMobile) {

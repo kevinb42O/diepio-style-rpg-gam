@@ -68,13 +68,13 @@ export class GameEngine {
   }
 
   generateWorldLoot() {
-    const clusters = 25
+    const clusters = 20
     
     for (let c = 0; c < clusters; c++) {
       const clusterX = Math.random() * this.worldSize
       const clusterY = Math.random() * this.worldSize
       const clusterRadius = 200 + Math.random() * 300
-      const boxCount = 15 + Math.floor(Math.random() * 20)
+      const boxCount = 12 + Math.floor(Math.random() * 15)
       
       for (let i = 0; i < boxCount; i++) {
         const angle = Math.random() * Math.PI * 2
@@ -127,7 +127,7 @@ export class GameEngine {
       }
     }
     
-    const edgeBoxCount = 50
+    const edgeBoxCount = 40
     for (let i = 0; i < edgeBoxCount; i++) {
       const side = Math.floor(Math.random() * 4)
       let x, y
@@ -317,7 +317,7 @@ export class GameEngine {
   spawnLootBoxes() {
     if (this.gameTime - this.lastBoxSpawnTime < this.boxSpawnInterval) return
 
-    const numBoxes = 3 + Math.floor(Math.random() * 5)
+    const numBoxes = 2 + Math.floor(Math.random() * 3)
 
     for (let i = 0; i < numBoxes; i++) {
       const clusterNearPlayer = Math.random() < 0.3
@@ -374,12 +374,15 @@ export class GameEngine {
     }
 
     this.lastBoxSpawnTime = this.gameTime
-    this.boxSpawnInterval = 3000 + Math.random() * 3000
+    this.boxSpawnInterval = 4000 + Math.random() * 3000
   }
 
 
 
   checkCollisions() {
+    const viewDistance = Math.max(this.viewportWidth, this.viewportHeight) * 1.5
+    const viewDistSq = viewDistance * viewDistance
+
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const projectile = this.projectiles[i]
 
@@ -387,12 +390,18 @@ export class GameEngine {
         for (let k = this.loot.length - 1; k >= 0; k--) {
           const box = this.loot[k]
           if (box.type === 'box' && box.health && box.radius) {
-            const distance = this.getDistance(projectile.position, box.position)
+            const dx = projectile.position.x - box.position.x
+            const dy = projectile.position.y - box.position.y
+            const distSq = dx * dx + dy * dy
+            const radSum = projectile.radius + box.radius
 
-            if (distance < projectile.radius + box.radius) {
+            if (distSq < radSum * radSum) {
               box.health -= projectile.damage
               this.projectiles.splice(i, 1)
-              this.createHitParticles(box.position, '#ffaa44')
+              
+              if (Math.random() < 0.2) {
+                this.createHitParticles(box.position, '#ffaa44')
+              }
 
               if (box.health <= 0) {
                 this.breakLootBox(k)
@@ -406,10 +415,15 @@ export class GameEngine {
 
     for (let i = this.loot.length - 1; i >= 0; i--) {
       const item = this.loot[i]
-      const distance = this.getDistance(item.position, this.player.position)
+      const dx = item.position.x - this.player.position.x
+      const dy = item.position.y - this.player.position.y
+      const distSq = dx * dx + dy * dy
+
+      if (distSq > viewDistSq && item.type !== 'box') continue
 
       if (item.type === 'box' && item.radius && item.contactDamage && item.health) {
-        if (distance < item.radius + this.player.radius) {
+        const radSum = item.radius + this.player.radius
+        if (distSq < radSum * radSum) {
           const actualDamage = Math.max(0, item.contactDamage - this.player.bodyDamage * 0.5)
           this.player.health -= actualDamage * 0.016
           this.player.lastRegenTime = this.gameTime
@@ -421,7 +435,7 @@ export class GameEngine {
           
           if (this.player.health < 0) this.player.health = 0
         }
-      } else if (distance < 30) {
+      } else if (distSq < 900) {
         this.collectLoot(item)
         this.loot.splice(i, 1)
       }
@@ -433,9 +447,11 @@ export class GameEngine {
   breakLootBox(index: number) {
     const box = this.loot[index]
     
-    this.createDeathParticles(box.position)
+    if (Math.random() < 0.4) {
+      this.createDeathParticles(box.position)
+    }
     
-    const xpGems = Math.min(8, Math.floor(box.value / 5))
+    const xpGems = Math.min(4, Math.floor(box.value / 8))
     for (let i = 0; i < xpGems; i++) {
       const angle = (Math.PI * 2 * i) / xpGems + Math.random() * 0.3
       const distance = 15 + Math.random() * 15
@@ -591,19 +607,21 @@ export class GameEngine {
       p => p.position.x > -50 && p.position.x < this.worldSize + 50 && p.position.y > -50 && p.position.y < this.worldSize + 50
     )
 
-    if (this.loot.length > 500) {
+    if (this.loot.length > 300) {
       this.loot.sort((a, b) => {
-        const distA = this.getDistance(a.position, this.player.position)
-        const distB = this.getDistance(b.position, this.player.position)
-        return distB - distA
+        const dx1 = a.position.x - this.player.position.x
+        const dy1 = a.position.y - this.player.position.y
+        const dx2 = b.position.x - this.player.position.x
+        const dy2 = b.position.y - this.player.position.y
+        return (dx2 * dx2 + dy2 * dy2) - (dx1 * dx1 + dy1 * dy1)
       })
-      this.loot.splice(400)
+      this.loot.splice(250)
     }
 
     this.particles = this.particles.filter(p => p.life > 0)
     
-    if (this.particles.length > 50) {
-      this.particles.splice(0, this.particles.length - 50)
+    if (this.particles.length > 30) {
+      this.particles.splice(0, this.particles.length - 30)
     }
   }
 
@@ -614,9 +632,39 @@ export class GameEngine {
   }
 
   createHitParticles(position: Vector2, color: string) {
+    const angle = Math.random() * Math.PI * 2
+    const speed = 50 + Math.random() * 50
+    this.particles.push({
+      position: { ...position },
+      velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+      life: 0.2,
+      maxLife: 0.2,
+      alpha: 1,
+      color,
+      size: 3,
+    })
+  }
+
+  createDeathParticles(position: Vector2) {
+    for (let i = 0; i < 3; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const speed = 80 + Math.random() * 120
+      this.particles.push({
+        position: { ...position },
+        velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+        life: 0.4,
+        maxLife: 0.4,
+        alpha: 1,
+        color: '#ff8800',
+        size: 4,
+      })
+    }
+  }
+
+  createLootParticles(position: Vector2, color: string) {
     for (let i = 0; i < 2; i++) {
       const angle = Math.random() * Math.PI * 2
-      const speed = 50 + Math.random() * 50
+      const speed = 60 + Math.random() * 80
       this.particles.push({
         position: { ...position },
         velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
@@ -629,47 +677,15 @@ export class GameEngine {
     }
   }
 
-  createDeathParticles(position: Vector2) {
-    for (let i = 0; i < 5; i++) {
-      const angle = Math.random() * Math.PI * 2
-      const speed = 80 + Math.random() * 120
-      this.particles.push({
-        position: { ...position },
-        velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
-        life: 0.6,
-        maxLife: 0.6,
-        alpha: 1,
-        color: '#ff8800',
-        size: 4,
-      })
-    }
-  }
-
-  createLootParticles(position: Vector2, color: string) {
-    for (let i = 0; i < 4; i++) {
-      const angle = Math.random() * Math.PI * 2
-      const speed = 60 + Math.random() * 80
-      this.particles.push({
-        position: { ...position },
-        velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
-        life: 0.5,
-        maxLife: 0.5,
-        alpha: 1,
-        color,
-        size: 3,
-      })
-    }
-  }
-
   createLevelUpParticles() {
-    for (let i = 0; i < 10; i++) {
-      const angle = (Math.PI * 2 * i) / 10
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI * 2 * i) / 6
       const speed = 100 + Math.random() * 50
       this.particles.push({
         position: { ...this.player.position },
         velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
-        life: 0.8,
-        maxLife: 0.8,
+        life: 0.5,
+        maxLife: 0.5,
         alpha: 1,
         color: '#bb88ff',
         size: 5,

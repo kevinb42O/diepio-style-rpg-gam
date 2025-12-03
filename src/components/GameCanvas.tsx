@@ -72,23 +72,28 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
     uiCanvas.addEventListener('mousemove', handleMouseMove)
     uiCanvas.addEventListener('click', handleClick)
 
-    const render = () => {
-      renderEngine.render(engine)
-      
-      uiManager.clear()
-      if (showStatUI) {
-        const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
-        if (availablePoints > 0) {
-          const statPoints = engine.upgradeManager.getStatPoints()
-          uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
+    let lastRenderTime = 0
+    const targetFPS = 60
+    const frameTime = 1000 / targetFPS
+
+    const render = (currentTime: number) => {
+      if (currentTime - lastRenderTime >= frameTime) {
+        renderEngine.render(engine)
+        
+        uiManager.clear()
+        if (showStatUI) {
+          const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
+          if (availablePoints > 0) {
+            const statPoints = engine.upgradeManager.getStatPoints()
+            uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
+          }
         }
+        lastRenderTime = currentTime
       }
+      requestAnimationFrame(render)
     }
 
-    const animationFrame = requestAnimationFrame(function loop() {
-      render()
-      requestAnimationFrame(loop)
-    })
+    const animationFrame = requestAnimationFrame(render)
 
     return () => {
       cancelAnimationFrame(animationFrame)

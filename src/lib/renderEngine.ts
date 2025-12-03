@@ -5,10 +5,14 @@ import { TANK_CONFIGS, type BarrelConfig } from './tankConfigs'
 export class RenderEngine {
   private ctx: CanvasRenderingContext2D
   private canvas: HTMLCanvasElement
+  private lastViewBounds = { left: 0, right: 0, top: 0, bottom: 0 }
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
-    const context = canvas.getContext('2d')
+    const context = canvas.getContext('2d', { 
+      alpha: false,
+      desynchronized: true
+    })
     if (!context) throw new Error('Failed to get 2D context')
     this.ctx = context
   }
@@ -30,18 +34,18 @@ export class RenderEngine {
   }
 
   private clear() {
-    this.ctx.fillStyle = '#2a2a3e'
+    this.ctx.fillStyle = '#1a1a28'
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
   }
 
   private drawGrid(engine: GameEngine) {
-    const gridSize = 50
+    const gridSize = 100
     const startX = Math.floor(engine.camera.x / gridSize) * gridSize
     const startY = Math.floor(engine.camera.y / gridSize) * gridSize
     const endX = engine.camera.x + this.canvas.width
     const endY = engine.camera.y + this.canvas.height
 
-    this.ctx.strokeStyle = '#383850'
+    this.ctx.strokeStyle = '#252535'
     this.ctx.lineWidth = 1
     this.ctx.beginPath()
 
@@ -153,7 +157,19 @@ export class RenderEngine {
   }
 
   private drawLoot(engine: GameEngine) {
+    this.lastViewBounds.left = engine.camera.x - 50
+    this.lastViewBounds.right = engine.camera.x + this.canvas.width + 50
+    this.lastViewBounds.top = engine.camera.y - 50
+    this.lastViewBounds.bottom = engine.camera.y + this.canvas.height + 50
+
+    const bounds = this.lastViewBounds
+
     for (const item of engine.loot) {
+      if (item.position.x < bounds.left || item.position.x > bounds.right ||
+          item.position.y < bounds.top || item.position.y > bounds.bottom) {
+        continue
+      }
+
       if (item.type === 'box' && item.health && item.radius) {
         const size = item.radius
         let sides = 4
@@ -181,7 +197,7 @@ export class RenderEngine {
           size
         )
 
-        if (item.maxHealth && item.health < item.maxHealth) {
+        if (item.maxHealth && item.health < item.maxHealth * 0.99) {
           this.drawHealthBar(
             item.position.x,
             item.position.y - size - 10,
@@ -195,9 +211,6 @@ export class RenderEngine {
         this.ctx.arc(item.position.x, item.position.y, 4, 0, Math.PI * 2)
         this.ctx.fillStyle = '#FFD700'
         this.ctx.fill()
-        this.ctx.strokeStyle = '#000000'
-        this.ctx.lineWidth = 2
-        this.ctx.stroke()
       } else if (item.type === 'weapon' || item.type === 'armor') {
         const rarityColors = {
           common: '#9d9d9d',
@@ -211,9 +224,6 @@ export class RenderEngine {
         this.ctx.arc(item.position.x, item.position.y, 8, 0, Math.PI * 2)
         this.ctx.fillStyle = color
         this.ctx.fill()
-        this.ctx.strokeStyle = '#000000'
-        this.ctx.lineWidth = 2
-        this.ctx.stroke()
       }
     }
   }
@@ -245,7 +255,7 @@ export class RenderEngine {
     this.ctx.fillStyle = color
     this.ctx.fill()
     this.ctx.strokeStyle = '#000000'
-    this.ctx.lineWidth = 3
+    this.ctx.lineWidth = 2
     this.ctx.stroke()
 
     this.ctx.restore()
@@ -270,19 +280,30 @@ export class RenderEngine {
   }
 
   private drawProjectiles(engine: GameEngine) {
+    const bounds = this.lastViewBounds
+
     for (const proj of engine.projectiles) {
+      if (proj.position.x < bounds.left || proj.position.x > bounds.right ||
+          proj.position.y < bounds.top || proj.position.y > bounds.bottom) {
+        continue
+      }
+
       this.ctx.beginPath()
       this.ctx.arc(proj.position.x, proj.position.y, proj.radius, 0, Math.PI * 2)
       this.ctx.fillStyle = proj.isPlayerProjectile ? '#00B2E1' : '#FF0000'
       this.ctx.fill()
-      this.ctx.strokeStyle = '#000000'
-      this.ctx.lineWidth = 2
-      this.ctx.stroke()
     }
   }
 
   private drawParticles(engine: GameEngine) {
+    const bounds = this.lastViewBounds
+
     for (const particle of engine.particles) {
+      if (particle.position.x < bounds.left || particle.position.x > bounds.right ||
+          particle.position.y < bounds.top || particle.position.y > bounds.bottom) {
+        continue
+      }
+
       this.ctx.globalAlpha = particle.alpha
       this.ctx.beginPath()
       this.ctx.arc(
