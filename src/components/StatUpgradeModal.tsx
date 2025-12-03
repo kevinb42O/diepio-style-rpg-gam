@@ -68,6 +68,10 @@ const STAT_INFO: { [key in StatType]: { icon: typeof Heart; label: string; color
 export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocate, onClose }: StatUpgradeModalProps) {
   const isMobile = useIsMobile()
 
+  const handleAllocate = (stat: StatType) => {
+    onAllocate(stat)
+  }
+
   return (
     <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <motion.div
@@ -113,7 +117,7 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
                   </div>
                   
                   <Button
-                    onClick={() => onAllocate(stat)}
+                    onClick={() => handleAllocate(stat)}
                     disabled={!canUpgrade}
                     size="sm"
                     variant={canUpgrade ? 'default' : 'outline'}

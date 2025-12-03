@@ -222,6 +222,55 @@ export class GameEngine {
         contactDamage,
       })
     }
+
+    // Add low-reward small cubes scattered everywhere (200 cubes)
+    for (let i = 0; i < 200; i++) {
+      const x = 150 + Math.random() * (this.worldSize - 300)
+      const y = 150 + Math.random() * (this.worldSize - 300)
+      
+      this.loot.push({
+        id: `cube_${i}`,
+        position: { x, y },
+        type: 'box',
+        value: 5,
+        health: 10,
+        maxHealth: 10,
+        radius: 10,
+        contactDamage: 2,
+      })
+    }
+
+    // Add random treasure chests (10 treasures)
+    for (let i = 0; i < 10; i++) {
+      const x = 200 + Math.random() * (this.worldSize - 400)
+      const y = 200 + Math.random() * (this.worldSize - 400)
+      
+      this.loot.push({
+        id: `treasure_${i}`,
+        position: { x, y },
+        type: 'treasure',
+        value: 500,
+        health: 150,
+        maxHealth: 150,
+        radius: 30,
+        contactDamage: 20,
+        isTreasure: true,
+      })
+    }
+
+    // Add the BOSS in the center of the map
+    this.loot.push({
+      id: 'boss_center',
+      position: { x: this.worldSize / 2, y: this.worldSize / 2 },
+      type: 'boss',
+      value: 2000,
+      health: 5000,
+      maxHealth: 5000,
+      radius: 100,
+      contactDamage: 150,
+      isBoss: true,
+      driftSpeed: 20,
+    })
   }
 
   update(deltaTime: number) {
@@ -466,11 +515,11 @@ export class GameEngine {
   updateLoot(deltaTime: number) {
     // Add polygon drift movement
     for (const item of this.loot) {
-      if (item.type === 'box') {
+      if (item.type === 'box' || item.type === 'treasure' || item.type === 'boss') {
         // Slight drift movement for polygons
         if (!item.driftAngle) {
           item.driftAngle = Math.random() * Math.PI * 2
-          item.driftSpeed = 5 + Math.random() * 10
+          item.driftSpeed = item.driftSpeed || (5 + Math.random() * 10)
         }
         
         const driftSpeed = item.driftSpeed || 0
@@ -570,7 +619,7 @@ export class GameEngine {
     this.quadTree.clear()
     
     for (const item of this.loot) {
-      if (item.type === 'box' && item.radius) {
+      if ((item.type === 'box' || item.type === 'treasure' || item.type === 'boss') && item.radius) {
         this.quadTree.insert({
           x: item.position.x,
           y: item.position.y,
@@ -593,7 +642,7 @@ export class GameEngine {
       for (const item of nearby) {
         const box = item.loot as Loot | undefined
         if (!box) continue
-        if (box.type === 'box' && box.health && box.radius) {
+        if ((box.type === 'box' || box.type === 'treasure' || box.type === 'boss') && box.health && box.radius) {
           const dx = projectile.position.x - box.position.x
           const dy = projectile.position.y - box.position.y
           const distSq = dx * dx + dy * dy
@@ -635,9 +684,9 @@ export class GameEngine {
       const dy = item.position.y - this.player.position.y
       const distSq = dx * dx + dy * dy
 
-      if (distSq > viewDistSq && item.type !== 'box') continue
+      if (distSq > viewDistSq && item.type !== 'box' && item.type !== 'treasure' && item.type !== 'boss') continue
 
-      if (item.type === 'box' && item.radius && item.contactDamage && item.health) {
+      if ((item.type === 'box' || item.type === 'treasure' || item.type === 'boss') && item.radius && item.contactDamage && item.health) {
         const radSum = item.radius + this.player.radius
         if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
           const actualDamage = Math.max(0, item.contactDamage - this.player.bodyDamage * 0.5)
@@ -677,15 +726,27 @@ export class GameEngine {
     
     // Enhanced explosion effect
     const explosionSize = box.radius || 20
-    this.particleSystem.createExplosion(box.position, explosionSize, '#ff8800')
+    const isBoss = box.type === 'boss'
+    const isTreasure = box.type === 'treasure'
     
-    // Screen shake on big polygon kills
-    if (explosionSize > 30) {
-      this.screenEffects.startShake(5, 0.3)
+    if (isBoss) {
+      this.particleSystem.createExplosion(box.position, explosionSize * 2, '#FF0066')
+      this.screenEffects.startShake(15, 0.8)
+      this.screenEffects.startFlash('#FF0066', 0.5)
+    } else if (isTreasure) {
+      this.particleSystem.createExplosion(box.position, explosionSize * 1.5, '#FFD700')
+      this.screenEffects.startShake(10, 0.5)
+    } else {
+      this.particleSystem.createExplosion(box.position, explosionSize, '#ff8800')
+      
+      // Screen shake on big polygon kills
+      if (explosionSize > 30) {
+        this.screenEffects.startShake(5, 0.3)
+      }
     }
     
     // Debris particles
-    this.particleSystem.createDebris(box.position, 6, '#ffaa44')
+    this.particleSystem.createDebris(box.position, isBoss ? 20 : isTreasure ? 12 : 6, isBoss ? '#FF0066' : isTreasure ? '#FFD700' : '#ffaa44')
     
     // Update combo system
     this.comboKills++
@@ -697,7 +758,7 @@ export class GameEngine {
     // Audio
     audioManager.play('polygonDeath')
     
-    const xpGems = Math.min(4, Math.floor(box.value / 8))
+    const xpGems = Math.min(isBoss ? 20 : isTreasure ? 10 : 4, Math.floor(box.value / 8))
     for (let i = 0; i < xpGems; i++) {
       const angle = (Math.PI * 2 * i) / xpGems + Math.random() * 0.3
       const distance = 15 + Math.random() * 15
@@ -712,9 +773,11 @@ export class GameEngine {
       })
     }
 
-    if (Math.random() < 0.3) {
+    // Higher drop rate for boss and treasure
+    const dropChance = isBoss ? 1.0 : isTreasure ? 0.8 : 0.3
+    if (Math.random() < dropChance) {
       const itemType = Math.random() < 0.5 ? 'weapon' : 'armor'
-      const rarity = this.rollRarity()
+      const rarity = isBoss ? this.rollBossRarity() : isTreasure ? this.rollTreasureRarity() : this.rollRarity()
       
       this.loot.push({
         id: `item_${Date.now()}`,
@@ -727,6 +790,21 @@ export class GameEngine {
     }
 
     this.loot.splice(index, 1)
+  }
+
+  rollBossRarity(): Rarity {
+    const rand = Math.random()
+    if (rand < 0.10) return 'rare'
+    if (rand < 0.40) return 'epic'
+    return 'legendary'
+  }
+
+  rollTreasureRarity(): Rarity {
+    const rand = Math.random()
+    if (rand < 0.30) return 'common'
+    if (rand < 0.60) return 'rare'
+    if (rand < 0.90) return 'epic'
+    return 'legendary'
   }
 
 
@@ -866,6 +944,23 @@ export class GameEngine {
     this.player.healthRegen = stats.healthRegen
     
     this.player.health = Math.max(1, Math.floor(healthPercentage * this.player.maxHealth))
+  }
+
+  // Admin methods
+  setLevel(level: number) {
+    if (level < 1 || level > 45) return false
+    const xpNeeded = this.upgradeManager.getXPForLevel(level)
+    this.upgradeManager['totalXP'] = xpNeeded
+    this.upgradeManager['level'] = level
+    this.player.level = level
+    return true
+  }
+
+  addStatPoints(amount: number) {
+    // Manually increase level to grant stat points
+    const currentLevel = this.upgradeManager.getLevel()
+    const targetLevel = Math.min(45, currentLevel + amount)
+    this.setLevel(targetLevel)
   }
 
   cleanupEntities() {

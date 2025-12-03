@@ -10,6 +10,7 @@ import { MobileControls } from '@/components/MobileControls'
 import { Minimap } from '@/components/Minimap'
 import { FPSCounter } from '@/components/FPSCounter'
 import { KillFeed, type KillFeedItem } from '@/components/KillFeed'
+import { AdminPanel } from '@/components/AdminPanel'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { Play } from '@phosphor-icons/react'
@@ -54,6 +55,20 @@ function App() {
   const hudUpdateInterval = useRef<number>(0)
   const [showFPS, setShowFPS] = useState(false)
   const [killFeedItems, setKillFeedItems] = useState<KillFeedItem[]>([])
+  const [isOwner, setIsOwner] = useState(false)
+  const [statModalKey, setStatModalKey] = useState(0)
+
+  useEffect(() => {
+    const checkOwner = async () => {
+      try {
+        const user = await window.spark.user()
+        setIsOwner(user?.isOwner || false)
+      } catch (error) {
+        setIsOwner(false)
+      }
+    }
+    checkOwner()
+  }, [])
 
   useEffect(() => {
     const engine = engineRef.current
@@ -267,6 +282,7 @@ function App() {
 
   const handleAllocateStat = (stat: StatType) => {
     engineRef.current.allocateStat(stat)
+    setStatModalKey(prev => prev + 1)
     toast.success('Stat upgraded!')
   }
 
@@ -298,6 +314,19 @@ function App() {
   const handleMobileShootDirection = (x: number, y: number) => {
     mobileInputRef.current.shootX = x
     mobileInputRef.current.shootY = y
+  }
+
+  const handleAdminSetLevel = (level: number) => {
+    if (engineRef.current.setLevel(level)) {
+      toast.success(`Level set to ${level}!`)
+      setStatModalKey(prev => prev + 1)
+    }
+  }
+
+  const handleAdminAddStatPoints = (amount: number) => {
+    engineRef.current.addStatPoints(amount)
+    toast.success(`Added ${amount} levels for stat points!`)
+    setStatModalKey(prev => prev + 1)
   }
 
   if (gameState === 'menu') {
@@ -390,12 +419,19 @@ function App() {
             <Minimap engine={engineRef.current} />
             <FPSCounter visible={showFPS} />
             <KillFeed items={killFeedItems} />
+            <AdminPanel
+              onSetLevel={handleAdminSetLevel}
+              onAddStatPoints={handleAdminAddStatPoints}
+              currentLevel={engineRef.current.player.level}
+              isOwner={isOwner}
+            />
           </>
         )}
       </div>
 
       {gameState === 'statupgrade' && (
         <StatUpgradeModal
+          key={statModalKey}
           level={engineRef.current.player.level}
           availablePoints={engineRef.current.upgradeManager.getAvailableSkillPoints()}
           statPoints={engineRef.current.upgradeManager.getStatPoints()}

@@ -50,7 +50,7 @@ export interface Projectile {
 export interface Loot {
   id: string
   position: Vector2
-  type: 'xp' | 'weapon' | 'armor' | 'box'
+  type: 'xp' | 'weapon' | 'armor' | 'box' | 'treasure' | 'boss'
   value: number
   rarity?: Rarity
   item?: Weapon | Armor
@@ -62,6 +62,8 @@ export interface Loot {
   driftSpeed?: number
   spawnAlpha?: number
   rotationAngle?: number
+  isBoss?: boolean
+  isTreasure?: boolean
 }
 
 export interface Weapon {

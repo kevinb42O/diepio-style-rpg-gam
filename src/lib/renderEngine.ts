@@ -180,7 +180,7 @@ export class RenderEngine {
         continue
       }
 
-      if (item.type === 'box' && item.health && item.radius) {
+      if ((item.type === 'box' || item.type === 'treasure' || item.type === 'boss') && item.health && item.radius) {
         // Handle spawn animation
         if (item.spawnAlpha !== undefined && item.spawnAlpha < 1) {
           item.spawnAlpha = Math.min(1, item.spawnAlpha + 0.02)
@@ -196,7 +196,13 @@ export class RenderEngine {
         let sides = 4
         let color = '#FFE869'
 
-        if (size < 20) {
+        if (item.type === 'boss') {
+          sides = 8
+          color = '#FF0066'
+        } else if (item.type === 'treasure') {
+          sides = 6
+          color = '#FFD700'
+        } else if (size < 20) {
           sides = 4
           color = '#FFE869'
         } else if (size < 30) {
