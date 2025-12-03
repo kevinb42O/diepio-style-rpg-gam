@@ -159,7 +159,8 @@ export class ParticleSystem {
       alpha: 1,
       color: '#ffdd44',
       size: Math.min(10, 6 + damage / 10),
-      type: 'damage-number'
+      type: 'damage-number',
+      scale: damage // Store damage value in scale property for rendering
     })
   }
 

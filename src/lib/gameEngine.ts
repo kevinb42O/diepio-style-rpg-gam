@@ -6,6 +6,7 @@ import { ScreenEffects } from '@/utils/ScreenEffects'
 import { Physics } from '@/utils/Physics'
 import { audioManager } from '@/audio/AudioManager'
 import { ObjectPool } from '@/utils/ObjectPool'
+import { TANK_CONFIGS } from './tankConfigs'
 
 export class GameEngine {
   upgradeManager: UpgradeManager
@@ -41,6 +42,7 @@ export class GameEngine {
   comboKills = 0
   lastKillTime = 0
   comboMultiplier = 1
+  currentBarrelIndex = 0 // For alternating fire pattern
 
   constructor() {
     this.upgradeManager = new UpgradeManager()
@@ -336,7 +338,9 @@ export class GameEngine {
     this.player.position.x = Math.max(this.player.radius, Math.min(this.worldSize - this.player.radius, this.player.position.x))
     this.player.position.y = Math.max(this.player.radius, Math.min(this.worldSize - this.player.radius, this.player.position.y))
 
-    if (this.isShooting && this.gameTime - this.player.lastShotTime > this.player.fireRate) {
+    // Shooting (manual or auto-fire)
+    const shouldShoot = this.isShooting || this.autoFire
+    if (shouldShoot && this.gameTime - this.player.lastShotTime > this.player.fireRate) {
       this.shootProjectile()
       this.player.lastShotTime = this.gameTime
     }
@@ -356,49 +360,86 @@ export class GameEngine {
 
     this.barrelRecoil = 5
 
-    const barrelTipDistance = this.player.radius + 35
-    const barrelTipX = this.player.position.x + Math.cos(angle) * barrelTipDistance
-    const barrelTipY = this.player.position.y + Math.sin(angle) * barrelTipDistance
+    // Get tank configuration
+    const tankConfig = TANK_CONFIGS[this.player.tankClass] || TANK_CONFIGS.basic
+    const barrels = tankConfig.barrels
 
-    // Muzzle flash
-    this.muzzleFlashes.push({
-      position: { x: barrelTipX, y: barrelTipY },
-      angle: angle,
-      life: 0.08,
-      maxLife: 0.08,
-      alpha: 1,
-      size: 8,
-    })
+    // For multi-barrel tanks, implement firing pattern
+    let barrelsToFire: number[] = []
+    
+    if (barrels.length === 1) {
+      // Single barrel - always fire
+      barrelsToFire = [0]
+    } else if (barrels.length === 2) {
+      // Twin - alternate barrels
+      barrelsToFire = [this.currentBarrelIndex % 2]
+      this.currentBarrelIndex++
+    } else if (barrels.length <= 5) {
+      // Multi-barrel (3-5) - fire all at once
+      barrelsToFire = Array.from({ length: barrels.length }, (_, i) => i)
+    } else {
+      // Many barrels (6+) - fire in pairs or groups
+      const groupSize = 2
+      const startIdx = (this.currentBarrelIndex * groupSize) % barrels.length
+      for (let i = 0; i < groupSize && startIdx + i < barrels.length; i++) {
+        barrelsToFire.push(startIdx + i)
+      }
+      this.currentBarrelIndex++
+    }
 
-    // Enhanced muzzle flash particles
-    this.particleSystem.createBurst({ x: barrelTipX, y: barrelTipY }, 3, {
-      color: '#FFDD44',
-      size: 3,
-      speed: 50,
-      life: 0.1,
-      spread: Math.PI / 4,
-      type: 'muzzle-flash'
-    })
+    // Fire from each selected barrel
+    for (const barrelIdx of barrelsToFire) {
+      const barrel = barrels[barrelIdx]
+      const barrelAngle = angle + (barrel.angle * Math.PI / 180)
+      
+      const barrelTipDistance = this.player.radius + (barrel.length || 35)
+      const barrelTipX = this.player.position.x + Math.cos(barrelAngle) * barrelTipDistance
+      const barrelTipY = this.player.position.y + Math.sin(barrelAngle) * barrelTipDistance
 
-    // Apply recoil force to player
-    const recoilForce = 5
+      // Muzzle flash
+      this.muzzleFlashes.push({
+        position: { x: barrelTipX, y: barrelTipY },
+        angle: barrelAngle,
+        life: 0.08,
+        maxLife: 0.08,
+        alpha: 1,
+        size: 8,
+      })
+
+      // Enhanced muzzle flash particles
+      this.particleSystem.createBurst({ x: barrelTipX, y: barrelTipY }, 3, {
+        color: '#FFDD44',
+        size: 3,
+        speed: 50,
+        life: 0.1,
+        spread: Math.PI / 4,
+        type: 'muzzle-flash'
+      })
+
+      // Add slight spread for multi-barrel shots
+      const spread = barrels.length > 1 ? (Math.random() - 0.5) * 0.05 : 0
+      const finalAngle = barrelAngle + spread
+
+      const projectile: Projectile = {
+        id: `proj_${Date.now()}_${Math.random()}_${barrelIdx}`,
+        position: { x: barrelTipX, y: barrelTipY },
+        velocity: {
+          x: Math.cos(finalAngle) * this.player.bulletSpeed,
+          y: Math.sin(finalAngle) * this.player.bulletSpeed,
+        },
+        damage: this.player.damage,
+        radius: 5,
+        isPlayerProjectile: true,
+      }
+
+      this.projectiles.push(projectile)
+    }
+
+    // Apply recoil force to player (stronger for more barrels)
+    const recoilForce = 5 * (1 + barrelsToFire.length * 0.2)
     const recoilDir = { x: Math.cos(angle), y: Math.sin(angle) }
     this.player.velocity.x -= recoilDir.x * recoilForce
     this.player.velocity.y -= recoilDir.y * recoilForce
-
-    const projectile: Projectile = {
-      id: `proj_${Date.now()}_${Math.random()}`,
-      position: { x: barrelTipX, y: barrelTipY },
-      velocity: {
-        x: Math.cos(angle) * this.player.bulletSpeed,
-        y: Math.sin(angle) * this.player.bulletSpeed,
-      },
-      damage: this.player.damage,
-      radius: 5,
-      isPlayerProjectile: true,
-    }
-
-    this.projectiles.push(projectile)
     
     // Play shoot sound
     audioManager.play('shoot')
@@ -521,49 +562,71 @@ export class GameEngine {
 
 
 
-  checkCollisions() {
-    const viewDistance = Math.max(this.viewportWidth, this.viewportHeight) * 1.5
-    const viewDistSq = viewDistance * viewDistance
 
+
+  checkCollisionsOptimized() {
+    // Build quad tree for spatial optimization
+    this.quadTree.clear()
+    
+    interface QuadTreeLoot extends import('@/utils/QuadTree').QuadTreeItem {
+      loot: Loot
+    }
+    
+    for (const item of this.loot) {
+      if (item.type === 'box' && item.radius) {
+        this.quadTree.insert({
+          x: item.position.x,
+          y: item.position.y,
+          radius: item.radius,
+          loot: item
+        } as QuadTreeLoot)
+      }
+    }
+
+    // Use QuadTree for projectile collision checks
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const projectile = this.projectiles[i]
+      if (!projectile.isPlayerProjectile) continue
 
-      if (projectile.isPlayerProjectile) {
-        for (let k = this.loot.length - 1; k >= 0; k--) {
-          const box = this.loot[k]
-          if (box.type === 'box' && box.health && box.radius) {
-            const dx = projectile.position.x - box.position.x
-            const dy = projectile.position.y - box.position.y
-            const distSq = dx * dx + dy * dy
-            const radSum = projectile.radius + box.radius
+      const nearby = this.quadTree.retrieve(projectile)
+      for (const item of nearby) {
+        const quadItem = item as QuadTreeLoot
+        const box = quadItem.loot
+        if (box.type === 'box' && box.health && box.radius) {
+          const dx = projectile.position.x - box.position.x
+          const dy = projectile.position.y - box.position.y
+          const distSq = dx * dx + dy * dy
+          const radSum = projectile.radius + box.radius
 
-            if (distSq < radSum * radSum) {
-              box.health -= projectile.damage
-              this.projectiles.splice(i, 1)
-              
-              // Enhanced hit particles
-              this.particleSystem.createBurst(box.position, 3, {
-                color: '#ffaa44',
-                size: 2,
-                speed: 60,
-                life: 0.2,
-              })
-              
-              // Floating damage number
-              this.particleSystem.createDamageNumber(box.position, projectile.damage)
-              
-              // Audio
-              audioManager.play('hit')
+          if (distSq < radSum * radSum) {
+            box.health -= projectile.damage
+            this.projectiles.splice(i, 1)
+            
+            this.particleSystem.createBurst(box.position, 3, {
+              color: '#ffaa44',
+              size: 2,
+              speed: 60,
+              life: 0.2,
+            })
+            
+            this.particleSystem.createDamageNumber(box.position, projectile.damage)
+            audioManager.play('hit')
 
-              if (box.health <= 0) {
-                this.breakLootBox(k)
+            if (box.health <= 0) {
+              const boxIndex = this.loot.indexOf(box)
+              if (boxIndex !== -1) {
+                this.breakLootBox(boxIndex)
               }
-              break
             }
+            break
           }
         }
       }
     }
+
+    // Still use simple check for player-loot collisions
+    const viewDistance = Math.max(this.viewportWidth, this.viewportHeight) * 1.5
+    const viewDistSq = viewDistance * viewDistance
 
     for (let i = this.loot.length - 1; i >= 0; i--) {
       const item = this.loot[i]
@@ -580,7 +643,6 @@ export class GameEngine {
           this.player.health -= actualDamage * 0.016
           this.player.lastRegenTime = this.gameTime
           
-          // Knockback effect
           const knockbackForce = 15
           const dx2 = this.player.position.x - item.position.x
           const dy2 = this.player.position.y - item.position.y
@@ -597,7 +659,6 @@ export class GameEngine {
           
           if (this.player.health < 0) this.player.health = 0
           
-          // Screen shake when taking damage
           this.screenEffects.startShake(3, 0.2)
           audioManager.play('playerDamage')
         }
@@ -606,24 +667,6 @@ export class GameEngine {
         this.loot.splice(i, 1)
       }
     }
-  }
-
-  checkCollisionsOptimized() {
-    // Build quad tree for spatial optimization
-    this.quadTree.clear()
-    for (const item of this.loot) {
-      if (item.type === 'box' && item.radius) {
-        this.quadTree.insert({
-          x: item.position.x,
-          y: item.position.y,
-          radius: item.radius,
-          data: item
-        } as any)
-      }
-    }
-
-    // Use regular collision check for now (can be optimized further with quadtree)
-    this.checkCollisions()
   }
 
 

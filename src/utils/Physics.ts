@@ -2,7 +2,8 @@
  * Physics utilities for momentum, collision, and forces
  */
 
-import type { Vector2 } from '@/lib/types'
+// Local Vector2 type for consistency
+type Vector2 = { x: number; y: number }
 
 export interface PhysicsBody {
   position: Vector2

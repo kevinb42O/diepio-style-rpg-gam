@@ -374,14 +374,15 @@ export class RenderEngine {
       this.ctx.globalAlpha = particle.alpha
 
       if (particle.type === 'damage-number') {
-        // Render damage numbers as text
+        // Render damage numbers as text - use scale to store damage value
+        const damageValue = Math.floor(particle.scale || 0)
         this.ctx.font = `bold ${particle.size}px sans-serif`
         this.ctx.fillStyle = particle.color
         this.ctx.strokeStyle = '#000000'
         this.ctx.lineWidth = 2
         this.ctx.textAlign = 'center'
-        this.ctx.strokeText(Math.floor(particle.life * 100).toString(), particle.position.x, particle.position.y)
-        this.ctx.fillText(Math.floor(particle.life * 100).toString(), particle.position.x, particle.position.y)
+        this.ctx.strokeText(damageValue.toString(), particle.position.x, particle.position.y)
+        this.ctx.fillText(damageValue.toString(), particle.position.x, particle.position.y)
       } else {
         // Render regular particles
         if (particle.rotation) {
