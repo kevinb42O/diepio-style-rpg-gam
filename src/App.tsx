@@ -271,6 +271,7 @@ function App() {
   }
 
   const handleCloseStatUpgrade = () => {
+    engineRef.current.invincibilityFrames = 1.5
     setGameState('playing')
   }
 
@@ -281,6 +282,7 @@ function App() {
   }
 
   const handleCloseClassUpgrade = () => {
+    engineRef.current.invincibilityFrames = 1.5
     setGameState('playing')
   }
 

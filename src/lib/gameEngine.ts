@@ -783,6 +783,9 @@ export class GameEngine {
       if (didLevelUp) {
         this.player.level = this.upgradeManager.getLevel()
         
+        // Add invincibility during level up
+        this.invincibilityFrames = 2.0
+        
         // Enhanced level up effect
         this.particleSystem.createLevelUpEffect(this.player.position)
         this.screenEffects.startShake(8, 0.4)
@@ -862,7 +865,7 @@ export class GameEngine {
     this.player.bodyDamage = Math.floor(stats.bodyDamage)
     this.player.healthRegen = stats.healthRegen
     
-    this.player.health = Math.floor(healthPercentage * this.player.maxHealth)
+    this.player.health = Math.max(1, Math.floor(healthPercentage * this.player.maxHealth))
   }
 
   cleanupEntities() {

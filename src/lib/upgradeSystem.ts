@@ -372,7 +372,27 @@ export class UpgradeManager {
   }
 
   getStats(): PlayerStats {
-    return { ...this.stats }
+    const baseValues = {
+      healthRegen: 1,
+      maxHealth: 100,
+      bodyDamage: 10,
+      bulletSpeed: 400,
+      bulletPenetration: 5,
+      bulletDamage: 10,
+      reload: 300,
+      movementSpeed: 200
+    }
+    
+    const stats = { ...this.stats }
+    
+    for (const stat in baseValues) {
+      const statKey = stat as StatType
+      if (this.statPoints[statKey] === 0) {
+        stats[statKey] = baseValues[statKey]
+      }
+    }
+    
+    return stats
   }
 
   getStatPoints(): { [key in StatType]: number } {
