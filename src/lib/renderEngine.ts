@@ -5,7 +5,6 @@ import { TANK_CONFIGS, type BarrelConfig } from './tankConfigs'
 export class RenderEngine {
   private ctx: CanvasRenderingContext2D
   private canvas: HTMLCanvasElement
-  private polygonRotation = 0
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -16,7 +15,6 @@ export class RenderEngine {
 
   render(engine: GameEngine) {
     this.clear()
-    this.polygonRotation += 0.01
 
     this.ctx.save()
     this.ctx.translate(-engine.camera.x, -engine.camera.y)
@@ -180,8 +178,7 @@ export class RenderEngine {
           item.position.y,
           sides,
           color,
-          size,
-          this.polygonRotation
+          size
         )
 
         if (item.maxHealth && item.health < item.maxHealth) {
@@ -226,12 +223,10 @@ export class RenderEngine {
     y: number,
     sides: number,
     color: string,
-    size: number,
-    rotation: number = 0
+    size: number
   ) {
     this.ctx.save()
     this.ctx.translate(x, y)
-    this.ctx.rotate(rotation)
 
     this.ctx.beginPath()
     for (let i = 0; i < sides; i++) {
@@ -308,33 +303,11 @@ export class RenderEngine {
       this.ctx.save()
       this.ctx.globalAlpha = flash.alpha
       this.ctx.translate(flash.position.x, flash.position.y)
-      this.ctx.rotate(flash.angle)
 
-      const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, flash.size)
-      gradient.addColorStop(0, '#FFFFFF')
-      gradient.addColorStop(0.3, '#FFDD44')
-      gradient.addColorStop(0.6, '#FF8800')
-      gradient.addColorStop(1, 'rgba(255, 136, 0, 0)')
-
-      this.ctx.fillStyle = gradient
+      this.ctx.fillStyle = '#FFDD44'
       this.ctx.beginPath()
-      this.ctx.ellipse(0, 0, flash.size * 1.5, flash.size * 0.8, 0, 0, Math.PI * 2)
+      this.ctx.arc(0, 0, flash.size, 0, Math.PI * 2)
       this.ctx.fill()
-
-      for (let i = 0; i < 6; i++) {
-        const rayAngle = (Math.PI / 3) * i
-        const rayLength = flash.size * (1.5 + Math.random() * 0.5)
-        
-        this.ctx.beginPath()
-        this.ctx.moveTo(0, 0)
-        this.ctx.lineTo(
-          Math.cos(rayAngle) * rayLength,
-          Math.sin(rayAngle) * rayLength
-        )
-        this.ctx.strokeStyle = `rgba(255, 221, 68, ${flash.alpha * 0.6})`
-        this.ctx.lineWidth = 2
-        this.ctx.stroke()
-      }
 
       this.ctx.restore()
     }
