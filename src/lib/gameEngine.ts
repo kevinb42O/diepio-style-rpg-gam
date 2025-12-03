@@ -1,6 +1,8 @@
 import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor } from './types'
+import { UpgradeManager, type StatType } from './upgradeSystem'
 
 export class GameEngine {
+  upgradeManager: UpgradeManager
   player: Player
   projectiles: Projectile[] = []
   loot: Loot[] = []
@@ -19,6 +21,7 @@ export class GameEngine {
   viewportHeight = 600
 
   constructor() {
+    this.upgradeManager = new UpgradeManager()
     this.player = this.createPlayer()
   }
 
@@ -40,10 +43,17 @@ export class GameEngine {
       weapon: null,
       armor: null,
       kills: 0,
+      bulletSpeed: 400,
+      bulletPenetration: 5,
+      bodyDamage: 10,
+      healthRegen: 1,
+      lastRegenTime: 0,
+      tankClass: 'basic',
     }
   }
 
   reset() {
+    this.upgradeManager.reset()
     this.player = this.createPlayer()
     this.projectiles = []
     this.loot = []
@@ -181,6 +191,15 @@ export class GameEngine {
   }
 
   updatePlayer(deltaTime: number) {
+    if (this.player.health < this.player.maxHealth) {
+      if (this.gameTime - this.player.lastRegenTime > 1000) {
+        this.player.health = Math.min(
+          this.player.health + this.player.healthRegen * deltaTime,
+          this.player.maxHealth
+        )
+      }
+    }
+
     let dx = 0
     let dy = 0
 
@@ -225,13 +244,12 @@ export class GameEngine {
       )
     }
 
-    const projectileSpeed = 400
     const projectile: Projectile = {
       id: `proj_${Date.now()}_${Math.random()}`,
       position: { ...this.player.position },
       velocity: {
-        x: Math.cos(angle) * projectileSpeed,
-        y: Math.sin(angle) * projectileSpeed,
+        x: Math.cos(angle) * this.player.bulletSpeed,
+        y: Math.sin(angle) * this.player.bulletSpeed,
       },
       damage: this.player.damage,
       radius: 5,
@@ -371,9 +389,17 @@ export class GameEngine {
       const item = this.loot[i]
       const distance = this.getDistance(item.position, this.player.position)
 
-      if (item.type === 'box' && item.radius && item.contactDamage) {
+      if (item.type === 'box' && item.radius && item.contactDamage && item.health) {
         if (distance < item.radius + this.player.radius) {
-          this.player.health -= item.contactDamage * 0.016
+          const actualDamage = Math.max(0, item.contactDamage - this.player.bodyDamage * 0.5)
+          this.player.health -= actualDamage * 0.016
+          this.player.lastRegenTime = this.gameTime
+          
+          item.health -= this.player.bodyDamage * 0.016
+          if (item.health <= 0) {
+            this.breakLootBox(i)
+          }
+          
           if (this.player.health < 0) this.player.health = 0
         }
       } else if (distance < 20) {
@@ -468,6 +494,12 @@ export class GameEngine {
   collectLoot(item: Loot) {
     if (item.type === 'xp') {
       this.player.xp += item.value
+      const didLevelUp = this.upgradeManager.addXP(item.value)
+      
+      if (didLevelUp) {
+        this.player.level = this.upgradeManager.getLevel()
+        return 'levelup'
+      }
       
       if (this.player.xp >= this.player.xpToNextLevel) {
         return 'levelup'
@@ -513,22 +545,23 @@ export class GameEngine {
     this.createLevelUpParticles()
   }
 
-  allocateStat(stat: 'health' | 'damage' | 'speed' | 'fireRate') {
-    switch (stat) {
-      case 'health':
-        this.player.maxHealth += 20
-        this.player.health += 20
-        break
-      case 'damage':
-        this.player.damage += 5
-        break
-      case 'speed':
-        this.player.speed += 10
-        break
-      case 'fireRate':
-        this.player.fireRate = Math.max(50, this.player.fireRate - 20)
-        break
+  allocateStat(stat: StatType) {
+    if (this.upgradeManager.allocateStat(stat)) {
+      this.applyStatsToPlayer()
     }
+  }
+
+  applyStatsToPlayer() {
+    const stats = this.upgradeManager.getStats()
+    this.player.maxHealth = Math.floor(stats.maxHealth)
+    this.player.damage = Math.floor(stats.bulletDamage)
+    this.player.fireRate = Math.floor(stats.reload)
+    this.player.speed = Math.floor(stats.movementSpeed)
+    this.player.bulletSpeed = Math.floor(stats.bulletSpeed)
+    this.player.bulletPenetration = Math.floor(stats.bulletPenetration)
+    this.player.bodyDamage = Math.floor(stats.bodyDamage)
+    this.player.healthRegen = stats.healthRegen
+    this.player.health = Math.min(this.player.health, this.player.maxHealth)
   }
 
   cleanupEntities() {

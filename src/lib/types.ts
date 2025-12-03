@@ -23,6 +23,12 @@ export interface Player extends Entity {
   weapon: Weapon | null
   armor: Armor | null
   kills: number
+  bulletSpeed: number
+  bulletPenetration: number
+  bodyDamage: number
+  healthRegen: number
+  lastRegenTime: number
+  tankClass: string
 }
 
 export interface Enemy extends Entity {

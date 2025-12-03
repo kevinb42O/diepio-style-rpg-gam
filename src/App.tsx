@@ -3,7 +3,7 @@ import { useKV } from '@github/spark/hooks'
 import { GameEngine } from '@/lib/gameEngine'
 import { GameCanvas } from '@/components/GameCanvas'
 import { HUD } from '@/components/HUD'
-import { LevelUpModal } from '@/components/LevelUpModal'
+import { StatUpgradeModal } from '@/components/StatUpgradeModal'
 import { DeathScreen } from '@/components/DeathScreen'
 import { MobileControls } from '@/components/MobileControls'
 import { Button } from '@/components/ui/button'
@@ -12,8 +12,9 @@ import { Play } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HighScore, GameStats } from '@/lib/types'
+import type { StatType } from '@/lib/upgradeSystem'
 
-type GameState = 'menu' | 'playing' | 'paused' | 'levelup' | 'dead'
+type GameState = 'menu' | 'playing' | 'paused' | 'statupgrade' | 'dead'
 
 function App() {
   const [gameState, setGameState] = useState<GameState>('menu')
@@ -113,9 +114,11 @@ function App() {
 
         if (result === 'levelup' && engine.player.xp >= engine.player.xpToNextLevel) {
           engine.levelUp()
-          setGameState('levelup')
-          toast.success(`Level ${engine.player.level} reached!`)
-          return
+          if (engine.upgradeManager.getAvailableSkillPoints() > 0) {
+            setGameState('statupgrade')
+            toast.success(`Level ${engine.player.level} reached!`)
+            return
+          }
         }
       }
 
@@ -163,10 +166,13 @@ function App() {
     setGameState('playing')
   }
 
-  const handleAllocateStat = (stat: 'health' | 'damage' | 'speed' | 'fireRate') => {
+  const handleAllocateStat = (stat: StatType) => {
     engineRef.current.allocateStat(stat)
-    setGameState('playing')
     toast.success('Stat upgraded!')
+  }
+
+  const handleCloseStatUpgrade = () => {
+    setGameState('playing')
   }
 
   const handleRestart = () => {
@@ -259,6 +265,8 @@ function App() {
             <HUD 
               player={engineRef.current.player} 
               gameTime={engineRef.current.gameTime}
+              currentXPInLevel={engineRef.current.upgradeManager.getCurrentXPInLevel()}
+              xpRequiredForLevel={engineRef.current.upgradeManager.getXPRequiredForCurrentLevel()}
             />
             <MobileControls 
               onMove={handleMobileMove}
@@ -268,10 +276,13 @@ function App() {
         )}
       </div>
 
-      {gameState === 'levelup' && (
-        <LevelUpModal
+      {gameState === 'statupgrade' && (
+        <StatUpgradeModal
           level={engineRef.current.player.level}
+          availablePoints={engineRef.current.upgradeManager.getAvailableSkillPoints()}
+          statPoints={engineRef.current.upgradeManager.getStatPoints()}
           onAllocate={handleAllocateStat}
+          onClose={handleCloseStatUpgrade}
         />
       )}
 

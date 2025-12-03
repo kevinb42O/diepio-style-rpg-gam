@@ -7,12 +7,17 @@ import type { Player } from '@/lib/types'
 interface HUDProps {
   player: Player
   gameTime: number
+  currentXPInLevel?: number
+  xpRequiredForLevel?: number
 }
 
-export function HUD({ player, gameTime }: HUDProps) {
+export function HUD({ player, gameTime, currentXPInLevel, xpRequiredForLevel }: HUDProps) {
   const isMobile = useIsMobile()
   const healthPercentage = (player.health / player.maxHealth) * 100
-  const xpPercentage = (player.xp / player.xpToNextLevel) * 100
+  
+  const xpInLevel = currentXPInLevel ?? player.xp
+  const xpRequired = xpRequiredForLevel ?? player.xpToNextLevel
+  const xpPercentage = xpRequired > 0 ? (xpInLevel / xpRequired) * 100 : 0
   
   const minutes = Math.floor(gameTime / 60000)
   const seconds = Math.floor((gameTime % 60000) / 1000)
@@ -67,7 +72,7 @@ export function HUD({ player, gameTime }: HUDProps) {
               <span className="font-semibold">XP</span>
             </div>
             <span className="text-muted-foreground">
-              {player.xp}/{player.xpToNextLevel}
+              {Math.floor(xpInLevel)}/{xpRequired}
             </span>
           </div>
           <div className={`relative ${isMobile ? 'h-2' : 'h-3'} bg-muted rounded-full overflow-hidden`}>

@@ -33,12 +33,29 @@ An exploration-focused action RPG where players control a hero destroying loot b
 - **Progression**: Boxes spawn in clusters → Player finds and shoots boxes → Boxes take damage and show health bars → Box breaks → XP gems scatter → Player collects gems → Level up
 - **Success criteria**: Diep.io-style distribution with 25+ clusters across map, denser in some areas, larger/more valuable boxes toward edges
 
-### Level & Stat Progression
-- **Functionality**: Gaining XP levels up character, each level offers stat point to allocate
-- **Purpose**: Provides RPG depth and player agency in build customization
-- **Trigger**: XP threshold reached
-- **Progression**: Destroy boxes → Collect XP gems → Reach level threshold → Level up modal appears → Player allocates stat point (Health/Damage/Speed/Fire Rate) → Stats immediately update
-- **Success criteria**: Clear XP bar, satisfying level-up moment, visible stat changes
+### Level & Stat Progression (diep.io system)
+- **Functionality**: Gaining XP levels up character (max level 45), skill points awarded to allocate across 8 stats with strategic cap of 33 total points
+- **Purpose**: Provides RPG depth with meaningful trade-offs forcing build specialization (can only max ~4 of 8 stats)
+- **Trigger**: XP threshold reached using exponential curve
+- **Progression**: Destroy boxes → Collect XP gems → Reach level threshold → Level up modal appears → Player allocates skill point across 8 stats (each capped at 7) → Stats immediately update with diminishing returns formulas
+- **Success criteria**: Clear XP bar showing progress within current level, satisfying level-up moment, visible stat changes, skill point distribution matches diep.io (1 point per level 2-28, then every 2-3 levels, totaling 33 points at level 45)
+
+### 8 Core Stats System
+- **Health Regen**: Exponential growth formula (base × 1.35^points) - faster healing after avoiding damage for 1 second
+- **Max Health**: Linear scaling (base + 25 per point) - increases HP pool
+- **Body Damage**: Multiplicative (base × 1.15^points) - ramming damage against boxes and damage mitigation from box contact
+- **Bullet Speed**: Multiplicative (base × 1.08^points) - projectile velocity
+- **Bullet Penetration**: Multiplicative (base × 1.2^points) - projectile durability (future: multi-hit capability)
+- **Bullet Damage**: Multiplicative (base × 1.15^points) - projectile damage output
+- **Reload**: Exponential reduction (base × 0.93^points) - faster fire rate with diminishing returns
+- **Movement Speed**: Multiplicative (base × 1.07^points) - tank movement velocity
+
+### Tank Class Evolution (Future Feature)
+- **Tier 0 (Level 1)**: Basic Tank - single barrel foundation
+- **Tier 1 (Level 15)**: Twin, Sniper, Machine Gun, Flank Guard - first specialization branch
+- **Tier 2 (Level 30)**: Triple Shot, Quad Tank, Assassin, Overseer, Destroyer, Tri-Angle - advanced specializations
+- **Tier 3 (Level 45)**: Penta Shot, Octo Tank, Ranger, Overlord, Annihilator, Booster - ultimate class evolutions
+- Each upgrade changes barrel configuration and firing pattern while maintaining allocated stat points
 
 ### Equipment System
 - **Functionality**: Find weapons and armor with rarity tiers (Common/Rare/Epic/Legendary)
@@ -130,11 +147,13 @@ Animations should punctuate key moments (level-ups, loot drops, deaths) with cel
   - Health bar: Color shifts from green → yellow → red based on percentage
   
 - **Icon Selection**: 
-  - Sword (Attack stat)
-  - Heart (Health stat) 
-  - Lightning (Fire Rate)
-  - Wind/Sneaker (Speed)
-  - Shield (Armor/Defense)
+  - Heart (Health Regen & Max Health stats)
+  - Sword (Bullet Damage stat)
+  - Lightning (Reload/Fire Rate stat)
+  - Wind (Movement Speed stat)
+  - Shield (Body Damage stat)
+  - Target (Bullet Penetration stat)
+  - ArrowsOut (Bullet Speed stat)
   - Skull (Enemy/Death)
   - Star (Level/XP)
   - Treasure chest (Loot)
