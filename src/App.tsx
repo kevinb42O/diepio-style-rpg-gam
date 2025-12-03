@@ -90,19 +90,21 @@ function App() {
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1)
       lastTimeRef.current = now
 
-      const result = engine.collectLoot(
-        engine.loot.find(item => {
-          const dx = item.position.x - engine.player.position.x
-          const dy = item.position.y - engine.player.position.y
-          return Math.sqrt(dx * dx + dy * dy) < 20
-        })!
-      )
+      const nearbyLoot = engine.loot.find(item => {
+        const dx = item.position.x - engine.player.position.x
+        const dy = item.position.y - engine.player.position.y
+        return Math.sqrt(dx * dx + dy * dy) < 20
+      })
 
-      if (result === 'levelup' && engine.player.xp >= engine.player.xpToNextLevel) {
-        engine.levelUp()
-        setGameState('levelup')
-        toast.success(`Level ${engine.player.level} reached!`)
-        return
+      if (nearbyLoot) {
+        const result = engine.collectLoot(nearbyLoot)
+
+        if (result === 'levelup' && engine.player.xp >= engine.player.xpToNextLevel) {
+          engine.levelUp()
+          setGameState('levelup')
+          toast.success(`Level ${engine.player.level} reached!`)
+          return
+        }
       }
 
       engine.update(deltaTime)
