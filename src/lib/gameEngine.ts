@@ -21,6 +21,7 @@ export class GameEngine {
   viewportHeight = 600
   barrelRecoil = 0
   muzzleFlashes: MuzzleFlash[] = []
+  onLevelUp: (() => void) | null = null
 
   constructor() {
     this.upgradeManager = new UpgradeManager()
@@ -300,19 +301,6 @@ export class GameEngine {
   }
 
   updateLoot(deltaTime: number) {
-    for (const item of this.loot) {
-      if (item.type !== 'box') {
-        const dx = this.player.position.x - item.position.x
-        const dy = this.player.position.y - item.position.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-
-        if (distance < 80) {
-          const pullSpeed = 300
-          item.position.x += (dx / distance) * pullSpeed * deltaTime
-          item.position.y += (dy / distance) * pullSpeed * deltaTime
-        }
-      }
-    }
   }
 
   updateParticles(deltaTime: number) {
@@ -433,7 +421,7 @@ export class GameEngine {
           
           if (this.player.health < 0) this.player.health = 0
         }
-      } else if (distance < 20) {
+      } else if (distance < 30) {
         this.collectLoot(item)
         this.loot.splice(i, 1)
       }
@@ -529,6 +517,9 @@ export class GameEngine {
       
       if (didLevelUp) {
         this.player.level = this.upgradeManager.getLevel()
+        if (this.onLevelUp) {
+          this.onLevelUp()
+        }
         return 'levelup'
       }
       
@@ -611,8 +602,8 @@ export class GameEngine {
 
     this.particles = this.particles.filter(p => p.life > 0)
     
-    if (this.particles.length > 100) {
-      this.particles.splice(0, this.particles.length - 100)
+    if (this.particles.length > 50) {
+      this.particles.splice(0, this.particles.length - 50)
     }
   }
 
@@ -623,7 +614,7 @@ export class GameEngine {
   }
 
   createHitParticles(position: Vector2, color: string) {
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       const angle = Math.random() * Math.PI * 2
       const speed = 50 + Math.random() * 50
       this.particles.push({
@@ -639,7 +630,7 @@ export class GameEngine {
   }
 
   createDeathParticles(position: Vector2) {
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 5; i++) {
       const angle = Math.random() * Math.PI * 2
       const speed = 80 + Math.random() * 120
       this.particles.push({
@@ -655,7 +646,7 @@ export class GameEngine {
   }
 
   createLootParticles(position: Vector2, color: string) {
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       const angle = Math.random() * Math.PI * 2
       const speed = 60 + Math.random() * 80
       this.particles.push({
@@ -671,8 +662,8 @@ export class GameEngine {
   }
 
   createLevelUpParticles() {
-    for (let i = 0; i < 15; i++) {
-      const angle = (Math.PI * 2 * i) / 15
+    for (let i = 0; i < 10; i++) {
+      const angle = (Math.PI * 2 * i) / 10
       const speed = 100 + Math.random() * 50
       this.particles.push({
         position: { ...this.player.position },

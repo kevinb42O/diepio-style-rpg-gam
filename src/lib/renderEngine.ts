@@ -30,18 +30,18 @@ export class RenderEngine {
   }
 
   private clear() {
-    this.ctx.fillStyle = '#CDCDCD'
+    this.ctx.fillStyle = '#2a2a3e'
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
   }
 
   private drawGrid(engine: GameEngine) {
-    const gridSize = 25
+    const gridSize = 50
     const startX = Math.floor(engine.camera.x / gridSize) * gridSize
     const startY = Math.floor(engine.camera.y / gridSize) * gridSize
     const endX = engine.camera.x + this.canvas.width
     const endY = engine.camera.y + this.canvas.height
 
-    this.ctx.strokeStyle = '#C0C0C0'
+    this.ctx.strokeStyle = '#383850'
     this.ctx.lineWidth = 1
     this.ctx.beginPath()
 

@@ -77,9 +77,11 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
       
       uiManager.clear()
       if (showStatUI) {
-        const statPoints = engine.upgradeManager.getStatPoints()
         const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
-        uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
+        if (availablePoints > 0) {
+          const statPoints = engine.upgradeManager.getStatPoints()
+          uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
+        }
       }
     }
 

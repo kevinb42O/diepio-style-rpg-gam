@@ -105,6 +105,23 @@ function App() {
 
     const engine = engineRef.current
 
+    engine.onLevelUp = () => {
+      engine.levelUp()
+      
+      const availableClasses = getAvailableUpgrades(engine.player.tankClass, engine.player.level)
+      if (availableClasses.length > 0) {
+        setGameState('classupgrade')
+        toast.success(`Level ${engine.player.level} reached! Choose your class!`)
+        return
+      }
+      
+      if (engine.upgradeManager.getAvailableSkillPoints() > 0) {
+        setGameState('statupgrade')
+        toast.success(`Level ${engine.player.level} reached!`)
+        return
+      }
+    }
+
     const gameLoop = () => {
       const now = Date.now()
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1)
@@ -115,33 +132,6 @@ function App() {
         engine.mobileInput = { x: input.x, y: input.y }
         engine.mobileShootDirection = { x: input.shootX, y: input.shootY }
         engine.isShooting = input.shootX !== 0 || input.shootY !== 0
-      }
-
-      const nearbyLoot = engine.loot.find(item => {
-        const dx = item.position.x - engine.player.position.x
-        const dy = item.position.y - engine.player.position.y
-        return Math.sqrt(dx * dx + dy * dy) < 20
-      })
-
-      if (nearbyLoot) {
-        const result = engine.collectLoot(nearbyLoot)
-
-        if (result === 'levelup' && engine.player.xp >= engine.player.xpToNextLevel) {
-          engine.levelUp()
-          
-          const availableClasses = getAvailableUpgrades(engine.player.tankClass, engine.player.level)
-          if (availableClasses.length > 0) {
-            setGameState('classupgrade')
-            toast.success(`Level ${engine.player.level} reached! Choose your class!`)
-            return
-          }
-          
-          if (engine.upgradeManager.getAvailableSkillPoints() > 0) {
-            setGameState('statupgrade')
-            toast.success(`Level ${engine.player.level} reached!`)
-            return
-          }
-        }
       }
 
       engine.update(deltaTime)
@@ -176,6 +166,7 @@ function App() {
     animationFrameRef.current = requestAnimationFrame(gameLoop)
 
     return () => {
+      engine.onLevelUp = null
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
