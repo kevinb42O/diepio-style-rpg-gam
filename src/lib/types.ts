@@ -58,6 +58,10 @@ export interface Loot {
   maxHealth?: number
   radius?: number
   contactDamage?: number
+  driftAngle?: number
+  driftSpeed?: number
+  spawnAlpha?: number
+  rotationAngle?: number
 }
 
 export interface Weapon {

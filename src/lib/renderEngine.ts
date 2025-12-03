@@ -34,9 +34,13 @@ export class RenderEngine {
     this.drawLoot(engine)
     this.drawProjectiles(engine)
     this.drawParticles(engine)
+    this.drawEnhancedParticles(engine)
     this.drawPlayer(engine)
 
     this.ctx.restore()
+    
+    // Draw screen effects (flash) after restoring context
+    this.drawScreenEffects(engine)
   }
 
   private clear() {
@@ -177,6 +181,17 @@ export class RenderEngine {
       }
 
       if (item.type === 'box' && item.health && item.radius) {
+        // Handle spawn animation
+        if (item.spawnAlpha !== undefined && item.spawnAlpha < 1) {
+          item.spawnAlpha = Math.min(1, item.spawnAlpha + 0.02)
+          this.ctx.globalAlpha = item.spawnAlpha
+        }
+
+        // Update rotation
+        if (item.rotationAngle !== undefined) {
+          item.rotationAngle += 0.01
+        }
+
         const size = item.radius
         let sides = 4
         let color = '#FFE869'
@@ -200,8 +215,11 @@ export class RenderEngine {
           item.position.y,
           sides,
           color,
-          size
+          size,
+          item.rotationAngle || 0
         )
+
+        this.ctx.globalAlpha = 1
 
         if (item.maxHealth && item.health < item.maxHealth * 0.99) {
           this.drawHealthBar(
@@ -239,10 +257,12 @@ export class RenderEngine {
     y: number,
     sides: number,
     color: string,
-    size: number
+    size: number,
+    rotation: number = 0
   ) {
     this.ctx.save()
     this.ctx.translate(x, y)
+    this.ctx.rotate(rotation)
 
     this.ctx.beginPath()
     for (let i = 0; i < sides; i++) {
@@ -337,6 +357,62 @@ export class RenderEngine {
       this.ctx.fill()
 
       this.ctx.restore()
+    }
+  }
+
+  private drawEnhancedParticles(engine: GameEngine) {
+    const bounds = this.lastViewBounds
+    const particles = engine.particleSystem.getParticles()
+
+    for (const particle of particles) {
+      if (particle.position.x < bounds.left || particle.position.x > bounds.right ||
+          particle.position.y < bounds.top || particle.position.y > bounds.bottom) {
+        continue
+      }
+
+      this.ctx.save()
+      this.ctx.globalAlpha = particle.alpha
+
+      if (particle.type === 'damage-number') {
+        // Render damage numbers as text
+        this.ctx.font = `bold ${particle.size}px sans-serif`
+        this.ctx.fillStyle = particle.color
+        this.ctx.strokeStyle = '#000000'
+        this.ctx.lineWidth = 2
+        this.ctx.textAlign = 'center'
+        this.ctx.strokeText(Math.floor(particle.life * 100).toString(), particle.position.x, particle.position.y)
+        this.ctx.fillText(Math.floor(particle.life * 100).toString(), particle.position.x, particle.position.y)
+      } else {
+        // Render regular particles
+        if (particle.rotation) {
+          this.ctx.translate(particle.position.x, particle.position.y)
+          this.ctx.rotate(particle.rotation)
+          this.ctx.translate(-particle.position.x, -particle.position.y)
+        }
+
+        this.ctx.beginPath()
+        this.ctx.arc(
+          particle.position.x,
+          particle.position.y,
+          particle.size * (particle.scale || 1),
+          0,
+          Math.PI * 2
+        )
+        this.ctx.fillStyle = particle.color
+        this.ctx.fill()
+      }
+
+      this.ctx.restore()
+    }
+  }
+
+  private drawScreenEffects(engine: GameEngine) {
+    const flash = engine.screenEffects.getFlash()
+    if (flash) {
+      this.ctx.globalAlpha = flash.alpha
+      this.ctx.fillStyle = flash.color
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+      this.ctx.globalAlpha = 1
     }
   }
 

@@ -1,5 +1,11 @@
 import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor } from './types'
 import { UpgradeManager, type StatType } from './upgradeSystem'
+import { ParticleSystem } from '@/systems/ParticleSystem'
+import { QuadTree } from '@/utils/QuadTree'
+import { ScreenEffects } from '@/utils/ScreenEffects'
+import { Physics } from '@/utils/Physics'
+import { audioManager } from '@/audio/AudioManager'
+import { ObjectPool } from '@/utils/ObjectPool'
 
 export class GameEngine {
   upgradeManager: UpgradeManager
@@ -17,16 +23,49 @@ export class GameEngine {
   mobileShootDirection: Vector2 = { x: 0, y: 0 }
   worldSize = 4000
   camera: Vector2 = { x: 0, y: 0 }
+  cameraVelocity = { x: 0, y: 0 }
   viewportWidth = 800
   viewportHeight = 600
   barrelRecoil = 0
   muzzleFlashes: MuzzleFlash[] = []
   onLevelUp: (() => void) | null = null
   private renderCallback: (() => void) | null = null
+  
+  // Enhanced systems
+  particleSystem: ParticleSystem
+  screenEffects: ScreenEffects
+  quadTree: QuadTree
+  projectilePool: ObjectPool<Projectile>
+  autoFire = false
+  invincibilityFrames = 0
+  comboKills = 0
+  lastKillTime = 0
+  comboMultiplier = 1
 
   constructor() {
     this.upgradeManager = new UpgradeManager()
     this.player = this.createPlayer()
+    this.particleSystem = new ParticleSystem()
+    this.screenEffects = new ScreenEffects()
+    this.quadTree = new QuadTree({ x: 0, y: 0, width: this.worldSize, height: this.worldSize })
+    this.projectilePool = new ObjectPool<Projectile>(
+      () => ({
+        id: `proj_${Date.now()}_${Math.random()}`,
+        position: { x: 0, y: 0 },
+        velocity: { x: 0, y: 0 },
+        damage: 10,
+        radius: 5,
+        isPlayerProjectile: true,
+      }),
+      (p) => {
+        p.position.x = 0
+        p.position.y = 0
+        p.velocity.x = 0
+        p.velocity.y = 0
+      },
+      20,
+      100
+    )
   }
 
   setRenderCallback(callback: (() => void) | null) {
@@ -68,6 +107,12 @@ export class GameEngine {
     this.particles = []
     this.gameTime = 0
     this.lastBoxSpawnTime = 0
+    this.particleSystem.clear()
+    this.screenEffects.clear()
+    this.invincibilityFrames = 2.0 // 2 seconds of invincibility after respawn
+    this.comboKills = 0
+    this.lastKillTime = 0
+    this.comboMultiplier = 1
     
     this.generateWorldLoot()
   }
@@ -180,15 +225,30 @@ export class GameEngine {
   update(deltaTime: number) {
     this.gameTime += deltaTime * 1000
 
+    // Update invincibility frames
+    if (this.invincibilityFrames > 0) {
+      this.invincibilityFrames -= deltaTime
+    }
+
+    // Update combo system
+    if (this.gameTime - this.lastKillTime > 3000) {
+      this.comboKills = 0
+      this.comboMultiplier = 1
+    }
+
     this.updatePlayer(deltaTime)
     this.updateProjectiles(deltaTime)
     this.updateLoot(deltaTime)
     this.updateParticles(deltaTime)
     this.updateRecoilAndFlash(deltaTime)
-    this.updateCamera()
+    this.updateCameraSmooth(deltaTime)
     this.spawnLootBoxes()
-    this.checkCollisions()
+    this.checkCollisionsOptimized()
     this.cleanupEntities()
+    
+    // Update enhanced systems
+    this.particleSystem.update(deltaTime)
+    this.screenEffects.update(deltaTime)
 
     if (this.renderCallback) {
       this.renderCallback()
@@ -211,6 +271,30 @@ export class GameEngine {
   updateCamera() {
     this.camera.x = this.player.position.x - this.viewportWidth / 2
     this.camera.y = this.player.position.y - this.viewportHeight / 2
+    
+    this.camera.x = Math.max(0, Math.min(this.worldSize - this.viewportWidth, this.camera.x))
+    this.camera.y = Math.max(0, Math.min(this.worldSize - this.viewportHeight, this.camera.y))
+  }
+
+  updateCameraSmooth(deltaTime: number) {
+    const targetX = this.player.position.x - this.viewportWidth / 2
+    const targetY = this.player.position.y - this.viewportHeight / 2
+    
+    const smoothTime = 0.15
+    const resultX = Physics.smoothDamp(this.camera.x, targetX, this.cameraVelocity.x, smoothTime, deltaTime)
+    const resultY = Physics.smoothDamp(this.camera.y, targetY, this.cameraVelocity.y, smoothTime, deltaTime)
+    
+    this.camera.x = resultX.value
+    this.camera.y = resultY.value
+    this.cameraVelocity.x = resultX.velocity
+    this.cameraVelocity.y = resultY.velocity
+    
+    // Add screen shake offset
+    if (this.screenEffects.isShaking()) {
+      const shakeOffset = this.screenEffects.getShakeOffset()
+      this.camera.x += shakeOffset.x
+      this.camera.y += shakeOffset.y
+    }
     
     this.camera.x = Math.max(0, Math.min(this.worldSize - this.viewportWidth, this.camera.x))
     this.camera.y = Math.max(0, Math.min(this.worldSize - this.viewportHeight, this.camera.y))
@@ -276,6 +360,7 @@ export class GameEngine {
     const barrelTipX = this.player.position.x + Math.cos(angle) * barrelTipDistance
     const barrelTipY = this.player.position.y + Math.sin(angle) * barrelTipDistance
 
+    // Muzzle flash
     this.muzzleFlashes.push({
       position: { x: barrelTipX, y: barrelTipY },
       angle: angle,
@@ -285,9 +370,25 @@ export class GameEngine {
       size: 8,
     })
 
+    // Enhanced muzzle flash particles
+    this.particleSystem.createBurst({ x: barrelTipX, y: barrelTipY }, 3, {
+      color: '#FFDD44',
+      size: 3,
+      speed: 50,
+      life: 0.1,
+      spread: Math.PI / 4,
+      type: 'muzzle-flash'
+    })
+
+    // Apply recoil force to player
+    const recoilForce = 5
+    const recoilDir = { x: Math.cos(angle), y: Math.sin(angle) }
+    this.player.velocity.x -= recoilDir.x * recoilForce
+    this.player.velocity.y -= recoilDir.y * recoilForce
+
     const projectile: Projectile = {
       id: `proj_${Date.now()}_${Math.random()}`,
-      position: { ...this.player.position },
+      position: { x: barrelTipX, y: barrelTipY },
       velocity: {
         x: Math.cos(angle) * this.player.bulletSpeed,
         y: Math.sin(angle) * this.player.bulletSpeed,
@@ -298,6 +399,9 @@ export class GameEngine {
     }
 
     this.projectiles.push(projectile)
+    
+    // Play shoot sound
+    audioManager.play('shoot')
   }
 
 
@@ -306,10 +410,37 @@ export class GameEngine {
     for (const projectile of this.projectiles) {
       projectile.position.x += projectile.velocity.x * deltaTime
       projectile.position.y += projectile.velocity.y * deltaTime
+      
+      // Create bullet trail particles
+      if (Math.random() < 0.3) {
+        this.particleSystem.createBulletTrail(
+          projectile.position,
+          projectile.velocity,
+          projectile.isPlayerProjectile ? '#00B2E1' : '#FF0000'
+        )
+      }
     }
   }
 
   updateLoot(deltaTime: number) {
+    // Add polygon drift movement
+    for (const item of this.loot) {
+      if (item.type === 'box') {
+        // Slight drift movement for polygons
+        if (!item.driftAngle) {
+          item.driftAngle = Math.random() * Math.PI * 2
+          item.driftSpeed = 5 + Math.random() * 10
+        }
+        
+        item.driftAngle = (item.driftAngle || 0) + deltaTime * 0.5
+        item.position.x += Math.cos(item.driftAngle) * item.driftSpeed * deltaTime
+        item.position.y += Math.sin(item.driftAngle) * item.driftSpeed * deltaTime
+        
+        // Keep polygons in bounds
+        item.position.x = Math.max(50, Math.min(this.worldSize - 50, item.position.x))
+        item.position.y = Math.max(50, Math.min(this.worldSize - 50, item.position.y))
+      }
+    }
   }
 
   updateParticles(deltaTime: number) {
@@ -379,6 +510,8 @@ export class GameEngine {
         maxHealth: health,
         radius,
         contactDamage,
+        spawnAlpha: 0, // Fade in effect
+        rotationAngle: Math.random() * Math.PI * 2,
       })
     }
 
@@ -408,9 +541,19 @@ export class GameEngine {
               box.health -= projectile.damage
               this.projectiles.splice(i, 1)
               
-              if (Math.random() < 0.2) {
-                this.createHitParticles(box.position, '#ffaa44')
-              }
+              // Enhanced hit particles
+              this.particleSystem.createBurst(box.position, 3, {
+                color: '#ffaa44',
+                size: 2,
+                speed: 60,
+                life: 0.2,
+              })
+              
+              // Floating damage number
+              this.particleSystem.createDamageNumber(box.position, projectile.damage)
+              
+              // Audio
+              audioManager.play('hit')
 
               if (box.health <= 0) {
                 this.breakLootBox(k)
@@ -432,10 +575,20 @@ export class GameEngine {
 
       if (item.type === 'box' && item.radius && item.contactDamage && item.health) {
         const radSum = item.radius + this.player.radius
-        if (distSq < radSum * radSum) {
+        if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
           const actualDamage = Math.max(0, item.contactDamage - this.player.bodyDamage * 0.5)
           this.player.health -= actualDamage * 0.016
           this.player.lastRegenTime = this.gameTime
+          
+          // Knockback effect
+          const knockbackForce = 15
+          const dx2 = this.player.position.x - item.position.x
+          const dy2 = this.player.position.y - item.position.y
+          const dist = Math.sqrt(dx2 * dx2 + dy2 * dy2)
+          if (dist > 0) {
+            this.player.velocity.x += (dx2 / dist) * knockbackForce
+            this.player.velocity.y += (dy2 / dist) * knockbackForce
+          }
           
           item.health -= this.player.bodyDamage * 0.016
           if (item.health <= 0) {
@@ -443,6 +596,10 @@ export class GameEngine {
           }
           
           if (this.player.health < 0) this.player.health = 0
+          
+          // Screen shake when taking damage
+          this.screenEffects.startShake(3, 0.2)
+          audioManager.play('playerDamage')
         }
       } else if (distSq < 900) {
         this.collectLoot(item)
@@ -451,14 +608,50 @@ export class GameEngine {
     }
   }
 
+  checkCollisionsOptimized() {
+    // Build quad tree for spatial optimization
+    this.quadTree.clear()
+    for (const item of this.loot) {
+      if (item.type === 'box' && item.radius) {
+        this.quadTree.insert({
+          x: item.position.x,
+          y: item.position.y,
+          radius: item.radius,
+          data: item
+        } as any)
+      }
+    }
+
+    // Use regular collision check for now (can be optimized further with quadtree)
+    this.checkCollisions()
+  }
+
 
 
   breakLootBox(index: number) {
     const box = this.loot[index]
     
-    if (Math.random() < 0.4) {
-      this.createDeathParticles(box.position)
+    // Enhanced explosion effect
+    const explosionSize = box.radius || 20
+    this.particleSystem.createExplosion(box.position, explosionSize, '#ff8800')
+    
+    // Screen shake on big polygon kills
+    if (explosionSize > 30) {
+      this.screenEffects.startShake(5, 0.3)
     }
+    
+    // Debris particles
+    this.particleSystem.createDebris(box.position, 6, '#ffaa44')
+    
+    // Update combo system
+    this.comboKills++
+    this.lastKillTime = this.gameTime
+    if (this.comboKills >= 3) {
+      this.comboMultiplier = 1 + Math.floor(this.comboKills / 3) * 0.2
+    }
+    
+    // Audio
+    audioManager.play('polygonDeath')
     
     const xpGems = Math.min(4, Math.floor(box.value / 8))
     for (let i = 0; i < xpGems; i++) {
@@ -471,7 +664,7 @@ export class GameEngine {
           y: box.position.y + Math.sin(angle) * distance,
         },
         type: 'xp',
-        value: Math.floor(box.value / xpGems),
+        value: Math.floor(box.value / xpGems * this.comboMultiplier),
       })
     }
 
@@ -540,8 +733,18 @@ export class GameEngine {
       this.player.xp += item.value
       const didLevelUp = this.upgradeManager.addXP(item.value)
       
+      // Audio
+      audioManager.play('xpCollect')
+      
       if (didLevelUp) {
         this.player.level = this.upgradeManager.getLevel()
+        
+        // Enhanced level up effect
+        this.particleSystem.createLevelUpEffect(this.player.position)
+        this.screenEffects.startShake(8, 0.4)
+        this.screenEffects.startFlash('#bb88ff', 0.3)
+        audioManager.play('levelUp')
+        
         if (this.onLevelUp) {
           this.onLevelUp()
         }
@@ -558,6 +761,7 @@ export class GameEngine {
         this.player.damage = this.player.damage + weapon.damage
         this.player.fireRate = weapon.fireRate
         this.createLootParticles(item.position, this.getRarityColor(weapon.rarity))
+        audioManager.play('itemCollect')
         return 'item'
       }
     } else if (item.type === 'armor' && item.item) {
@@ -567,6 +771,7 @@ export class GameEngine {
         this.player.maxHealth += armor.health
         this.player.health = Math.min(this.player.health + armor.health, this.player.maxHealth)
         this.createLootParticles(item.position, this.getRarityColor(armor.rarity))
+        audioManager.play('itemCollect')
         return 'item'
       }
     }
@@ -595,6 +800,7 @@ export class GameEngine {
   allocateStat(stat: StatType) {
     if (this.upgradeManager.allocateStat(stat)) {
       this.applyStatsToPlayer()
+      audioManager.play('upgrade')
     }
   }
 
