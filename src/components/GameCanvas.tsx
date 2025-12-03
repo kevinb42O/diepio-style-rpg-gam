@@ -22,7 +22,6 @@ export function GameCanvas({ engine }: GameCanvasProps) {
       drawGrid(ctx)
       drawParticles(ctx, engine)
       drawLoot(ctx, engine)
-      drawEnemies(ctx, engine)
       drawPlayer(ctx, engine)
       drawProjectiles(ctx, engine)
     }
@@ -98,44 +97,6 @@ function drawPlayer(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.stroke()
 
   ctx.restore()
-}
-
-function drawEnemies(ctx: CanvasRenderingContext2D, engine: GameEngine) {
-  for (const enemy of engine.enemies) {
-    const colors = {
-      grunt: '#cc4444',
-      fast: '#cc8844',
-      tank: '#884444',
-      elite: '#aa44aa',
-    }
-
-    ctx.fillStyle = colors[enemy.type]
-    ctx.strokeStyle = '#ff6666'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(enemy.position.x, enemy.position.y, enemy.radius, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.stroke()
-
-    const healthBarWidth = enemy.radius * 2
-    const healthPercentage = enemy.health / enemy.maxHealth
-    
-    ctx.fillStyle = '#222222'
-    ctx.fillRect(
-      enemy.position.x - healthBarWidth / 2,
-      enemy.position.y - enemy.radius - 8,
-      healthBarWidth,
-      4
-    )
-    
-    ctx.fillStyle = '#44ff44'
-    ctx.fillRect(
-      enemy.position.x - healthBarWidth / 2,
-      enemy.position.y - enemy.radius - 8,
-      healthBarWidth * healthPercentage,
-      4
-    )
-  }
 }
 
 function drawProjectiles(ctx: CanvasRenderingContext2D, engine: GameEngine) {

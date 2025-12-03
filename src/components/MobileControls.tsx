@@ -19,15 +19,23 @@ export function MobileControls({ onMove, onShoot }: MobileControlsProps) {
     if (!isMobile) return
 
     const handleTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement
+      const isMoveControl = moveJoystickRef.current?.contains(target)
+      const isShootControl = shootJoystickRef.current?.contains(target)
+      
+      if (isMoveControl || isShootControl) {
+        e.preventDefault()
+      }
+      
       for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i]
-        const target = touch.target as HTMLElement
+        const touchTarget = touch.target as HTMLElement
         
-        if (moveJoystickRef.current?.contains(target) && moveTouchIdRef.current === null) {
+        if (moveJoystickRef.current?.contains(touchTarget) && moveTouchIdRef.current === null) {
           moveTouchIdRef.current = touch.identifier
           setMoveActive(true)
           handleMoveTouch(touch)
-        } else if (shootJoystickRef.current?.contains(target) && shootTouchIdRef.current === null) {
+        } else if (shootJoystickRef.current?.contains(touchTarget) && shootTouchIdRef.current === null) {
           shootTouchIdRef.current = touch.identifier
           setShootActive(true)
           onShoot(true)
@@ -36,7 +44,19 @@ export function MobileControls({ onMove, onShoot }: MobileControlsProps) {
     }
 
     const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault()
+      let shouldPrevent = false
+      
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i]
+        if (touch.identifier === moveTouchIdRef.current || touch.identifier === shootTouchIdRef.current) {
+          shouldPrevent = true
+          break
+        }
+      }
+      
+      if (shouldPrevent) {
+        e.preventDefault()
+      }
       
       for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i]
@@ -77,9 +97,6 @@ export function MobileControls({ onMove, onShoot }: MobileControlsProps) {
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
       
       if (distance > 0) {
-        const normalizedX = deltaX / maxDistance
-        const normalizedY = deltaY / maxDistance
-        
         const clampedDistance = Math.min(distance, maxDistance)
         const clampedX = (deltaX / distance) * clampedDistance / maxDistance
         const clampedY = (deltaY / distance) * clampedDistance / maxDistance

@@ -191,7 +191,7 @@ function App() {
             Azeroth Survivors
           </h1>
           <p className="text-sm md:text-xl text-muted-foreground max-w-2xl px-4">
-            Battle endless waves of enemies in this action-packed RPG. Collect loot, level up, and see how long you can survive. Death is permanent - when you fall, you start from the beginning.
+            Destroy loot boxes, collect experience, and level up your character. Bigger boxes are tougher but more rewarding. Death is permanent - when you fall, you start from the beginning.
           </p>
         </div>
 
