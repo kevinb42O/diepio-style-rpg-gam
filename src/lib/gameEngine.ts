@@ -473,9 +473,10 @@ export class GameEngine {
           item.driftSpeed = 5 + Math.random() * 10
         }
         
+        const driftSpeed = item.driftSpeed || 0
         item.driftAngle = (item.driftAngle || 0) + deltaTime * 0.5
-        item.position.x += Math.cos(item.driftAngle) * item.driftSpeed * deltaTime
-        item.position.y += Math.sin(item.driftAngle) * item.driftSpeed * deltaTime
+        item.position.x += Math.cos(item.driftAngle) * driftSpeed * deltaTime
+        item.position.y += Math.sin(item.driftAngle) * driftSpeed * deltaTime
         
         // Keep polygons in bounds
         item.position.x = Math.max(50, Math.min(this.worldSize - 50, item.position.x))
@@ -568,10 +569,6 @@ export class GameEngine {
     // Build quad tree for spatial optimization
     this.quadTree.clear()
     
-    interface QuadTreeLoot extends import('@/utils/QuadTree').QuadTreeItem {
-      loot: Loot
-    }
-    
     for (const item of this.loot) {
       if (item.type === 'box' && item.radius) {
         this.quadTree.insert({
@@ -579,7 +576,7 @@ export class GameEngine {
           y: item.position.y,
           radius: item.radius,
           loot: item
-        } as QuadTreeLoot)
+        })
       }
     }
 
@@ -588,10 +585,14 @@ export class GameEngine {
       const projectile = this.projectiles[i]
       if (!projectile.isPlayerProjectile) continue
 
-      const nearby = this.quadTree.retrieve(projectile)
+      const nearby = this.quadTree.retrieve({
+        x: projectile.position.x,
+        y: projectile.position.y,
+        radius: projectile.radius
+      })
       for (const item of nearby) {
-        const quadItem = item as QuadTreeLoot
-        const box = quadItem.loot
+        const box = item.loot as Loot | undefined
+        if (!box) continue
         if (box.type === 'box' && box.health && box.radius) {
           const dx = projectile.position.x - box.position.x
           const dy = projectile.position.y - box.position.y
