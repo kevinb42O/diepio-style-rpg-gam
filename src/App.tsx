@@ -7,6 +7,9 @@ import { StatUpgradeModal } from '@/components/StatUpgradeModal'
 import { ClassUpgradeModal } from '@/components/ClassUpgradeModal'
 import { DeathScreen } from '@/components/DeathScreen'
 import { MobileControls } from '@/components/MobileControls'
+import { Minimap } from '@/components/Minimap'
+import { FPSCounter } from '@/components/FPSCounter'
+import { KillFeed, type KillFeedItem } from '@/components/KillFeed'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { Play } from '@phosphor-icons/react'
@@ -15,6 +18,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import type { HighScore, GameStats } from '@/lib/types'
 import type { StatType } from '@/lib/upgradeSystem'
 import { getAvailableUpgrades } from '@/lib/tankConfigs'
+import { audioManager } from '@/audio/AudioManager'
 
 type GameState = 'menu' | 'playing' | 'paused' | 'statupgrade' | 'classupgrade' | 'dead'
 
@@ -48,6 +52,8 @@ function App() {
   const isMobile = useIsMobile()
   const mobileInputRef = useRef({ x: 0, y: 0, shootX: 0, shootY: 0 })
   const hudUpdateInterval = useRef<number>(0)
+  const [showFPS, setShowFPS] = useState(false)
+  const [killFeedItems, setKillFeedItems] = useState<KillFeedItem[]>([])
 
   useEffect(() => {
     const engine = engineRef.current
@@ -74,6 +80,18 @@ function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isMobile) return
       
+      // F3 to toggle FPS counter
+      if (e.key === 'F3') {
+        e.preventDefault()
+        setShowFPS(prev => !prev)
+        return
+      }
+
+      // Initialize audio on first user interaction
+      if (!audioManager.isEnabled()) {
+        audioManager.initialize()
+      }
+      
       if (gameState === 'playing') {
         engine.keys.add(e.key.toLowerCase())
         
@@ -88,6 +106,12 @@ function App() {
         if (e.key === ' ') {
           e.preventDefault()
           engine.isShooting = true
+        }
+
+        // E for auto-fire toggle
+        if (e.key.toLowerCase() === 'e') {
+          engine.autoFire = !engine.autoFire
+          toast.info(`Auto-fire ${engine.autoFire ? 'enabled' : 'disabled'}`)
         }
       }
     }
@@ -122,6 +146,14 @@ function App() {
 
     engine.onLevelUp = () => {
       engine.levelUp()
+      
+      // Add to kill feed
+      setKillFeedItems(prev => [...prev, {
+        id: `levelup-${Date.now()}`,
+        message: `🎉 Level ${engine.player.level} reached!`,
+        timestamp: Date.now(),
+        type: 'levelup'
+      }])
       
       const availableClasses = getAvailableUpgrades(engine.player.tankClass, engine.player.level)
       if (availableClasses.length > 0) {
@@ -353,6 +385,9 @@ function App() {
               onMove={handleMobileMove}
               onShootDirection={handleMobileShootDirection}
             />
+            <Minimap engine={engineRef.current} />
+            <FPSCounter visible={showFPS} />
+            <KillFeed items={killFeedItems} />
           </>
         )}
       </div>
