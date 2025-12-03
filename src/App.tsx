@@ -5,10 +5,12 @@ import { GameCanvas } from '@/components/GameCanvas'
 import { HUD } from '@/components/HUD'
 import { LevelUpModal } from '@/components/LevelUpModal'
 import { DeathScreen } from '@/components/DeathScreen'
+import { MobileControls } from '@/components/MobileControls'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { Play } from '@phosphor-icons/react'
 import { toast } from 'sonner'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { HighScore, GameStats } from '@/lib/types'
 
 type GameState = 'menu' | 'playing' | 'paused' | 'levelup' | 'dead'
@@ -26,11 +28,14 @@ function App() {
     date: 0,
   })
   const [deathStats, setDeathStats] = useState<GameStats | null>(null)
+  const isMobile = useIsMobile()
+  const mobileInputRef = useRef({ x: 0, y: 0, shooting: false })
 
   useEffect(() => {
     const engine = engineRef.current
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (isMobile) return
       const rect = (e.target as HTMLElement).getBoundingClientRect?.()
       if (rect) {
         engine.mousePosition.x = e.clientX - rect.left
@@ -39,26 +44,26 @@ function App() {
     }
 
     const handleMouseDown = () => {
-      if (gameState === 'playing') {
-        engine.isShooting = true
-      }
+      if (isMobile || gameState !== 'playing') return
+      engine.isShooting = true
     }
 
     const handleMouseUp = () => {
+      if (isMobile) return
       engine.isShooting = false
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameState === 'playing') {
-        engine.keys.add(e.key.toLowerCase())
-        if (e.key === ' ') {
-          e.preventDefault()
-          engine.isShooting = true
-        }
+      if (isMobile || gameState !== 'playing') return
+      engine.keys.add(e.key.toLowerCase())
+      if (e.key === ' ') {
+        e.preventDefault()
+        engine.isShooting = true
       }
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isMobile) return
       engine.keys.delete(e.key.toLowerCase())
       if (e.key === ' ') {
         engine.isShooting = false
@@ -78,7 +83,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [gameState])
+  }, [gameState, isMobile])
 
   useEffect(() => {
     if (gameState !== 'playing') return
@@ -89,6 +94,12 @@ function App() {
       const now = Date.now()
       const deltaTime = Math.min((now - lastTimeRef.current) / 1000, 0.1)
       lastTimeRef.current = now
+
+      if (isMobile) {
+        const input = mobileInputRef.current
+        engine.mobileInput = { x: input.x, y: input.y }
+        engine.isShooting = input.shooting
+      }
 
       const nearbyLoot = engine.loot.find(item => {
         const dx = item.position.x - engine.player.position.x
@@ -143,7 +154,7 @@ function App() {
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
-  }, [gameState, highScore, setHighScore])
+  }, [gameState, highScore, setHighScore, isMobile])
 
   const startGame = () => {
     engineRef.current.reset()
@@ -161,53 +172,71 @@ function App() {
     startGame()
   }
 
+  const handleMobileMove = (x: number, y: number) => {
+    mobileInputRef.current.x = x
+    mobileInputRef.current.y = y
+  }
+
+  const handleMobileShoot = (active: boolean) => {
+    mobileInputRef.current.shooting = active
+  }
+
   if (gameState === 'menu') {
     return (
       <>
         <Toaster />
-        <div className="min-h-screen flex flex-col items-center justify-center gap-8 p-8">
-        <div className="text-center space-y-4">
-          <h1 className="text-7xl font-title text-primary">
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 md:gap-8 p-4 md:p-8">
+        <div className="text-center space-y-2 md:space-y-4">
+          <h1 className="text-4xl md:text-7xl font-title text-primary">
             Azeroth Survivors
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl">
+          <p className="text-sm md:text-xl text-muted-foreground max-w-2xl px-4">
             Battle endless waves of enemies in this action-packed RPG. Collect loot, level up, and see how long you can survive. Death is permanent - when you fall, you start from the beginning.
           </p>
         </div>
 
         {highScore && (highScore.levelReached || 0) > 0 && (
-          <div className="bg-card border border-border rounded-lg p-6 w-96 text-center">
-            <div className="text-sm text-muted-foreground mb-3">Your Best Run</div>
-            <div className="grid grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-lg p-4 md:p-6 w-full max-w-sm md:max-w-md text-center">
+            <div className="text-xs md:text-sm text-muted-foreground mb-3">Your Best Run</div>
+            <div className="grid grid-cols-3 gap-2 md:gap-4">
               <div>
-                <div className="text-2xl font-bold">
+                <div className="text-xl md:text-2xl font-bold">
                   {Math.floor(highScore.timeSurvived / 60000)}:
                   {Math.floor((highScore.timeSurvived % 60000) / 1000).toString().padStart(2, '0')}
                 </div>
                 <div className="text-xs text-muted-foreground">Time</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{highScore.levelReached}</div>
+                <div className="text-xl md:text-2xl font-bold">{highScore.levelReached}</div>
                 <div className="text-xs text-muted-foreground">Level</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{highScore.enemiesKilled}</div>
+                <div className="text-xl md:text-2xl font-bold">{highScore.enemiesKilled}</div>
                 <div className="text-xs text-muted-foreground">Kills</div>
               </div>
             </div>
           </div>
         )}
 
-        <Button onClick={startGame} size="lg" className="h-16 px-12 text-xl">
-          <Play weight="fill" className="mr-2" size={24} />
+        <Button onClick={startGame} size="lg" className="h-14 md:h-16 px-8 md:px-12 text-lg md:text-xl">
+          <Play weight="fill" className="mr-2" size={isMobile ? 20 : 24} />
           Begin Your Journey
         </Button>
 
-        <div className="bg-muted/50 rounded-lg p-6 max-w-xl space-y-2 text-sm">
+        <div className="bg-muted/50 rounded-lg p-4 md:p-6 max-w-xl w-full space-y-2 text-xs md:text-sm">
           <div className="font-semibold mb-3">Controls:</div>
-          <div><span className="font-mono bg-card px-2 py-1 rounded">WASD</span> - Move</div>
-          <div><span className="font-mono bg-card px-2 py-1 rounded">Mouse</span> - Aim</div>
-          <div><span className="font-mono bg-card px-2 py-1 rounded">Click / Space</span> - Shoot</div>
+          {isMobile ? (
+            <>
+              <div><span className="font-mono bg-card px-2 py-1 rounded text-xs">Left Joystick</span> - Move</div>
+              <div><span className="font-mono bg-card px-2 py-1 rounded text-xs">Right Button</span> - Shoot</div>
+            </>
+          ) : (
+            <>
+              <div><span className="font-mono bg-card px-2 py-1 rounded">WASD</span> - Move</div>
+              <div><span className="font-mono bg-card px-2 py-1 rounded">Mouse</span> - Aim</div>
+              <div><span className="font-mono bg-card px-2 py-1 rounded">Click / Space</span> - Shoot</div>
+            </>
+          )}
         </div>
         </div>
       </>
@@ -217,15 +246,21 @@ function App() {
   return (
     <>
       <Toaster />
-      <div className="min-h-screen flex flex-col items-center justify-center p-8 relative">
-      <div className="relative">
+      <div className="min-h-screen flex flex-col items-center justify-center p-2 md:p-8 relative overflow-hidden">
+      <div className="relative w-full max-w-[800px]">
         <GameCanvas engine={engineRef.current} />
         
         {gameState === 'playing' && (
-          <HUD 
-            player={engineRef.current.player} 
-            gameTime={engineRef.current.gameTime}
-          />
+          <>
+            <HUD 
+              player={engineRef.current.player} 
+              gameTime={engineRef.current.gameTime}
+            />
+            <MobileControls 
+              onMove={handleMobileMove}
+              onShoot={handleMobileShoot}
+            />
+          </>
         )}
       </div>
 

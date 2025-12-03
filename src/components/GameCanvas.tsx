@@ -40,7 +40,8 @@ export function GameCanvas({ engine }: GameCanvasProps) {
       ref={canvasRef}
       width={800}
       height={600}
-      className="border-2 border-border rounded-lg"
+      className="border-2 border-border rounded-lg max-w-full"
+      style={{ touchAction: 'none' }}
     />
   )
 }
@@ -78,10 +79,15 @@ function drawPlayer(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.fill()
   ctx.stroke()
 
-  const angle = Math.atan2(
-    engine.mousePosition.y - player.position.y,
-    engine.mousePosition.x - player.position.x
-  )
+  let angle: number
+  if (engine.mobileInput.x !== 0 || engine.mobileInput.y !== 0) {
+    angle = Math.atan2(engine.mobileInput.y, engine.mobileInput.x)
+  } else {
+    angle = Math.atan2(
+      engine.mousePosition.y - player.position.y,
+      engine.mousePosition.x - player.position.x
+    )
+  }
   
   ctx.strokeStyle = '#ffffff'
   ctx.lineWidth = 4

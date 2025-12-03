@@ -1,6 +1,7 @@
 import { Heart, Sword, Lightning, Wind, Star } from '@phosphor-icons/react'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { Player } from '@/lib/types'
 
 interface HUDProps {
@@ -9,6 +10,7 @@ interface HUDProps {
 }
 
 export function HUD({ player, gameTime }: HUDProps) {
+  const isMobile = useIsMobile()
   const healthPercentage = (player.health / player.maxHealth) * 100
   const xpPercentage = (player.xp / player.xpToNextLevel) * 100
   
@@ -24,33 +26,33 @@ export function HUD({ player, gameTime }: HUDProps) {
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      <div className="p-4 flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="text-lg font-bold">
-            <Star className="mr-1" weight="fill" />
+      <div className={`p-2 md:p-4 flex flex-col ${isMobile ? 'gap-1' : 'gap-3'}`}>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className={isMobile ? 'text-sm font-bold' : 'text-lg font-bold'}>
+            <Star className="mr-1" weight="fill" size={isMobile ? 14 : 16} />
             Level {player.level}
           </Badge>
           
-          <Badge variant="outline" className="text-base">
+          <Badge variant="outline" className={isMobile ? 'text-xs' : 'text-base'}>
             {timeString}
           </Badge>
           
-          <Badge variant="outline" className="text-base">
+          <Badge variant="outline" className={isMobile ? 'text-xs' : 'text-base'}>
             Kills: {player.kills}
           </Badge>
         </div>
 
-        <div className="flex flex-col gap-2 bg-card/80 backdrop-blur-sm rounded-lg p-3 w-64 border border-border">
-          <div className="flex items-center justify-between text-sm">
+        <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-2'} bg-card/80 backdrop-blur-sm rounded-lg ${isMobile ? 'p-2 w-48' : 'p-3 w-64'} border border-border`}>
+          <div className={`flex items-center justify-between ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <div className="flex items-center gap-1">
-              <Heart weight="fill" className="text-red-400" />
+              <Heart weight="fill" className="text-red-400" size={isMobile ? 12 : 16} />
               <span className="font-semibold">Health</span>
             </div>
             <span className="text-muted-foreground">
               {Math.floor(player.health)}/{player.maxHealth}
             </span>
           </div>
-          <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+          <div className={`relative ${isMobile ? 'h-2' : 'h-3'} bg-muted rounded-full overflow-hidden`}>
             <div
               className={`absolute inset-y-0 left-0 ${getHealthColor()} transition-all duration-300`}
               style={{ width: `${healthPercentage}%` }}
@@ -58,17 +60,17 @@ export function HUD({ player, gameTime }: HUDProps) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 bg-card/80 backdrop-blur-sm rounded-lg p-3 w-64 border border-border">
-          <div className="flex items-center justify-between text-sm">
+        <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-2'} bg-card/80 backdrop-blur-sm rounded-lg ${isMobile ? 'p-2 w-48' : 'p-3 w-64'} border border-border`}>
+          <div className={`flex items-center justify-between ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <div className="flex items-center gap-1">
-              <Star weight="fill" className="text-accent" />
-              <span className="font-semibold">Experience</span>
+              <Star weight="fill" className="text-accent" size={isMobile ? 12 : 16} />
+              <span className="font-semibold">XP</span>
             </div>
             <span className="text-muted-foreground">
               {player.xp}/{player.xpToNextLevel}
             </span>
           </div>
-          <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+          <div className={`relative ${isMobile ? 'h-2' : 'h-3'} bg-muted rounded-full overflow-hidden`}>
             <div
               className="absolute inset-y-0 left-0 bg-accent transition-all duration-300"
               style={{ width: `${xpPercentage}%` }}
@@ -76,41 +78,45 @@ export function HUD({ player, gameTime }: HUDProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 bg-card/80 backdrop-blur-sm rounded-lg p-3 w-64 border border-border">
-          <div className="flex items-center gap-2 text-sm">
-            <Sword className="text-primary" />
-            <span>{player.damage}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Lightning className="text-accent" />
-            <span>{Math.floor(1000 / player.fireRate)}/s</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Wind className="text-blue-400" />
-            <span>{player.speed}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Heart className="text-red-400" />
-            <span>{player.maxHealth}</span>
-          </div>
-        </div>
-
-        {player.weapon && (
-          <div className="bg-card/80 backdrop-blur-sm rounded-lg p-2 w-64 border border-border">
-            <div className="text-xs text-muted-foreground">Weapon</div>
-            <div className={`font-semibold ${getRarityClass(player.weapon.rarity)}`}>
-              {player.weapon.name}
+        {!isMobile && (
+          <>
+            <div className="grid grid-cols-2 gap-2 bg-card/80 backdrop-blur-sm rounded-lg p-3 w-64 border border-border">
+              <div className="flex items-center gap-2 text-sm">
+                <Sword className="text-primary" />
+                <span>{player.damage}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Lightning className="text-accent" />
+                <span>{Math.floor(1000 / player.fireRate)}/s</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Wind className="text-blue-400" />
+                <span>{player.speed}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Heart className="text-red-400" />
+                <span>{player.maxHealth}</span>
+              </div>
             </div>
-          </div>
-        )}
 
-        {player.armor && (
-          <div className="bg-card/80 backdrop-blur-sm rounded-lg p-2 w-64 border border-border">
-            <div className="text-xs text-muted-foreground">Armor</div>
-            <div className={`font-semibold ${getRarityClass(player.armor.rarity)}`}>
-              {player.armor.name}
-            </div>
-          </div>
+            {player.weapon && (
+              <div className="bg-card/80 backdrop-blur-sm rounded-lg p-2 w-64 border border-border">
+                <div className="text-xs text-muted-foreground">Weapon</div>
+                <div className={`font-semibold ${getRarityClass(player.weapon.rarity)}`}>
+                  {player.weapon.name}
+                </div>
+              </div>
+            )}
+
+            {player.armor && (
+              <div className="bg-card/80 backdrop-blur-sm rounded-lg p-2 w-64 border border-border">
+                <div className="text-xs text-muted-foreground">Armor</div>
+                <div className={`font-semibold ${getRarityClass(player.armor.rarity)}`}>
+                  {player.armor.name}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

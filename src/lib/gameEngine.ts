@@ -12,6 +12,7 @@ export class GameEngine {
   spawnInterval = 2000
   gameTime = 0
   particles: Particle[] = []
+  mobileInput: Vector2 = { x: 0, y: 0 }
 
   constructor() {
     this.player = this.createPlayer()
@@ -62,8 +63,16 @@ export class GameEngine {
   }
 
   updatePlayer(deltaTime: number) {
-    const dx = (this.keys.has('d') || this.keys.has('ArrowRight') ? 1 : 0) - (this.keys.has('a') || this.keys.has('ArrowLeft') ? 1 : 0)
-    const dy = (this.keys.has('s') || this.keys.has('ArrowDown') ? 1 : 0) - (this.keys.has('w') || this.keys.has('ArrowUp') ? 1 : 0)
+    let dx = 0
+    let dy = 0
+
+    if (this.mobileInput.x !== 0 || this.mobileInput.y !== 0) {
+      dx = this.mobileInput.x
+      dy = this.mobileInput.y
+    } else {
+      dx = (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0)
+      dy = (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0) - (this.keys.has('w') || this.keys.has('arrowup') ? 1 : 0)
+    }
 
     if (dx !== 0 || dy !== 0) {
       const magnitude = Math.sqrt(dx * dx + dy * dy)
@@ -87,10 +96,16 @@ export class GameEngine {
   }
 
   shootProjectile() {
-    const angle = Math.atan2(
-      this.mousePosition.y - this.player.position.y,
-      this.mousePosition.x - this.player.position.x
-    )
+    let angle: number
+
+    if (this.mobileInput.x !== 0 || this.mobileInput.y !== 0) {
+      angle = Math.atan2(this.mobileInput.y, this.mobileInput.x)
+    } else {
+      angle = Math.atan2(
+        this.mousePosition.y - this.player.position.y,
+        this.mousePosition.x - this.player.position.x
+      )
+    }
 
     const projectileSpeed = 400
     const projectile: Projectile = {
