@@ -44,10 +44,14 @@ export interface Projectile {
 export interface Loot {
   id: string
   position: Vector2
-  type: 'xp' | 'weapon' | 'armor'
+  type: 'xp' | 'weapon' | 'armor' | 'box'
   value: number
   rarity?: Rarity
   item?: Weapon | Armor
+  health?: number
+  maxHealth?: number
+  radius?: number
+  contactDamage?: number
 }
 
 export interface Weapon {

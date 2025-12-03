@@ -160,6 +160,50 @@ function drawLoot(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.arc(item.position.x, item.position.y, 6, 0, Math.PI * 2)
       ctx.fill()
       ctx.stroke()
+    } else if (item.type === 'box') {
+      const radius = item.radius || 20
+      
+      ctx.save()
+      ctx.translate(item.position.x, item.position.y)
+      
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
+      gradient.addColorStop(0, '#ffcc66')
+      gradient.addColorStop(0.6, '#cc8844')
+      gradient.addColorStop(1, '#995522')
+      
+      ctx.fillStyle = gradient
+      ctx.strokeStyle = '#ffdd88'
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.rect(-radius, -radius, radius * 2, radius * 2)
+      ctx.fill()
+      ctx.stroke()
+      
+      ctx.strokeStyle = '#664422'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(-radius * 0.7, -radius)
+      ctx.lineTo(-radius * 0.7, radius)
+      ctx.moveTo(radius * 0.7, -radius)
+      ctx.lineTo(radius * 0.7, radius)
+      ctx.moveTo(-radius, -radius * 0.5)
+      ctx.lineTo(radius, -radius * 0.5)
+      ctx.moveTo(-radius, radius * 0.5)
+      ctx.lineTo(radius, radius * 0.5)
+      ctx.stroke()
+      
+      if (item.health && item.maxHealth) {
+        const healthBarWidth = radius * 2
+        const healthPercentage = item.health / item.maxHealth
+        
+        ctx.fillStyle = '#222222'
+        ctx.fillRect(-healthBarWidth / 2, -radius - 8, healthBarWidth, 4)
+        
+        ctx.fillStyle = '#ffaa44'
+        ctx.fillRect(-healthBarWidth / 2, -radius - 8, healthBarWidth * healthPercentage, 4)
+      }
+      
+      ctx.restore()
     } else {
       const colors = {
         common: '#9d9d9d',

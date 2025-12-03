@@ -10,6 +10,8 @@ export class GameEngine {
   isShooting = false
   lastSpawnTime = 0
   spawnInterval = 2000
+  lastBoxSpawnTime = 0
+  boxSpawnInterval = 5000
   gameTime = 0
   particles: Particle[] = []
   mobileInput: Vector2 = { x: 0, y: 0 }
@@ -47,10 +49,54 @@ export class GameEngine {
     this.particles = []
     this.gameTime = 0
     this.lastSpawnTime = 0
+    this.lastBoxSpawnTime = 0
+    
+    this.spawnInitialLootBoxes()
+  }
+
+  spawnInitialLootBoxes() {
+    const positions = [
+      { x: 200, y: 150 },
+      { x: 600, y: 150 },
+      { x: 400, y: 450 },
+    ]
+
+    positions.forEach((pos, i) => {
+      const size = Math.random()
+      let radius: number, health: number, contactDamage: number, xpValue: number
+
+      if (size < 0.5) {
+        radius = 15
+        health = 20
+        contactDamage = 5
+        xpValue = 15
+      } else if (size < 0.8) {
+        radius = 25
+        health = 50
+        contactDamage = 15
+        xpValue = 40
+      } else {
+        radius = 35
+        health = 100
+        contactDamage = 30
+        xpValue = 80
+      }
+
+      this.loot.push({
+        id: `box_initial_${i}`,
+        position: pos,
+        type: 'box',
+        value: xpValue,
+        health,
+        maxHealth: health,
+        radius,
+        contactDamage,
+      })
+    })
   }
 
   update(deltaTime: number) {
-    this.gameTime += deltaTime
+    this.gameTime += deltaTime * 1000
 
     this.updatePlayer(deltaTime)
     this.updateEnemies(deltaTime)
@@ -58,6 +104,7 @@ export class GameEngine {
     this.updateLoot(deltaTime)
     this.updateParticles(deltaTime)
     this.spawnEnemies()
+    this.spawnLootBoxes()
     this.checkCollisions()
     this.cleanupEntities()
   }
@@ -148,14 +195,16 @@ export class GameEngine {
 
   updateLoot(deltaTime: number) {
     for (const item of this.loot) {
-      const dx = this.player.position.x - item.position.x
-      const dy = this.player.position.y - item.position.y
-      const distance = Math.sqrt(dx * dx + dy * dy)
+      if (item.type !== 'box') {
+        const dx = this.player.position.x - item.position.x
+        const dy = this.player.position.y - item.position.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
 
-      if (distance < 100) {
-        const pullSpeed = 300
-        item.position.x += (dx / distance) * pullSpeed * deltaTime
-        item.position.y += (dy / distance) * pullSpeed * deltaTime
+        if (distance < 100) {
+          const pullSpeed = 300
+          item.position.x += (dx / distance) * pullSpeed * deltaTime
+          item.position.y += (dy / distance) * pullSpeed * deltaTime
+        }
       }
     }
   }
@@ -183,6 +232,51 @@ export class GameEngine {
 
     this.lastSpawnTime = this.gameTime
     this.spawnInterval = Math.max(1000, 2000 - this.gameTime / 100)
+  }
+
+  spawnLootBoxes() {
+    if (this.gameTime - this.lastBoxSpawnTime < this.boxSpawnInterval) return
+
+    const numBoxes = 1 + Math.floor(Math.random() * 2)
+
+    for (let i = 0; i < numBoxes; i++) {
+      const size = Math.random()
+      let radius: number, health: number, contactDamage: number, xpValue: number
+
+      if (size < 0.5) {
+        radius = 15
+        health = 20
+        contactDamage = 5
+        xpValue = 15
+      } else if (size < 0.8) {
+        radius = 25
+        health = 50
+        contactDamage = 15
+        xpValue = 40
+      } else {
+        radius = 35
+        health = 100
+        contactDamage = 30
+        xpValue = 80
+      }
+
+      const x = 50 + Math.random() * 700
+      const y = 50 + Math.random() * 500
+
+      this.loot.push({
+        id: `box_${Date.now()}_${i}`,
+        position: { x, y },
+        type: 'box',
+        value: xpValue,
+        health,
+        maxHealth: health,
+        radius,
+        contactDamage,
+      })
+    }
+
+    this.lastBoxSpawnTime = this.gameTime
+    this.boxSpawnInterval = 4000 + Math.random() * 4000
   }
 
   getRandomEnemyType(): EnemyType {
@@ -247,6 +341,26 @@ export class GameEngine {
             break
           }
         }
+
+        if (i >= 0 && i < this.projectiles.length && this.projectiles[i] === projectile) {
+          for (let k = this.loot.length - 1; k >= 0; k--) {
+            const box = this.loot[k]
+            if (box.type === 'box' && box.health && box.radius) {
+              const distance = this.getDistance(projectile.position, box.position)
+
+              if (distance < projectile.radius + box.radius) {
+                box.health -= projectile.damage
+                this.projectiles.splice(i, 1)
+                this.createHitParticles(box.position, '#ffaa44')
+
+                if (box.health <= 0) {
+                  this.breakLootBox(k)
+                }
+                break
+              }
+            }
+          }
+        }
       }
     }
 
@@ -262,7 +376,12 @@ export class GameEngine {
       const item = this.loot[i]
       const distance = this.getDistance(item.position, this.player.position)
 
-      if (distance < 20) {
+      if (item.type === 'box' && item.radius && item.contactDamage) {
+        if (distance < item.radius + this.player.radius) {
+          this.player.health -= item.contactDamage * 0.016
+          if (this.player.health < 0) this.player.health = 0
+        }
+      } else if (distance < 20) {
         this.collectLoot(item)
         this.loot.splice(i, 1)
       }
@@ -276,6 +395,43 @@ export class GameEngine {
     this.createDeathParticles(enemy.position)
     this.dropLoot(enemy)
     this.enemies.splice(index, 1)
+  }
+
+  breakLootBox(index: number) {
+    const box = this.loot[index]
+    
+    this.createDeathParticles(box.position)
+    
+    const xpGems = Math.floor(box.value / 5)
+    for (let i = 0; i < xpGems; i++) {
+      const angle = (Math.PI * 2 * i) / xpGems + Math.random() * 0.3
+      const distance = 15 + Math.random() * 15
+      this.loot.push({
+        id: `xp_${Date.now()}_${i}`,
+        position: {
+          x: box.position.x + Math.cos(angle) * distance,
+          y: box.position.y + Math.sin(angle) * distance,
+        },
+        type: 'xp',
+        value: Math.floor(box.value / xpGems),
+      })
+    }
+
+    if (Math.random() < 0.3) {
+      const itemType = Math.random() < 0.5 ? 'weapon' : 'armor'
+      const rarity = this.rollRarity()
+      
+      this.loot.push({
+        id: `item_${Date.now()}`,
+        position: { ...box.position },
+        type: itemType,
+        value: 0,
+        rarity,
+        item: itemType === 'weapon' ? this.generateWeapon(rarity) : this.generateArmor(rarity),
+      })
+    }
+
+    this.loot.splice(index, 1)
   }
 
   dropLoot(enemy: Enemy) {
