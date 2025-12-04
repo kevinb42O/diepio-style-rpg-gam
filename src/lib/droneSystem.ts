@@ -6,6 +6,15 @@ export class DroneSystem {
   private controlMode: DroneControlMode = 'idle'
   private lastSpawnTimes: Map<string, number> = new Map()
   private droneIdCounter = 0
+  private camera: Vector2 = { x: 0, y: 0 }
+  private viewportWidth: number = 800
+  private viewportHeight: number = 600
+
+  setViewport(camera: Vector2, width: number, height: number) {
+    this.camera = camera
+    this.viewportWidth = width
+    this.viewportHeight = height
+  }
 
   update(deltaTime: number, mousePosition: Vector2, player: Player, targets: Loot[]) {
     // Update all drones
@@ -34,9 +43,23 @@ export class DroneSystem {
       ['overseer', 'overlord', 'manager', 'factory', 'battleship', 'hybrid', 'overtrapper'].includes(player.tankClass)
     
     if (isAutoAttackClass) {
-      // Auto-attack mode: drones automatically find and attack targets
+      // Check distance from player - prioritize staying close
+      const distToPlayer = this.getDistance(drone.position, player.position)
+      const maxFollowDistance = 250
+      const attackRange = 350
+      
+      // If drone is far from player, force return
+      if (distToPlayer > maxFollowDistance) {
+        drone.state = 'returning'
+        drone.target = null
+        this.orbitAroundPlayer(drone, player, deltaTime)
+        return
+      }
+      
+      // Only look for targets when close to player
       if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
-        const nearestTarget = this.findNearestTarget(drone, player, targets, 600)
+        // Find targets only within screen space and attack range
+        const nearestTarget = this.findNearestTargetInView(drone, player, targets, attackRange)
         if (nearestTarget) {
           drone.state = 'attacking'
           drone.target = nearestTarget
@@ -48,10 +71,21 @@ export class DroneSystem {
       }
       
       // Execute behavior based on state
-      if (drone.state === 'attacking') {
-        if (drone.target && drone.target.health && drone.target.health > 0) {
-          drone.targetPosition = { ...drone.target.position }
-          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
+      if (drone.state === 'attacking' && drone.target) {
+        // Check if target is still valid and in range
+        if (drone.target.health && drone.target.health > 0) {
+          const distToTarget = this.getDistance(drone.position, drone.target.position)
+          const targetDistToPlayer = this.getDistance(drone.target.position, player.position)
+          
+          // Only continue attacking if target is within range and in view
+          if (distToTarget < attackRange && targetDistToPlayer < attackRange && this.isInScreenView(drone.target.position, player)) {
+            drone.targetPosition = { ...drone.target.position }
+            this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
+          } else {
+            // Target too far or out of view, return to player
+            drone.state = 'returning'
+            drone.target = null
+          }
         } else {
           drone.state = 'returning'
           drone.target = null
@@ -59,13 +93,6 @@ export class DroneSystem {
       } else {
         // returning or idle - follow player at a distance
         this.orbitAroundPlayer(drone, player, deltaTime)
-      }
-      
-      // Check if drone is too far from player
-      const distToPlayer = this.getDistance(drone.position, player.position)
-      if (distToPlayer > 800) {
-        drone.state = 'returning'
-        drone.target = null
       }
     } else {
       // Original mouse-controlled behavior for Necromancer
@@ -197,6 +224,46 @@ export class DroneSystem {
     return nearest
   }
 
+  private findNearestTargetInView(drone: Drone, player: Player, targets: Loot[], range: number): Loot | null {
+    let nearest: Loot | null = null
+    let nearestDist = range
+    
+    for (const target of targets) {
+      if (target.type !== 'box' && target.type !== 'treasure' && target.type !== 'boss') continue
+      if (!target.health || target.health <= 0) continue
+      
+      // Check if target is in screen view
+      if (!this.isInScreenView(target.position, player)) continue
+      
+      // Check distance from player (not drone)
+      const distFromPlayer = this.getDistance(player.position, target.position)
+      if (distFromPlayer > range) continue
+      
+      // Now check distance from drone for nearest calculation
+      const dist = this.getDistance(drone.position, target.position)
+      if (dist < nearestDist) {
+        nearest = target
+        nearestDist = dist
+      }
+    }
+    
+    return nearest
+  }
+
+  private isInScreenView(position: Vector2, player: Player): boolean {
+    // Calculate screen bounds with some padding
+    const padding = 100
+    const screenLeft = this.camera.x - padding
+    const screenRight = this.camera.x + this.viewportWidth + padding
+    const screenTop = this.camera.y - padding
+    const screenBottom = this.camera.y + this.viewportHeight + padding
+    
+    return position.x >= screenLeft && 
+           position.x <= screenRight && 
+           position.y >= screenTop && 
+           position.y <= screenBottom
+  }
+
   private getDistance(a: Vector2, b: Vector2): number {
     const dx = b.x - a.x
     const dy = b.y - a.y
@@ -216,9 +283,10 @@ export class DroneSystem {
     const spawnKey = `${player.id}_spawn`
     const lastSpawn = this.lastSpawnTimes.get(spawnKey) || 0
     
-    // Calculate spawn rate from player stats
-    const baseSpawnRate = 1000
-    const spawnRate = baseSpawnRate / (1 + (player.fireRate / 300) * 0.5)
+    // Calculate spawn rate from player stats - faster spawning with better reload
+    const baseSpawnRate = 2000
+    const reloadBonus = Math.max(0, 1 - (player.fireRate / 500))
+    const spawnRate = baseSpawnRate * (0.5 + reloadBonus * 0.5)
     
     if (now - lastSpawn >= spawnRate) {
       this.spawnDrone(player, tankConfig.droneType || 'triangle')

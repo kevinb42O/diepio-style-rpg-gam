@@ -311,6 +311,7 @@ export class GameEngine {
     // Update enhanced systems
     this.particleSystem.update(deltaTime)
     this.screenEffects.update(deltaTime)
+    this.droneSystem.setViewport(this.camera, this.viewportWidth, this.viewportHeight)
     this.droneSystem.update(deltaTime, this.mousePosition, this.player, this.loot)
     this.checkDroneCollisions()
 

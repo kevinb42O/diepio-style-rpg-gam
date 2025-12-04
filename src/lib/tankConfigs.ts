@@ -125,9 +125,9 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     unlocksAt: 30,
     upgradesFrom: ['sniper'],
     isDroneClass: true,
-    droneCount: 8,
+    droneCount: 16,
     droneType: 'triangle',
-    spawnerCount: 2
+    spawnerCount: 4
   },
   
   destroyer: {
@@ -385,7 +385,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     unlocksAt: 45,
     upgradesFrom: ['overseer'],
     isDroneClass: true,
-    droneCount: 8,
+    droneCount: 16,
     droneType: 'triangle',
     spawnerCount: 1,
     invisibility: { delay: 1, maxAlpha: 1.0 }
@@ -400,7 +400,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     unlocksAt: 45,
     upgradesFrom: ['overseer'],
     isDroneClass: true,
-    droneCount: 6,
+    droneCount: 12,
     droneType: 'minion',
     spawnerCount: 1
   },
@@ -417,7 +417,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     unlocksAt: 45,
     upgradesFrom: ['twinflank'],
     isDroneClass: true,
-    droneCount: 16,
+    droneCount: 32,
     droneType: 'triangle',
     spawnerCount: 4
   },
@@ -448,7 +448,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     unlocksAt: 45,
     upgradesFrom: ['destroyer'],
     isDroneClass: true,
-    droneCount: 2,
+    droneCount: 8,
     droneType: 'triangle',
     spawnerCount: 2
   },
@@ -585,7 +585,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     isTrapper: true,
     trapConfig: { size: 15, health: 50, duration: 30000 },
     isDroneClass: true,
-    droneCount: 2,
+    droneCount: 8,
     droneType: 'triangle',
     spawnerCount: 2
   },
@@ -620,9 +620,9 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     unlocksAt: 45,
     upgradesFrom: ['overseer'],
     isDroneClass: true,
-    droneCount: 8,
+    droneCount: 24,
     droneType: 'triangle',
-    spawnerCount: 4
+    spawnerCount: 8
   }
 }
 
