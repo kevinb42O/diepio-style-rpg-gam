@@ -30,6 +30,9 @@ export interface Player extends Entity {
   lastRegenTime: number
   tankClass: string
   lootRange: number
+  invisibility: number
+  invisibilityTimer: number
+  bodyShape: 'circle' | 'square' | 'hexagon' | 'spikyHexagon'
 }
 
 export interface Enemy extends Entity {
@@ -95,4 +98,35 @@ export interface HighScore {
   levelReached: number
   enemiesKilled: number
   date: number
+}
+
+export interface Drone {
+  id: string
+  position: Vector2
+  velocity: Vector2
+  targetPosition: Vector2 | null
+  health: number
+  maxHealth: number
+  damage: number
+  speed: number
+  radius: number
+  ownerId: string
+  droneType: 'triangle' | 'square' | 'minion'
+  state: 'idle' | 'attacking' | 'returning' | 'controlled'
+  orbitAngle: number
+  target: Loot | null
+}
+
+export type DroneControlMode = 'idle' | 'attract' | 'repel'
+
+export interface Trap {
+  id: string
+  position: Vector2
+  velocity: Vector2
+  health: number
+  maxHealth: number
+  radius: number
+  damage: number
+  lifetime: number
+  ownerId: string
 }

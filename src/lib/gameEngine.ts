@@ -1,4 +1,4 @@
-import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor } from './types'
+import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor, DroneControlMode } from './types'
 import { UpgradeManager, type StatType } from './upgradeSystem'
 import { ParticleSystem } from '@/systems/ParticleSystem'
 import { QuadTree } from '@/utils/QuadTree'
@@ -7,6 +7,7 @@ import { Physics } from '@/utils/Physics'
 import { audioManager } from '@/audio/AudioManager'
 import { ObjectPool } from '@/utils/ObjectPool'
 import { TANK_CONFIGS } from './tankConfigs'
+import { DroneSystem } from './droneSystem'
 
 export class GameEngine {
   upgradeManager: UpgradeManager
@@ -37,6 +38,8 @@ export class GameEngine {
   screenEffects: ScreenEffects
   quadTree: QuadTree
   projectilePool: ObjectPool<Projectile>
+  droneSystem: DroneSystem
+  droneControlMode: DroneControlMode = 'idle'
   autoFire = false
   invincibilityFrames = 0
   comboKills = 0
@@ -50,6 +53,7 @@ export class GameEngine {
     this.particleSystem = new ParticleSystem()
     this.screenEffects = new ScreenEffects()
     this.quadTree = new QuadTree({ x: 0, y: 0, width: this.worldSize, height: this.worldSize })
+    this.droneSystem = new DroneSystem()
     this.projectilePool = new ObjectPool<Projectile>(
       () => ({
         id: `proj_${Date.now()}_${Math.random()}`,
@@ -99,6 +103,9 @@ export class GameEngine {
       lastRegenTime: 0,
       tankClass: 'basic',
       lootRange: 50,
+      invisibility: 0,
+      invisibilityTimer: 0,
+      bodyShape: 'circle',
     }
   }
 
@@ -112,6 +119,8 @@ export class GameEngine {
     this.lastBoxSpawnTime = 0
     this.particleSystem.clear()
     this.screenEffects.clear()
+    this.droneSystem.clear()
+    this.droneControlMode = 'idle'
     this.invincibilityFrames = 2.0 // 2 seconds of invincibility after respawn
     this.comboKills = 0
     this.lastKillTime = 0
@@ -294,6 +303,7 @@ export class GameEngine {
     this.updateParticles(deltaTime)
     this.updateRecoilAndFlash(deltaTime)
     this.updateCameraSmooth(deltaTime)
+    this.updateInvisibility(deltaTime)
     this.spawnLootBoxes()
     this.checkCollisionsOptimized()
     this.cleanupEntities()
@@ -301,6 +311,8 @@ export class GameEngine {
     // Update enhanced systems
     this.particleSystem.update(deltaTime)
     this.screenEffects.update(deltaTime)
+    this.droneSystem.update(deltaTime, this.mousePosition, this.player, this.loot)
+    this.checkDroneCollisions()
 
     if (this.renderCallback) {
       this.renderCallback()
@@ -350,6 +362,67 @@ export class GameEngine {
     
     this.camera.x = Math.max(0, Math.min(this.worldSize - this.viewportWidth, this.camera.x))
     this.camera.y = Math.max(0, Math.min(this.worldSize - this.viewportHeight, this.camera.y))
+  }
+
+  updateInvisibility(deltaTime: number) {
+    const tankConfig = TANK_CONFIGS[this.player.tankClass]
+    
+    if (!tankConfig || !tankConfig.invisibility) {
+      this.player.invisibility = 0
+      this.player.invisibilityTimer = 0
+      return
+    }
+    
+    const isMoving = this.player.velocity.x !== 0 || this.player.velocity.y !== 0
+    const isShooting = this.gameTime - this.player.lastShotTime < 100
+    
+    if (isMoving || isShooting) {
+      // Reset invisibility
+      this.player.invisibilityTimer = 0
+      this.player.invisibility = 0
+    } else {
+      // Build up invisibility
+      this.player.invisibilityTimer += deltaTime
+      
+      const delay = tankConfig.invisibility.delay
+      if (this.player.invisibilityTimer >= delay) {
+        const fadeTime = 1.0 // 1 second to fully fade
+        const timeSinceDelay = this.player.invisibilityTimer - delay
+        this.player.invisibility = Math.min(1, timeSinceDelay / fadeTime)
+      }
+    }
+  }
+
+  checkDroneCollisions() {
+    const collisions = this.droneSystem.checkDroneCollisions(this.loot)
+    
+    for (const collision of collisions) {
+      const loot = this.loot.find(l => l.id === collision.targetId)
+      if (loot && loot.health !== undefined) {
+        loot.health = Math.max(0, loot.health - collision.damage)
+        
+        // Check if shape was destroyed
+        if (loot.health <= 0) {
+          // Try to convert to drone for Necromancer
+          if (this.player.tankClass === 'necromancer') {
+            this.droneSystem.convertShapeToDrone(loot, this.player)
+          }
+          
+          // Award XP
+          this.player.xp += loot.value || 0
+          this.player.kills++
+          
+          // Level up check
+          if (this.player.xp >= this.player.xpToNextLevel) {
+            this.player.level++
+            this.player.xpToNextLevel = this.upgradeManager.getXPForLevel(this.player.level + 1)
+            if (this.onLevelUp) {
+              this.onLevelUp()
+            }
+          }
+        }
+      }
+    }
   }
 
   updatePlayer(deltaTime: number) {
@@ -964,6 +1037,22 @@ export class GameEngine {
     this.player.health = Math.max(1, Math.floor(healthPercentage * this.player.maxHealth))
   }
 
+  upgradeTank(tankKey: string): boolean {
+    const success = this.upgradeManager.upgradeTank(tankKey)
+    if (success) {
+      this.player.tankClass = tankKey
+      
+      // Update body shape based on new tank
+      const tankConfig = TANK_CONFIGS[tankKey]
+      if (tankConfig) {
+        this.player.bodyShape = tankConfig.bodyShape || 'circle'
+      }
+      
+      audioManager.play('upgrade')
+    }
+    return success
+  }
+
   // Admin methods
   setLevel(level: number) {
     if (level < 1) return false
@@ -1071,6 +1160,32 @@ export class GameEngine {
         color: '#bb88ff',
         size: 5,
       })
+    }
+  }
+
+  handleMouseDown(button: number) {
+    const tankConfig = TANK_CONFIGS[this.player.tankClass]
+    if (!tankConfig || !tankConfig.isDroneClass) return
+    
+    if (button === 0) {
+      // Left click - attract drones
+      this.droneControlMode = 'attract'
+      this.droneSystem.setControlMode('attract')
+    } else if (button === 2) {
+      // Right click - repel drones
+      this.droneControlMode = 'repel'
+      this.droneSystem.setControlMode('repel')
+    }
+  }
+
+  handleMouseUp(button: number) {
+    const tankConfig = TANK_CONFIGS[this.player.tankClass]
+    if (!tankConfig || !tankConfig.isDroneClass) return
+    
+    if (button === 0 || button === 2) {
+      // Release control - return to idle
+      this.droneControlMode = 'idle'
+      this.droneSystem.setControlMode('idle')
     }
   }
 }

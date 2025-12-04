@@ -92,17 +92,60 @@ export class RenderEngine {
       )
     }
 
+    // Calculate dynamic size
+    const levelScale = 1 + (player.level - 1) * 0.012
+    const statScale = 1 + (engine.upgradeManager.getStatPoints().maxHealth * 0.02)
+    const finalRadius = player.radius * levelScale * statScale
+
+    // Get tier-based color and glow
+    const tierColors = {
+      0: { fill: '#00B2E1', glow: null },
+      1: { fill: '#00C4F5', glow: null },
+      2: { fill: '#00D8FF', glow: 'rgba(0, 216, 255, 0.2)' },
+      3: { fill: '#00EEFF', glow: 'rgba(0, 238, 255, 0.4)' }
+    }
+    const tier = tankConfig.tier || 0
+    const colors = tierColors[tier as keyof typeof tierColors] || tierColors[0]
+
+    // Apply invisibility
+    if (player.invisibility > 0) {
+      const maxAlpha = tankConfig.invisibility?.maxAlpha || 0.5
+      this.ctx.globalAlpha = 1 - (player.invisibility * maxAlpha)
+    }
+
+    // Draw speed lines for fast tanks
+    if (tankConfig.hasSpeedLines) {
+      const speedMag = Math.sqrt(player.velocity.x * player.velocity.x + player.velocity.y * player.velocity.y)
+      if (speedMag > 100) {
+        this.drawSpeedLines(player, aimAngle)
+      }
+    }
+
+    // Draw drone orbit ring for drone classes
+    if (tankConfig.isDroneClass) {
+      this.drawDroneOrbitRing(player, finalRadius)
+    }
+
     this.drawTank(
       player.position.x,
       player.position.y,
-      '#00B2E1',
+      colors.fill,
       tankConfig.barrels,
       aimAngle,
-      player.radius,
-      engine.barrelRecoil
+      finalRadius,
+      engine.barrelRecoil,
+      tankConfig.bodyShape || 'circle',
+      tankConfig.bodySpikes,
+      colors.glow
     )
 
+    // Draw drones
+    this.drawDrones(engine)
+
     this.drawMuzzleFlashes(engine)
+
+    // Reset alpha
+    this.ctx.globalAlpha = 1
   }
 
   drawTank(
@@ -112,25 +155,98 @@ export class RenderEngine {
     barrelConfig: BarrelConfig[],
     rotation: number = 0,
     bodyRadius: number = 15,
-    recoilOffset: number = 0
+    recoilOffset: number = 0,
+    bodyShape: 'circle' | 'square' | 'hexagon' | 'spikyHexagon' = 'circle',
+    bodySpikes?: number,
+    glowColor?: string | null
   ) {
     this.ctx.save()
     this.ctx.translate(x, y)
     this.ctx.rotate(rotation)
 
+    // Draw glow effect if specified
+    if (glowColor) {
+      this.ctx.shadowBlur = 20
+      this.ctx.shadowColor = glowColor
+    }
+
     for (const barrel of barrelConfig) {
       this.drawBarrel(barrel, color, recoilOffset)
     }
 
+    // Draw body based on shape
     this.ctx.beginPath()
-    this.ctx.arc(0, 0, bodyRadius, 0, Math.PI * 2)
+    
+    switch (bodyShape) {
+      case 'square':
+        this.ctx.rect(-bodyRadius, -bodyRadius, bodyRadius * 2, bodyRadius * 2)
+        break
+      
+      case 'hexagon':
+        this.drawPolygonPath(bodyRadius, 6)
+        break
+      
+      case 'spikyHexagon':
+        this.drawSpikyHexagonPath(bodyRadius, bodySpikes || 6)
+        break
+      
+      case 'circle':
+      default:
+        this.ctx.arc(0, 0, bodyRadius, 0, Math.PI * 2)
+        break
+    }
+    
     this.ctx.fillStyle = color
     this.ctx.fill()
     this.ctx.strokeStyle = '#000000'
     this.ctx.lineWidth = 3
     this.ctx.stroke()
 
+    // Reset shadow
+    this.ctx.shadowBlur = 0
+
     this.ctx.restore()
+  }
+
+  private drawPolygonPath(radius: number, sides: number) {
+    for (let i = 0; i < sides; i++) {
+      const angle = (Math.PI * 2 * i) / sides - Math.PI / 2
+      const x = Math.cos(angle) * radius
+      const y = Math.sin(angle) * radius
+      if (i === 0) {
+        this.ctx.moveTo(x, y)
+      } else {
+        this.ctx.lineTo(x, y)
+      }
+    }
+    this.ctx.closePath()
+  }
+
+  private drawSpikyHexagonPath(radius: number, spikes: number) {
+    const baseRadius = radius * 0.7
+    const spikeLength = radius * 0.5
+    
+    for (let i = 0; i < spikes; i++) {
+      const angle1 = (Math.PI * 2 * i) / spikes - Math.PI / 2
+      const angle2 = (Math.PI * 2 * (i + 0.5)) / spikes - Math.PI / 2
+      const angle3 = (Math.PI * 2 * (i + 1)) / spikes - Math.PI / 2
+      
+      const x1 = Math.cos(angle1) * baseRadius
+      const y1 = Math.sin(angle1) * baseRadius
+      const x2 = Math.cos(angle2) * (baseRadius + spikeLength)
+      const y2 = Math.sin(angle2) * (baseRadius + spikeLength)
+      const x3 = Math.cos(angle3) * baseRadius
+      const y3 = Math.sin(angle3) * baseRadius
+      
+      if (i === 0) {
+        this.ctx.moveTo(x1, y1)
+      } else {
+        this.ctx.lineTo(x1, y1)
+      }
+      this.ctx.lineTo(x2, y2)
+      this.ctx.lineTo(x3, y3)
+    }
+    this.ctx.closePath()
   }
 
   private drawBarrel(barrel: BarrelConfig, color: string, recoilOffset: number = 0) {
@@ -420,6 +536,98 @@ export class RenderEngine {
       this.ctx.fillStyle = flash.color
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
       this.ctx.globalAlpha = 1
+    }
+  }
+
+  private drawSpeedLines(player: any, aimAngle: number) {
+    const lineCount = 5
+    const lineLength = 30
+    const lineSpacing = 15
+    
+    this.ctx.save()
+    this.ctx.globalAlpha = 0.3
+    this.ctx.strokeStyle = '#FFFFFF'
+    this.ctx.lineWidth = 2
+    
+    for (let i = 0; i < lineCount; i++) {
+      const dist = 40 + i * lineSpacing
+      const x = player.position.x - Math.cos(aimAngle) * dist
+      const y = player.position.y - Math.sin(aimAngle) * dist
+      
+      this.ctx.beginPath()
+      this.ctx.moveTo(x, y)
+      this.ctx.lineTo(x - Math.cos(aimAngle) * lineLength, y - Math.sin(aimAngle) * lineLength)
+      this.ctx.stroke()
+    }
+    
+    this.ctx.restore()
+  }
+
+  private drawDroneOrbitRing(player: any, radius: number) {
+    const orbitRadius = 80
+    
+    this.ctx.save()
+    this.ctx.globalAlpha = 0.15
+    this.ctx.strokeStyle = '#00D8FF'
+    this.ctx.lineWidth = 1
+    this.ctx.setLineDash([5, 5])
+    
+    this.ctx.beginPath()
+    this.ctx.arc(player.position.x, player.position.y, orbitRadius, 0, Math.PI * 2)
+    this.ctx.stroke()
+    
+    this.ctx.setLineDash([])
+    this.ctx.restore()
+  }
+
+  private drawDrones(engine: GameEngine) {
+    const drones = engine.droneSystem.getDrones()
+    
+    for (const drone of drones) {
+      this.ctx.save()
+      
+      // Draw drone based on type
+      this.ctx.translate(drone.position.x, drone.position.y)
+      
+      this.ctx.beginPath()
+      
+      if (drone.droneType === 'triangle') {
+        // Triangle drone
+        const angle = Math.atan2(drone.velocity.y, drone.velocity.x)
+        this.ctx.rotate(angle)
+        this.ctx.moveTo(drone.radius, 0)
+        this.ctx.lineTo(-drone.radius, -drone.radius)
+        this.ctx.lineTo(-drone.radius, drone.radius)
+        this.ctx.closePath()
+      } else if (drone.droneType === 'square') {
+        // Square drone (Necromancer)
+        this.ctx.rect(-drone.radius, -drone.radius, drone.radius * 2, drone.radius * 2)
+      } else if (drone.droneType === 'minion') {
+        // Minion drone (Factory) - small tank with barrel
+        this.ctx.arc(0, 0, drone.radius, 0, Math.PI * 2)
+      }
+      
+      this.ctx.fillStyle = '#00B2E1'
+      this.ctx.fill()
+      this.ctx.strokeStyle = '#000000'
+      this.ctx.lineWidth = 2
+      this.ctx.stroke()
+      
+      // Draw health bar if damaged
+      if (drone.health < drone.maxHealth) {
+        const barWidth = drone.radius * 2
+        const barHeight = 3
+        const barY = -drone.radius - 8
+        
+        this.ctx.fillStyle = '#333333'
+        this.ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight)
+        
+        const healthPercent = drone.health / drone.maxHealth
+        this.ctx.fillStyle = '#00FF00'
+        this.ctx.fillRect(-barWidth / 2, barY, barWidth * healthPercent, barHeight)
+      }
+      
+      this.ctx.restore()
     }
   }
 
