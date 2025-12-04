@@ -433,7 +433,6 @@ export class BotAISystem {
     const projectiles: Projectile[] = []
     const angle = Math.atan2(targetPosition.y - bot.position.y, targetPosition.x - bot.position.x)
 
-    const bulletSpeed = bot.bulletSpeed * (1 + bot.statPoints.bulletSpeed * 0.05)
     const damage = bot.damage * (1 + bot.statPoints.bulletDamage * 0.1)
 
     for (let i = 0; i < config.barrels.length; i++) {
@@ -441,7 +440,6 @@ export class BotAISystem {
       const barrelAngle = angle + (barrel.angle * Math.PI) / 180
 
       if (bot.barrelRecoils && bot.barrelRecoils[i] !== undefined) {
-        bot.barrelRecoils[i] = 8
       }
 
       const spawnDist = bot.radius + barrel.length + 5
