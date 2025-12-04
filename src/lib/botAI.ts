@@ -180,10 +180,12 @@ export class BotAISystem {
     deltaTime: number,
     playerPosition: Vector2,
     playerRadius: number,
-    currentTime: number
-  ): { projectiles: Projectile[]; targetPositions: Map<string, Vector2> } {
+    currentTime: number,
+    loot: Loot[]
+  ): { projectiles: Projectile[]; targetPositions: Map<string, Vector2>; farmTargets: Map<string, string> } {
     const projectiles: Projectile[] = []
     const targetPositions = new Map<string, Vector2>()
+    const farmTargets = new Map<string, string>()
 
     for (let i = this.bots.length - 1; i >= 0; i--) {
       const bot = this.bots[i]
@@ -201,15 +203,15 @@ export class BotAISystem {
         }
       }
 
-      // Update behavior
-      const behavior = this.updateBehavior(bot, playerPosition, playerRadius, currentTime)
+      // Update behavior (now includes farming)
+      const behavior = this.updateBehavior(bot, playerPosition, playerRadius, currentTime, loot)
       
       // Move bot
       this.moveBot(bot, behavior.targetPosition, deltaTime)
 
-      // Shoot at player if in range
-      if (behavior.shouldShoot) {
-        const newProjectiles = this.tryShoot(bot, playerPosition, currentTime)
+      // Shoot at target (player or loot)
+      if (behavior.shouldShoot && behavior.shootTarget) {
+        const newProjectiles = this.tryShoot(bot, behavior.shootTarget, currentTime)
         projectiles.push(...newProjectiles)
       }
 
@@ -217,9 +219,14 @@ export class BotAISystem {
       if (behavior.targetPosition) {
         targetPositions.set(bot.id, behavior.targetPosition)
       }
+      
+      // Store farm target for damage tracking
+      if (behavior.farmTargetId) {
+        farmTargets.set(bot.id, behavior.farmTargetId)
+      }
     }
 
-    return { projectiles, targetPositions }
+    return { projectiles, targetPositions, farmTargets }
   }
 
   /**
@@ -229,8 +236,9 @@ export class BotAISystem {
     bot: BotPlayer,
     playerPosition: Vector2,
     playerRadius: number,
-    currentTime: number
-  ): { targetPosition: Vector2 | null; shouldShoot: boolean } {
+    currentTime: number,
+    loot: Loot[]
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
     const distance = this.getDistance(bot.position, playerPosition)
     const config = TANK_CONFIGS[bot.tankClass]
 
@@ -247,10 +255,32 @@ export class BotAISystem {
     // Behavior based on class type
     let targetPosition: Vector2 | null = null
     let shouldShoot = false
+    let shootTarget: Vector2 | null = null
+    let farmTargetId: string | null = null
     const visualRange = 800
 
     if (!bot.targetPlayer || distance > visualRange) {
-      // Patrol around spawn zone
+      // Not targeting player - find loot to farm
+      const nearestLoot = this.findNearestLoot(bot.position, loot, 400)
+      
+      if (nearestLoot) {
+        // Farm the loot
+        targetPosition = nearestLoot.position
+        
+        // Shoot at loot if not a smasher
+        if (config?.bodyShape !== 'hexagon' && config?.bodyShape !== 'spikyHexagon') {
+          const distToLoot = this.getDistance(bot.position, nearestLoot.position)
+          if (distToLoot < 300) {
+            shouldShoot = true
+            shootTarget = nearestLoot.position
+            farmTargetId = nearestLoot.id
+          }
+        }
+        
+        return { targetPosition, shouldShoot, shootTarget, farmTargetId }
+      }
+      
+      // No loot nearby - patrol around spawn zone
       if (currentTime - bot.lastBehaviorChange > 2000) {
         const angle = Math.random() * Math.PI * 2
         const patrolDist = 200
@@ -259,7 +289,7 @@ export class BotAISystem {
           y: bot.position.y + Math.sin(angle) * patrolDist,
         }
       }
-      return { targetPosition, shouldShoot: false }
+      return { targetPosition, shouldShoot: false, shootTarget: null, farmTargetId: null }
     }
 
     // Smasher behavior - aggressive ramming
