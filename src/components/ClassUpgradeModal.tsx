@@ -24,7 +24,7 @@ export function ClassUpgradeModal({ availableClasses, onSelect, onClose }: Class
 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
-      drawTankPreview(ctx, canvas.width / 2, canvas.height / 2, '#00B2E1', config.barrels, 30)
+      drawTankPreview(ctx, canvas.width / 2, canvas.height / 2, '#00B2E1', config.barrels, 30, config.bodyShape)
     })
   }, [availableClasses])
 
@@ -34,7 +34,8 @@ export function ClassUpgradeModal({ availableClasses, onSelect, onClose }: Class
     y: number,
     color: string,
     barrelConfig: BarrelConfig[],
-    bodyRadius: number
+    bodyRadius: number,
+    bodyShape?: 'circle' | 'square' | 'hexagon' | 'spikyHexagon'
   ) => {
     ctx.save()
     ctx.translate(x, y)
@@ -44,7 +45,28 @@ export function ClassUpgradeModal({ availableClasses, onSelect, onClose }: Class
     }
 
     ctx.beginPath()
-    ctx.arc(0, 0, bodyRadius, 0, Math.PI * 2)
+    
+    // Draw body based on shape
+    const shape = bodyShape || 'circle'
+    switch (shape) {
+      case 'square':
+        ctx.rect(-bodyRadius, -bodyRadius, bodyRadius * 2, bodyRadius * 2)
+        break
+      
+      case 'hexagon':
+        drawPolygonPath(ctx, bodyRadius, 6)
+        break
+      
+      case 'spikyHexagon':
+        drawSpikyHexagonPath(ctx, bodyRadius, 6)
+        break
+      
+      case 'circle':
+      default:
+        ctx.arc(0, 0, bodyRadius, 0, Math.PI * 2)
+        break
+    }
+    
     ctx.fillStyle = color
     ctx.fill()
     ctx.strokeStyle = '#000000'
@@ -52,6 +74,47 @@ export function ClassUpgradeModal({ availableClasses, onSelect, onClose }: Class
     ctx.stroke()
 
     ctx.restore()
+  }
+
+  const drawPolygonPath = (ctx: CanvasRenderingContext2D, radius: number, sides: number) => {
+    for (let i = 0; i < sides; i++) {
+      const angle = (Math.PI * 2 * i) / sides - Math.PI / 2
+      const x = Math.cos(angle) * radius
+      const y = Math.sin(angle) * radius
+      if (i === 0) {
+        ctx.moveTo(x, y)
+      } else {
+        ctx.lineTo(x, y)
+      }
+    }
+    ctx.closePath()
+  }
+
+  const drawSpikyHexagonPath = (ctx: CanvasRenderingContext2D, radius: number, spikes: number) => {
+    const baseRadius = radius * 0.7
+    const spikeLength = radius * 0.5
+    
+    for (let i = 0; i < spikes; i++) {
+      const angle1 = (Math.PI * 2 * i) / spikes - Math.PI / 2
+      const angle2 = (Math.PI * 2 * (i + 0.5)) / spikes - Math.PI / 2
+      const angle3 = (Math.PI * 2 * (i + 1)) / spikes - Math.PI / 2
+      
+      const x1 = Math.cos(angle1) * baseRadius
+      const y1 = Math.sin(angle1) * baseRadius
+      const x2 = Math.cos(angle2) * (baseRadius + spikeLength)
+      const y2 = Math.sin(angle2) * (baseRadius + spikeLength)
+      const x3 = Math.cos(angle3) * baseRadius
+      const y3 = Math.sin(angle3) * baseRadius
+      
+      if (i === 0) {
+        ctx.moveTo(x1, y1)
+      } else {
+        ctx.lineTo(x1, y1)
+      }
+      ctx.lineTo(x2, y2)
+      ctx.lineTo(x3, y3)
+    }
+    ctx.closePath()
   }
 
   const drawBarrel = (

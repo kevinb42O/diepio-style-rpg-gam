@@ -235,6 +235,376 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
       { offsetX: 0, offsetY: -8, angle: Math.PI, width: 8, length: 14 }
     ],
     description: 'Maximum speed and agility'
+  },
+  
+  // === TIER 1: NEW TANKS ===
+  
+  smasher: {
+    name: 'Smasher',
+    tier: 1,
+    requiredLevel: 15,
+    parent: 'basic',
+    barrels: [],
+    description: 'Pure body damage, hexagon body'
+  },
+  
+  // === TIER 2: NEW TANKS ===
+  
+  hunter: {
+    name: 'Hunter',
+    tier: 2,
+    requiredLevel: 30,
+    parent: 'sniper',
+    barrels: [
+      { offsetX: 0, offsetY: -3, angle: 0, width: 11, length: 25 },
+      { offsetX: 0, offsetY: 3, angle: 0, width: 13, length: 20 }
+    ],
+    description: 'Dual stacked barrels for heavy hits'
+  },
+  
+  twinFlank: {
+    name: 'Twin Flank',
+    tier: 2,
+    requiredLevel: 30,
+    parent: 'twin',
+    barrels: [
+      { offsetX: 0, offsetY: -6, angle: 0, width: 10, length: 20 },
+      { offsetX: 0, offsetY: 6, angle: 0, width: 10, length: 20 },
+      { offsetX: 0, offsetY: -6, angle: Math.PI, width: 10, length: 20 },
+      { offsetX: 0, offsetY: 6, angle: Math.PI, width: 10, length: 20 }
+    ],
+    description: 'Twin barrels front and back'
+  },
+  
+  gunner: {
+    name: 'Gunner',
+    tier: 2,
+    requiredLevel: 30,
+    parent: 'machineGun',
+    barrels: [
+      { offsetX: 0, offsetY: -9, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: -3, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: 3, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: 9, angle: 0, width: 8, length: 19 }
+    ],
+    description: 'Rapid fire with 4 small barrels'
+  },
+  
+  trapper: {
+    name: 'Trapper',
+    tier: 2,
+    requiredLevel: 30,
+    parent: 'sniper',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 20, length: 12 }
+    ],
+    description: 'Deploy stationary traps'
+  },
+  
+  auto3: {
+    name: 'Auto 3',
+    tier: 2,
+    requiredLevel: 30,
+    parent: 'flankGuard',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 15 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 2 / 3, width: 11, length: 15 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 4 / 3, width: 11, length: 15 }
+    ],
+    description: 'Three auto-turrets'
+  },
+  
+  // === TIER 3: NEW TANKS ===
+  
+  triplet: {
+    name: 'Triplet',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'tripleShot',
+    barrels: [
+      { offsetX: 0, offsetY: -8, angle: 0, width: 11, length: 25 },
+      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 26 },
+      { offsetX: 0, offsetY: 8, angle: 0, width: 11, length: 25 }
+    ],
+    description: 'Focused triple firepower'
+  },
+  
+  spreadShot: {
+    name: 'Spread Shot',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'tripleShot',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 4, width: 10, length: 17 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 6, width: 10, length: 18 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 7, width: 10, length: 19 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 12, width: 10, length: 19 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 24, width: 10, length: 20 },
+      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 21 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 24, width: 10, length: 20 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 12, width: 10, length: 19 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 7, width: 10, length: 19 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 6, width: 10, length: 18 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 4, width: 10, length: 17 }
+    ],
+    description: 'Wall of bullets'
+  },
+  
+  stalker: {
+    name: 'Stalker',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'assassin',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 6, length: 35 }
+    ],
+    description: 'Invisibility when stationary'
+  },
+  
+  predator: {
+    name: 'Predator',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'hunter',
+    barrels: [
+      { offsetX: 0, offsetY: -6, angle: 0, width: 10, length: 27 },
+      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 29 },
+      { offsetX: 0, offsetY: 6, angle: 0, width: 10, length: 27 }
+    ],
+    description: 'Triple stacked barrels'
+  },
+  
+  streamliner: {
+    name: 'Streamliner',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'hunter',
+    barrels: [
+      { offsetX: 0, offsetY: -8, angle: 0, width: 8, length: 24 },
+      { offsetX: 0, offsetY: -4, angle: 0, width: 8, length: 25 },
+      { offsetX: 0, offsetY: 0, angle: 0, width: 8, length: 26 },
+      { offsetX: 0, offsetY: 4, angle: 0, width: 8, length: 25 },
+      { offsetX: 0, offsetY: 8, angle: 0, width: 8, length: 24 }
+    ],
+    description: 'Extreme fire rate'
+  },
+  
+  necromancer: {
+    name: 'Necromancer',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'overseer',
+    barrels: [],
+    description: 'Convert killed shapes to drones'
+  },
+  
+  manager: {
+    name: 'Manager',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'overseer',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 18, length: 6 }
+    ],
+    description: 'Invisible when not shooting'
+  },
+  
+  factory: {
+    name: 'Factory',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'overseer',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 28, length: 10 }
+    ],
+    description: 'Spawn AI mini-tanks'
+  },
+  
+  battleship: {
+    name: 'Battleship',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'twinFlank',
+    barrels: [
+      { offsetX: -8, offsetY: -8, angle: Math.PI / 4, width: 16, length: 6 },
+      { offsetX: -8, offsetY: 8, angle: Math.PI * 3 / 4, width: 16, length: 6 },
+      { offsetX: 8, offsetY: 8, angle: Math.PI * 5 / 4, width: 16, length: 6 },
+      { offsetX: 8, offsetY: -8, angle: Math.PI * 7 / 4, width: 16, length: 6 }
+    ],
+    description: 'Swarm of tiny drones'
+  },
+  
+  fighter: {
+    name: 'Fighter',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'triAngle',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 12, length: 22 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 2, width: 11, length: 16 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 2, width: 11, length: 16 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 5 / 6, width: 11, length: 14 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI * 5 / 6, width: 11, length: 14 }
+    ],
+    description: 'Speed and offense combined'
+  },
+  
+  hybrid: {
+    name: 'Hybrid',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'destroyer',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 22, length: 22 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 3 / 4, width: 18, length: 6 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 5 / 4, width: 18, length: 6 }
+    ],
+    description: 'Destroyer plus drones'
+  },
+  
+  skimmer: {
+    name: 'Skimmer',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'destroyer',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 22, length: 22 }
+    ],
+    description: 'Bullets spawn mini-bullets'
+  },
+  
+  rocketeer: {
+    name: 'Rocketeer',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'destroyer',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 22, length: 22 }
+    ],
+    description: 'Guided missiles'
+  },
+  
+  spike: {
+    name: 'Spike',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'smasher',
+    barrels: [],
+    description: 'Spiky hexagon, max body damage'
+  },
+  
+  landmine: {
+    name: 'Landmine',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'smasher',
+    barrels: [],
+    description: 'Full invisibility when still'
+  },
+  
+  autoSmasher: {
+    name: 'Auto Smasher',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'smasher',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 15 }
+    ],
+    description: 'Hexagon with auto-turret'
+  },
+  
+  auto5: {
+    name: 'Auto 5',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'auto3',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 15 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 2 / 5, width: 11, length: 15 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 4 / 5, width: 11, length: 15 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 6 / 5, width: 11, length: 15 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 8 / 5, width: 11, length: 15 }
+    ],
+    description: 'Five auto-turrets'
+  },
+  
+  autoGunner: {
+    name: 'Auto Gunner',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'gunner',
+    barrels: [
+      { offsetX: 0, offsetY: -9, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: -3, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: 3, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: 9, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI, width: 11, length: 15 }
+    ],
+    description: 'Gunner with auto-turret'
+  },
+  
+  sprayer: {
+    name: 'Sprayer',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'machineGun',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 18, length: 19 }
+    ],
+    description: 'Chaotic bullet spread'
+  },
+  
+  tripleTwin: {
+    name: 'Triple Twin',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'twinFlank',
+    barrels: [
+      { offsetX: 0, offsetY: -5, angle: 0, width: 11, length: 20 },
+      { offsetX: 0, offsetY: 5, angle: 0, width: 11, length: 20 },
+      { offsetX: 0, offsetY: -5, angle: Math.PI * 2 / 3, width: 11, length: 20 },
+      { offsetX: 0, offsetY: 5, angle: Math.PI * 2 / 3, width: 11, length: 20 },
+      { offsetX: 0, offsetY: -5, angle: Math.PI * 4 / 3, width: 11, length: 20 },
+      { offsetX: 0, offsetY: 5, angle: Math.PI * 4 / 3, width: 11, length: 20 }
+    ],
+    description: 'Six barrels in three directions'
+  },
+  
+  megaTrapper: {
+    name: 'Mega Trapper',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'trapper',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 28, length: 15 }
+    ],
+    description: 'Giant traps'
+  },
+  
+  overtrapper: {
+    name: 'Overtrapper',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'trapper',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 20, length: 12 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 3 / 4, width: 16, length: 6 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 5 / 4, width: 16, length: 6 }
+    ],
+    description: 'Traps plus drones'
+  },
+  
+  gunnerTrapper: {
+    name: 'Gunner Trapper',
+    tier: 3,
+    requiredLevel: 45,
+    parent: 'gunner',
+    barrels: [
+      { offsetX: 0, offsetY: -6, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: 6, angle: 0, width: 8, length: 19 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI, width: 20, length: 12 }
+    ],
+    description: 'Gunner with trap launcher'
   }
 }
 
