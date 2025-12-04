@@ -276,7 +276,7 @@ export class UpgradeManager {
   }
 
   canAllocateStat(stat: StatType): boolean {
-    return this.statPoints[stat] < 7 && this.getAvailableSkillPoints() > 0
+    return this.getAvailableSkillPoints() > 0
   }
 
   allocateStat(stat: StatType): boolean {

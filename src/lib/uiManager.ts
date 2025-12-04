@@ -47,7 +47,7 @@ export class UIManager {
     const barHeight = 25
     const barSpacing = 8
     const barWidth = 220
-    const maxStatPoints = 7
+    const maxStatPoints = Math.max(15, Math.max(...Object.values(statPoints)))
 
     this.statBarBounds.clear()
 
@@ -73,9 +73,9 @@ export class UIManager {
       const x = padding
       const y = this.canvas.height - (STAT_BARS.length - index) * (barHeight + barSpacing) - padding - 10
       const points = statPoints[stat.key] || 0
-      const fillWidth = (barWidth * points) / maxStatPoints
+      const fillWidth = Math.min(barWidth, (barWidth * points) / maxStatPoints)
       const isHovered = this.hoveredStat === stat.key
-      const canUpgrade = availablePoints > 0 && points < maxStatPoints
+      const canUpgrade = availablePoints > 0
 
       this.statBarBounds.set(stat.key, { x, y, width: barWidth, height: barHeight })
 
@@ -99,11 +99,12 @@ export class UIManager {
       this.ctx.font = '12px Inter, sans-serif'
       this.ctx.shadowColor = '#000000'
       this.ctx.shadowBlur = 3
-      this.ctx.fillText(`[${stat.hotkey}] ${stat.label}`, x + 5, y + 17)
+      this.ctx.fillText(`[${stat.hotkey}] ${stat.label} (${points})`, x + 5, y + 17)
       this.ctx.shadowBlur = 0
 
-      for (let i = 0; i < maxStatPoints; i++) {
-        const segmentX = x + (barWidth * i) / maxStatPoints
+      const segmentCount = Math.min(15, maxStatPoints)
+      for (let i = 0; i < segmentCount; i++) {
+        const segmentX = x + (barWidth * i) / segmentCount
         this.ctx.strokeStyle = '#000000'
         this.ctx.lineWidth = 1
         this.ctx.beginPath()

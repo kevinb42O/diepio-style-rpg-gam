@@ -100,7 +100,7 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
               const info = STAT_INFO[stat]
               const Icon = info.icon
               const points = statPoints[stat]
-              const canUpgrade = points < 7 && availablePoints > 0
+              const canUpgrade = availablePoints > 0
               
               return (
                 <div
@@ -115,10 +115,15 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
                         {info.label}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {points}/7
+                        {points}
                       </span>
                     </div>
-                    <Progress value={(points / 7) * 100} className="h-1.5 mb-1" />
+                    <div className="bg-border rounded-full h-1.5 mb-1">
+                      <div 
+                        className="bg-primary h-full rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (points / 15) * 100)}%` }}
+                      />
+                    </div>
                     {!isMobile && <p className="text-xs text-muted-foreground">{info.description}</p>}
                   </div>
                   
