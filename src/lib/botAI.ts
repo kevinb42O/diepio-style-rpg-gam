@@ -8,6 +8,11 @@ import { TANK_CONFIGS } from './tankConfigs'
 import { TeamSystem } from './TeamSystem'
 import { BotNameGenerator } from './BotNameGenerator'
 
+// AI behavior constants
+const TEAM_BATTLE_RANGE = 500 // Range for prioritizing team battles over farming
+const CLOSE_ATTACK_RANGE = 400 // Range for triggering attack mode in non-passive bots
+const PASSIVE_ATTACK_RANGE = 300 // Range for passive bots to attack
+
 export class BotAISystem {
   private bots: BotPlayer[] = []
   private botIdCounter = 0
@@ -435,6 +440,24 @@ export class BotAISystem {
       return
     }
 
+    // Prioritize team battles: if enemy is within range and bot health > 50%, attack
+    const enemyInRange = (isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE) || (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE)
+    if (enemyInRange && healthPercent > 0.5 && bot.personality !== 'passive') {
+      bot.behaviorState = 'attacking'
+      bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+      return
+    }
+
+    // For all non-passive personalities, attack if enemy within close range
+    if (bot.personality !== 'passive') {
+      const closeEnemy = (isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || (nearestEnemyBot && nearestEnemyDist < CLOSE_ATTACK_RANGE)
+      if (closeEnemy) {
+        bot.behaviorState = 'attacking'
+        bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+        return
+      }
+    }
+
     // Personality-based decision making
     switch (bot.personality) {
       case 'aggressive':
@@ -449,7 +472,7 @@ export class BotAISystem {
 
       case 'passive':
         // Prioritize farming, only fight if attacked or very close
-        if ((isPlayerEnemy && distanceToPlayer < 300) || (nearestEnemyBot && nearestEnemyDist < 300)) {
+        if ((isPlayerEnemy && distanceToPlayer < PASSIVE_ATTACK_RANGE) || (nearestEnemyBot && nearestEnemyDist < PASSIVE_ATTACK_RANGE)) {
           bot.behaviorState = 'attacking'
           bot.currentTarget = nearestEnemyDist < distanceToPlayer ? nearestEnemyBot!.id : 'player'
         } else {
@@ -478,7 +501,7 @@ export class BotAISystem {
           y: this.worldCenter.y 
         })
         
-        if ((isPlayerEnemy && distanceToPlayer < 500) || (nearestEnemyBot && nearestEnemyDist < 500)) {
+        if ((isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE) || (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE)) {
           bot.behaviorState = 'attacking'
           bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
         } else if (distFromSpawn > 600) {
@@ -493,7 +516,7 @@ export class BotAISystem {
         const rand = Math.random()
         if (rand < 0.4) {
           bot.behaviorState = 'farming'
-        } else if (rand < 0.7 && ((isPlayerEnemy && distanceToPlayer < 400) || nearestEnemyBot)) {
+        } else if (rand < 0.7 && ((isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || nearestEnemyBot)) {
           bot.behaviorState = 'attacking'
           bot.currentTarget = nearestEnemyBot ? nearestEnemyBot.id : 'player'
         } else {
@@ -797,52 +820,52 @@ export class BotAISystem {
       }
     }
     
-    // Speed tanks - hit and run
+    // Speed tanks - aggressive rushers
     if (bot.tankClass.includes('booster') || bot.tankClass.includes('fighter')) {
-      if (distance < 300) {
-        // Rush away
+      if (distance < 200) {
+        // Rush away briefly
         const angle = Math.atan2(bot.position.y - targetPos.y, bot.position.x - targetPos.x)
         return {
           targetPosition: {
-            x: bot.position.x + Math.cos(angle) * 200,
-            y: bot.position.y + Math.sin(angle) * 200
+            x: bot.position.x + Math.cos(angle) * 150,
+            y: bot.position.y + Math.sin(angle) * 150
           },
           shouldShoot: true,
           shootTarget: aimTarget,
           farmTargetId: null
         }
       } else {
-        // Rush in
+        // Aggressively rush in
         return {
           targetPosition: targetPos,
-          shouldShoot: distance < 400,
+          shouldShoot: distance < 450,
           shootTarget: aimTarget,
           farmTargetId: null
         }
       }
     }
     
-    // Default bullet tank - medium distance strafe
-    const optimalDistance = 350
+    // Default bullet tank - close combat strafe
+    const optimalDistance = 250
     let targetPosition = targetPos
     
     if (distance < optimalDistance - 50) {
-      // Back up
+      // Back up slightly
       const angle = Math.atan2(bot.position.y - targetPos.y, bot.position.x - targetPos.x)
       targetPosition = {
-        x: bot.position.x + Math.cos(angle) * 80,
-        y: bot.position.y + Math.sin(angle) * 80
+        x: bot.position.x + Math.cos(angle) * 60,
+        y: bot.position.y + Math.sin(angle) * 60
       }
-    } else if (distance > optimalDistance + 50) {
-      // Approach
+    } else if (distance > optimalDistance + 100) {
+      // Aggressively approach
       targetPosition = targetPos
     } else {
-      // Strafe
+      // Strafe at medium range
       const angle = Math.atan2(targetPos.y - bot.position.y, targetPos.x - bot.position.x)
       const perpAngle = angle + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1)
       targetPosition = {
-        x: bot.position.x + Math.cos(perpAngle) * 60,
-        y: bot.position.y + Math.sin(perpAngle) * 60
+        x: bot.position.x + Math.cos(perpAngle) * 50,
+        y: bot.position.y + Math.sin(perpAngle) * 50
       }
     }
     
