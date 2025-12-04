@@ -1,5 +1,16 @@
 import type { Drone, DroneControlMode, Vector2, Player, Loot, BotPlayer, Team } from './types'
 import { TANK_CONFIGS } from './tankConfigs'
+import type { TeamSystem } from './TeamSystem'
+
+// Union type for drone targets (can be loot or enemy bots)
+interface DroneTarget {
+  id: string
+  position: Vector2
+  health: number
+  maxHealth?: number
+  radius?: number
+  isBot?: boolean
+}
 
 export class DroneSystem {
   private drones: Drone[] = []
@@ -9,10 +20,11 @@ export class DroneSystem {
   private camera: Vector2 = { x: 0, y: 0 }
   private viewportWidth: number = 800
   private viewportHeight: number = 600
-  private teamSystem: any // TeamSystem reference for enemy detection
+  private teamSystem: TeamSystem | null = null
+  private botTargets: Map<string, string> = new Map() // droneId -> botId mapping
 
-  constructor(teamSystem?: any) {
-    this.teamSystem = teamSystem
+  constructor(teamSystem?: TeamSystem) {
+    this.teamSystem = teamSystem || null
   }
 
   setViewport(camera: Vector2, width: number, height: number) {
@@ -28,6 +40,7 @@ export class DroneSystem {
       
       // Remove dead drones
       if (drone.health <= 0) {
+        this.botTargets.delete(drone.id)
         this.drones.splice(i, 1)
         continue
       }
@@ -63,14 +76,18 @@ export class DroneSystem {
       
       // Only look for targets when close to player
       if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
+        // Clear any previous bot target tracking
+        this.botTargets.delete(drone.id)
+        
         // Find enemy bots first (higher priority than loot)
         const nearestEnemyBot = this.findNearestEnemyBot(drone, player, bots, maxAttackRange)
         if (nearestEnemyBot) {
-          // Use a special marker to track bot targets
+          // Track bot target separately
+          this.botTargets.set(drone.id, nearestEnemyBot.id)
           drone.state = 'attacking'
           drone.target = {
             id: nearestEnemyBot.id,
-            position: nearestEnemyBot.position,
+            position: { ...nearestEnemyBot.position },
             type: 'box',
             value: 0,
             health: nearestEnemyBot.health,
@@ -94,11 +111,12 @@ export class DroneSystem {
       
       // Execute behavior based on state
       if (drone.state === 'attacking' && drone.target) {
-        // Check if target is an enemy bot and update position
-        const targetBot = bots.find(b => b.id === drone.target?.id)
-        if (targetBot) {
-          // Update position of bot target and check if still valid
-          if (targetBot.health > 0) {
+        // Check if we're tracking a bot target
+        const trackedBotId = this.botTargets.get(drone.id)
+        if (trackedBotId) {
+          const targetBot = bots.find(b => b.id === trackedBotId)
+          if (targetBot && targetBot.health > 0) {
+            // Update position of bot target and check if still valid
             const targetDistToPlayer = this.getDistance(targetBot.position, player.position)
             if (targetDistToPlayer < maxAttackRange && this.isInScreenView(targetBot.position, player)) {
               drone.target.position = { ...targetBot.position }
@@ -108,10 +126,13 @@ export class DroneSystem {
             } else {
               drone.state = 'returning'
               drone.target = null
+              this.botTargets.delete(drone.id)
             }
           } else {
+            // Bot is dead or not found
             drone.state = 'returning'
             drone.target = null
+            this.botTargets.delete(drone.id)
           }
         } else if (drone.target.health && drone.target.health > 0) {
           // Regular loot target
@@ -275,7 +296,7 @@ export class DroneSystem {
       if (bot.health <= 0) continue
       
       // Skip if bot is ally
-      if (this.teamSystem.areAllies && this.teamSystem.areAllies(player.team, bot.team)) continue
+      if (this.teamSystem.areAllies(player.team, bot.team)) continue
       
       // Check if bot is in screen view
       if (!this.isInScreenView(bot.position, player)) continue
@@ -500,7 +521,7 @@ export class DroneSystem {
         if (bot.health <= 0) continue
         
         // Skip if bot is ally to the drone owner
-        if (this.teamSystem.areAllies && this.teamSystem.areAllies(playerTeam, bot.team)) continue
+        if (this.teamSystem.areAllies(playerTeam, bot.team)) continue
         
         const dist = this.getDistance(drone.position, bot.position)
         const collisionDist = drone.radius + bot.radius
@@ -534,11 +555,13 @@ export class DroneSystem {
   clear() {
     this.drones = []
     this.lastSpawnTimes.clear()
+    this.botTargets.clear()
   }
 
   removeDrone(droneId: string) {
     const index = this.drones.findIndex(d => d.id === droneId)
     if (index !== -1) {
+      this.botTargets.delete(droneId)
       this.drones.splice(index, 1)
     }
   }
