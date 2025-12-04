@@ -808,6 +808,7 @@ export class RenderEngine {
 
     const bots = engine.botAISystem.getBots()
     const bounds = this.lastViewBounds
+    const teamSystem = engine.teamSystem
 
     for (const bot of bots) {
       if (bot.position.x < bounds.left || bot.position.x > bounds.right ||
@@ -827,29 +828,78 @@ export class RenderEngine {
       const levelScale = 1 + (bot.level - 1) * 0.012
       const finalRadius = bot.radius * levelScale
 
-      // Tier-based colors for bots (red-tinted)
-      const tierColors = {
-        0: { fill: '#E12B00', glow: null, shadowBlur: 0 },
-        1: { fill: '#F54300', glow: 'rgba(245, 67, 0, 0.15)', shadowBlur: 10 },
-        2: { fill: '#FF5500', glow: 'rgba(255, 85, 0, 0.3)', shadowBlur: 15 },
-        3: { fill: '#FF6600', glow: 'rgba(255, 102, 0, 0.5)', shadowBlur: 25 }
-      }
+      // Team-based colors with tier intensity
+      const isAlly = teamSystem.areAllies(bot.team, engine.player.team)
       const tier = tankConfig.tier || 0
-      const colors = tierColors[tier as keyof typeof tierColors] || tierColors[0]
+      
+      // Base team colors
+      const baseBlue = '#00B2E1'
+      const baseRed = '#FF4444'
+      
+      // Tier-based brightness adjustment
+      const tierBrightness = [1.0, 1.15, 1.3, 1.5][tier] || 1.0
+      
+      let fillColor: string
+      let glowColor: string | null = null
+      let shadowBlur = 0
+      
+      if (isAlly) {
+        // Blue team colors
+        const blue = Math.min(255, Math.floor(0x00 * tierBrightness))
+        const green = Math.min(255, Math.floor(0xB2 * tierBrightness))
+        const red = Math.min(255, Math.floor(0xE1 * tierBrightness))
+        fillColor = `rgb(${blue}, ${green}, ${red})`
+        
+        if (tier > 0) {
+          glowColor = `rgba(0, 178, 225, ${0.15 * tier})`
+          shadowBlur = 10 + tier * 5
+        }
+      } else {
+        // Red team colors
+        const red = Math.min(255, Math.floor(0xFF * tierBrightness))
+        const green = Math.min(255, Math.floor(0x44 * tierBrightness))
+        const blue = Math.min(255, Math.floor(0x44 * tierBrightness))
+        fillColor = `rgb(${red}, ${green}, ${blue})`
+        
+        if (tier > 0) {
+          glowColor = `rgba(255, 68, 68, ${0.15 * tier})`
+          shadowBlur = 10 + tier * 5
+        }
+      }
 
       this.drawTank(
         bot.position.x,
         bot.position.y,
-        colors.fill,
+        fillColor,
         tankConfig.barrels,
         aimAngle,
         finalRadius,
         0,
         tankConfig.bodyShape || 'circle',
         tankConfig.bodySpikes,
-        colors.glow,
+        glowColor,
         bot.barrelRecoils
       )
+
+      // Draw bot name above tank
+      if (bot.name) {
+        this.ctx.save()
+        this.ctx.font = '11px Arial'
+        this.ctx.textAlign = 'center'
+        this.ctx.textBaseline = 'bottom'
+        
+        const nameY = bot.position.y - finalRadius - (bot.health < bot.maxHealth ? 25 : 20)
+        
+        // Shadow for readability
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+        this.ctx.fillText(bot.name, bot.position.x + 1, nameY + 1)
+        
+        // Name text in team color
+        this.ctx.fillStyle = isAlly ? '#00B2E1' : '#FF4444'
+        this.ctx.fillText(bot.name, bot.position.x, nameY)
+        
+        this.ctx.restore()
+      }
 
       // Draw health bar
       if (bot.health < bot.maxHealth) {

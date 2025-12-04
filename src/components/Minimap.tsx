@@ -59,10 +59,28 @@ export function Minimap({ engine }: MinimapProps) {
         }
       }
 
-      // Draw player
+      // Draw bots (team-colored)
+      const bots = engine.botAISystem?.getBots() || []
+      const teamSystem = engine.teamSystem
+      
+      for (const bot of bots) {
+        const x = 4 + bot.position.x * scale
+        const y = 4 + bot.position.y * scale
+        
+        // Determine if bot is ally or enemy
+        const isAlly = teamSystem?.areAllies(bot.team, engine.player.team)
+        
+        ctx.fillStyle = isAlly ? '#00B2E1' : '#FF4444'
+        ctx.beginPath()
+        ctx.arc(x, y, 2, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      // Draw player (brighter to stand out)
       const playerX = 4 + engine.player.position.x * scale
       const playerY = 4 + engine.player.position.y * scale
-      ctx.fillStyle = '#00B2E1'
+      const playerColor = engine.player.team === 'blue' ? '#00B2E1' : '#FF4444'
+      ctx.fillStyle = playerColor
       ctx.beginPath()
       ctx.arc(playerX, playerY, 3, 0, Math.PI * 2)
       ctx.fill()
