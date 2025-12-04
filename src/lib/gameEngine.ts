@@ -549,6 +549,7 @@ export class GameEngine {
     if (this.gameTime - this.lastBoxSpawnTime < this.boxSpawnInterval) return
 
     const numBoxes = 2 + Math.floor(Math.random() * 3)
+    const LEVEL_SCALING_FACTOR = 0.15 // 15% increase per level
 
     for (let i = 0; i < numBoxes; i++) {
       const clusterNearPlayer = Math.random() < 0.3
@@ -568,7 +569,7 @@ export class GameEngine {
       y = Math.max(100, Math.min(this.worldSize - 100, y))
       
       // Scale enemy difficulty with player level
-      const levelMultiplier = 1 + (this.player.level - 1) * 0.15
+      const levelMultiplier = 1 + (this.player.level - 1) * LEVEL_SCALING_FACTOR
       const size = Math.random()
       let radius: number, health: number, contactDamage: number, xpValue: number
 

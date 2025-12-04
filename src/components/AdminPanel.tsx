@@ -46,7 +46,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
         variant="secondary"
         className="fixed top-2 right-2 md:top-4 md:right-4 z-50 w-8 h-8 md:w-10 md:h-10 rounded-full shadow-lg"
       >
-        <Gear weight="fill" size={16} className="md:w-5 md:h-5" />
+        <Gear weight="fill" className="w-4 h-4 md:w-5 md:h-5" />
       </Button>
 
       <AnimatePresence>
