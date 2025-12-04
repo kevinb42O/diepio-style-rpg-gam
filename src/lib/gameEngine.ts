@@ -683,7 +683,7 @@ export class GameEngine {
 
     const numBoxes = 5 + Math.floor(Math.random() * 8)
     const LEVEL_SCALING_FACTOR = 0.15
-    const SPAWN_SAFE_ZONE = 800
+    const SPAWN_SAFE_ZONE = 200  // Slightly larger than Sanctuary POI radius (150) to give spawn protection
 
     for (let i = 0; i < numBoxes; i++) {
       const clusterNearPlayer = Math.random() < 0.4
