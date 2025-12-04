@@ -394,10 +394,8 @@ function App() {
   return (
     <>
       <Toaster />
-      <div className={`flex flex-col items-center justify-center relative overflow-hidden ${
-        isMobile ? 'fixed inset-0' : 'min-h-screen p-2 md:p-8'
-      }`}>
-      <div className={`relative ${isMobile ? 'w-full h-full' : 'w-full max-w-[800px]'}`}>
+      <div className="flex flex-col items-center justify-center relative overflow-hidden fixed inset-0">
+      <div className="relative w-full h-full">
         <GameCanvas 
           engine={engineRef.current} 
           showStatUI={gameState === 'playing'}
