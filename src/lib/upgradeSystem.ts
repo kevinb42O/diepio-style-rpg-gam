@@ -321,7 +321,7 @@ export class UpgradeManager {
         return base * Math.pow(1.15, points)
       
       case 'bulletSpeed':
-        return base * Math.pow(1.08, points)
+        return base * Math.pow(1.04, points)
       
       case 'bulletPenetration':
         return base * Math.pow(1.2, points)
