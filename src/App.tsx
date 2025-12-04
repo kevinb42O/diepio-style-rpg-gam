@@ -320,13 +320,29 @@ function App() {
     if (engineRef.current.setLevel(level)) {
       toast.success(`Level set to ${level}!`)
       setStatModalKey(prev => prev + 1)
+      
+      const availableClasses = getAvailableUpgrades(engineRef.current.player.tankClass, level)
+      if (availableClasses.length > 0 && gameState === 'playing') {
+        setGameState('classupgrade')
+        toast.success(`Choose your class upgrade!`)
+      }
     }
   }
 
   const handleAdminAddStatPoints = (amount: number) => {
+    const oldLevel = engineRef.current.player.level
     engineRef.current.addStatPoints(amount)
+    const newLevel = engineRef.current.player.level
     toast.success(`Added ${amount} levels for stat points!`)
     setStatModalKey(prev => prev + 1)
+    
+    const availableClasses = getAvailableUpgrades(engineRef.current.player.tankClass, newLevel)
+    if (availableClasses.length > 0 && gameState === 'playing') {
+      setGameState('classupgrade')
+      toast.success(`Choose your class upgrade!`)
+    } else if (engineRef.current.upgradeManager.getAvailableSkillPoints() > 0 && gameState === 'playing') {
+      setGameState('statupgrade')
+    }
   }
 
   if (gameState === 'menu') {

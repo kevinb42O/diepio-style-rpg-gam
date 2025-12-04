@@ -971,14 +971,16 @@ export class GameEngine {
     this.upgradeManager['totalXP'] = xpNeeded
     this.upgradeManager['level'] = level
     this.player.level = level
+    this.applyStatsToPlayer()
     return true
   }
 
   addStatPoints(amount: number) {
-    // Manually increase level to grant stat points
     const currentLevel = this.upgradeManager.getLevel()
     const targetLevel = Math.min(45, currentLevel + amount)
-    this.setLevel(targetLevel)
+    if (this.setLevel(targetLevel)) {
+      this.applyStatsToPlayer()
+    }
   }
 
   cleanupEntities() {
