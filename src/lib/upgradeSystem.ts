@@ -1,4 +1,4 @@
-export type StatType = 'healthRegen' | 'maxHealth' | 'bodyDamage' | 'bulletSpeed' | 'bulletPenetration' | 'bulletDamage' | 'reload' | 'movementSpeed'
+export type StatType = 'healthRegen' | 'maxHealth' | 'bodyDamage' | 'bulletSpeed' | 'bulletPenetration' | 'bulletDamage' | 'reload' | 'movementSpeed' | 'lootRange'
 
 export interface PlayerStats {
   healthRegen: number
@@ -9,6 +9,7 @@ export interface PlayerStats {
   bulletDamage: number
   reload: number
   movementSpeed: number
+  lootRange: number
 }
 
 export interface TankClass {
@@ -249,7 +250,8 @@ export class UpgradeManager {
       bulletPenetration: 0,
       bulletDamage: 0,
       reload: 0,
-      movementSpeed: 0
+      movementSpeed: 0,
+      lootRange: 0
     }
     this.statPoints = {
       healthRegen: 0,
@@ -259,7 +261,8 @@ export class UpgradeManager {
       bulletPenetration: 0,
       bulletDamage: 0,
       reload: 0,
-      movementSpeed: 0
+      movementSpeed: 0,
+      lootRange: 0
     }
     this.level = 1
     this.currentClass = 'basic'
@@ -293,7 +296,8 @@ export class UpgradeManager {
       bulletPenetration: 5,
       bulletDamage: 10,
       reload: 300,
-      movementSpeed: 200
+      movementSpeed: 200,
+      lootRange: 50
     }
 
     const base = baseValues[stat]
@@ -322,6 +326,9 @@ export class UpgradeManager {
       
       case 'movementSpeed':
         return base * Math.pow(1.07, points)
+      
+      case 'lootRange':
+        return base * Math.pow(1.35, points)
       
       default:
         return base
@@ -380,7 +387,8 @@ export class UpgradeManager {
       bulletPenetration: 5,
       bulletDamage: 10,
       reload: 300,
-      movementSpeed: 200
+      movementSpeed: 200,
+      lootRange: 50
     }
     
     const stats = { ...this.stats }
@@ -433,7 +441,8 @@ export class UpgradeManager {
       bulletPenetration: 0,
       bulletDamage: 0,
       reload: 0,
-      movementSpeed: 0
+      movementSpeed: 0,
+      lootRange: 0
     }
     this.statPoints = {
       healthRegen: 0,
@@ -443,7 +452,8 @@ export class UpgradeManager {
       bulletPenetration: 0,
       bulletDamage: 0,
       reload: 0,
-      movementSpeed: 0
+      movementSpeed: 0,
+      lootRange: 0
     }
     this.level = 1
     this.currentClass = 'basic'

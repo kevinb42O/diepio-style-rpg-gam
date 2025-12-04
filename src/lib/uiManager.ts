@@ -15,7 +15,8 @@ export const STAT_BARS: StatBarConfig[] = [
   { key: 'bulletPenetration', label: 'Bullet Penetration', color: '#00CED1', hotkey: '5' },
   { key: 'bulletDamage', label: 'Bullet Damage', color: '#4169E1', hotkey: '6' },
   { key: 'reload', label: 'Reload', color: '#9370DB', hotkey: '7' },
-  { key: 'movementSpeed', label: 'Movement Speed', color: '#32CD32', hotkey: '8' }
+  { key: 'movementSpeed', label: 'Movement Speed', color: '#32CD32', hotkey: '8' },
+  { key: 'lootRange', label: 'Loot Range', color: '#9966FF', hotkey: '9' }
 ]
 
 export class UIManager {

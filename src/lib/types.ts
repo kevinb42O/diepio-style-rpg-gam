@@ -29,6 +29,7 @@ export interface Player extends Entity {
   healthRegen: number
   lastRegenTime: number
   tankClass: string
+  lootRange: number
 }
 
 export interface Enemy extends Entity {

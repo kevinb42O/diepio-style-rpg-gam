@@ -1,4 +1,4 @@
-import { Heart, Sword, Lightning, Wind, ShieldCheck, Target, FireExtinguisher, ArrowsOut } from '@phosphor-icons/react'
+import { Heart, Sword, Lightning, Wind, ShieldCheck, Target, FireExtinguisher, ArrowsOut, Magnet } from '@phosphor-icons/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -62,6 +62,12 @@ const STAT_INFO: { [key in StatType]: { icon: typeof Heart; label: string; color
     label: 'Movement Speed',
     color: 'text-blue-400',
     description: 'Tank velocity'
+  },
+  lootRange: {
+    icon: Magnet,
+    label: 'Loot Range',
+    color: 'text-purple-400',
+    description: 'XP attraction radius'
   }
 }
 

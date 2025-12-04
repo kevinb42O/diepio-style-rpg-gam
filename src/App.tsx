@@ -110,9 +110,9 @@ function App() {
       if (gameState === 'playing') {
         engine.keys.add(e.key.toLowerCase())
         
-        if (e.key >= '1' && e.key <= '8') {
+        if (e.key >= '1' && e.key <= '9') {
           const statIndex = parseInt(e.key) - 1
-          const statKeys: StatType[] = ['healthRegen', 'maxHealth', 'bodyDamage', 'bulletSpeed', 'bulletPenetration', 'bulletDamage', 'reload', 'movementSpeed']
+          const statKeys: StatType[] = ['healthRegen', 'maxHealth', 'bodyDamage', 'bulletSpeed', 'bulletPenetration', 'bulletDamage', 'reload', 'movementSpeed', 'lootRange']
           if (engine.upgradeManager.getAvailableSkillPoints() > 0) {
             handleAllocateStat(statKeys[statIndex])
           }

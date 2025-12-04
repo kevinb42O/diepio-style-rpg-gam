@@ -98,6 +98,7 @@ export class GameEngine {
       healthRegen: 1,
       lastRegenTime: 0,
       tankClass: 'basic',
+      lootRange: 50,
     }
   }
 
@@ -513,10 +514,10 @@ export class GameEngine {
   }
 
   updateLoot(deltaTime: number) {
-    // Add polygon drift movement
+    const lootRangeSq = this.player.lootRange * this.player.lootRange
+    
     for (const item of this.loot) {
       if (item.type === 'box' || item.type === 'treasure' || item.type === 'boss') {
-        // Slight drift movement for polygons
         if (!item.driftAngle) {
           item.driftAngle = Math.random() * Math.PI * 2
           item.driftSpeed = item.driftSpeed || (5 + Math.random() * 10)
@@ -527,9 +528,22 @@ export class GameEngine {
         item.position.x += Math.cos(item.driftAngle) * driftSpeed * deltaTime
         item.position.y += Math.sin(item.driftAngle) * driftSpeed * deltaTime
         
-        // Keep polygons in bounds
         item.position.x = Math.max(50, Math.min(this.worldSize - 50, item.position.x))
         item.position.y = Math.max(50, Math.min(this.worldSize - 50, item.position.y))
+      } else if (item.type === 'xp' || item.type === 'weapon' || item.type === 'armor') {
+        const dx = item.position.x - this.player.position.x
+        const dy = item.position.y - this.player.position.y
+        const distSq = dx * dx + dy * dy
+        
+        if (distSq < lootRangeSq && distSq > 1) {
+          const dist = Math.sqrt(distSq)
+          const attractionSpeed = 300
+          const moveX = -(dx / dist) * attractionSpeed * deltaTime
+          const moveY = -(dy / dist) * attractionSpeed * deltaTime
+          
+          item.position.x += moveX
+          item.position.y += moveY
+        }
       }
     }
   }
@@ -945,6 +959,7 @@ export class GameEngine {
     this.player.bulletPenetration = Math.floor(stats.bulletPenetration)
     this.player.bodyDamage = Math.floor(stats.bodyDamage)
     this.player.healthRegen = stats.healthRegen
+    this.player.lootRange = Math.floor(stats.lootRange)
     
     this.player.health = Math.max(1, Math.floor(healthPercentage * this.player.maxHealth))
   }
