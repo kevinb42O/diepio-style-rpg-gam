@@ -152,6 +152,7 @@ export interface BotPlayer extends Player {
   reactionTime: number // milliseconds delay before reacting
   lastReactionTime: number
   currentTarget: string | null // ID of current target (bot or shape)
+  aimAngle: number // Angle bot is aiming at (towards actual target)
 }
 
 export interface Zone {

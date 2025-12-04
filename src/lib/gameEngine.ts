@@ -982,6 +982,46 @@ export class GameEngine {
         }
       }
     }
+
+    // Check bot-polygon collisions for smasher bots
+    for (const bot of bots) {
+      const botConfig = TANK_CONFIGS[bot.tankClass]
+      const isSmasher = botConfig?.bodyShape === 'hexagon' || botConfig?.bodyShape === 'spikyHexagon'
+      
+      if (!isSmasher) continue
+
+      // Check if bot is targeting a polygon/loot
+      const farmTargetId = farmTargets.get(bot.id)
+      if (!farmTargetId) continue
+
+      // Find the target loot
+      for (let i = this.loot.length - 1; i >= 0; i--) {
+        const item = this.loot[i]
+        if (item.id !== farmTargetId) continue
+        if (item.type !== 'box' && item.type !== 'treasure' && item.type !== 'boss') continue
+        if (!item.health || item.health <= 0) continue
+
+        const dx = bot.position.x - item.position.x
+        const dy = bot.position.y - item.position.y
+        const distSq = dx * dx + dy * dy
+        const radSum = bot.radius + (item.radius || 20)
+
+        if (distSq < radSum * radSum) {
+          // Smasher bot is touching the polygon - deal body damage
+          item.health -= bot.bodyDamage * 0.016
+
+          if (item.health <= 0) {
+            // Polygon destroyed - award XP to bot
+            this.botAISystem.awardXP(bot.id, item.value)
+            
+            // Trigger break effects
+            this.breakLootBox(i)
+            this.loot.splice(i, 1)
+          }
+          break
+        }
+      }
+    }
   }
 
   breakLootBox(index: number) {
