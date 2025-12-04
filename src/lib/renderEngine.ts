@@ -688,8 +688,17 @@ export class RenderEngine {
 
   // Color manipulation helpers
   private lightenColor(color: string, amount: number): string {
-    // Simple color lightening
+    if (color.startsWith('rgb')) {
+      const match = color.match(/\d+/g)
+      if (!match || match.length < 3) return color
+      const r = Math.min(255, parseInt(match[0]) + Math.floor(255 * amount))
+      const g = Math.min(255, parseInt(match[1]) + Math.floor(255 * amount))
+      const b = Math.min(255, parseInt(match[2]) + Math.floor(255 * amount))
+      return `rgb(${r}, ${g}, ${b})`
+    }
+    
     const hex = color.replace('#', '')
+    if (hex.length !== 6) return color
     const r = Math.min(255, parseInt(hex.substring(0, 2), 16) + Math.floor(255 * amount))
     const g = Math.min(255, parseInt(hex.substring(2, 4), 16) + Math.floor(255 * amount))
     const b = Math.min(255, parseInt(hex.substring(4, 6), 16) + Math.floor(255 * amount))
@@ -697,8 +706,17 @@ export class RenderEngine {
   }
 
   private darkenColor(color: string, amount: number): string {
-    // Simple color darkening
+    if (color.startsWith('rgb')) {
+      const match = color.match(/\d+/g)
+      if (!match || match.length < 3) return color
+      const r = Math.max(0, parseInt(match[0]) - Math.floor(255 * amount))
+      const g = Math.max(0, parseInt(match[1]) - Math.floor(255 * amount))
+      const b = Math.max(0, parseInt(match[2]) - Math.floor(255 * amount))
+      return `rgb(${r}, ${g}, ${b})`
+    }
+    
     const hex = color.replace('#', '')
+    if (hex.length !== 6) return color
     const r = Math.max(0, parseInt(hex.substring(0, 2), 16) - Math.floor(255 * amount))
     const g = Math.max(0, parseInt(hex.substring(2, 4), 16) - Math.floor(255 * amount))
     const b = Math.max(0, parseInt(hex.substring(4, 6), 16) - Math.floor(255 * amount))
