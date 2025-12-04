@@ -380,7 +380,7 @@ function App() {
             </>
           ) : (
             <>
-              <div><span className="font-mono bg-card px-2 py-1 rounded">WASD</span> - Move</div>
+              <div><span className="font-mono bg-card px-2 py-1 rounded">ZQSD</span> - Move</div>
               <div><span className="font-mono bg-card px-2 py-1 rounded">Mouse</span> - Aim</div>
               <div><span className="font-mono bg-card px-2 py-1 rounded">Click / Space</span> - Shoot</div>
             </>

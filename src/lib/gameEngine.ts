@@ -368,8 +368,8 @@ export class GameEngine {
       dx = this.mobileInput.x
       dy = this.mobileInput.y
     } else {
-      dx = (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0)
-      dy = (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0) - (this.keys.has('w') || this.keys.has('arrowup') ? 1 : 0)
+      dx = (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('q') || this.keys.has('arrowleft') ? 1 : 0)
+      dy = (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0) - (this.keys.has('z') || this.keys.has('arrowup') ? 1 : 0)
     }
 
     if (dx !== 0 || dy !== 0) {
