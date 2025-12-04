@@ -653,4 +653,4 @@ export class RenderEngine {
     this.ctx.setLineDash([])
     this.ctx.restore()
   }
-
+}
