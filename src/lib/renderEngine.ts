@@ -23,6 +23,13 @@ export class RenderEngine {
     this.ctx.imageSmoothingQuality = 'low'
   }
 
+  resize(width: number, height: number) {
+    this.canvas.width = width
+    this.canvas.height = height
+    this.ctx.imageSmoothingEnabled = true
+    this.ctx.imageSmoothingQuality = 'low'
+  }
+
   render(engine: GameEngine) {
     this.clear()
 
