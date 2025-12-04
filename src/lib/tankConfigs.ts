@@ -39,8 +39,8 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
   twin: {
     name: 'Twin',
     barrels: [
-      { angle: -15, length: 40, width: 12, offsetY: -6 },
-      { angle: 15, length: 40, width: 12, offsetY: 6 }
+      { angle: 0, length: 40, width: 12, offsetY: -6 },
+      { angle: 0, length: 40, width: 12, offsetY: 6 }
     ],
     tier: 1,
     unlocksAt: 15,
@@ -100,7 +100,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     ],
     tier: 2,
     unlocksAt: 30,
-    upgradesFrom: ['flankguard']
+    upgradesFrom: ['flankguard', 'twin']
   },
   
   assassin: {
@@ -116,18 +116,16 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
   overseer: {
     name: 'Overseer',
     barrels: [
-      { angle: 45, length: 12, width: 18, isTrapezoid: true },
-      { angle: 135, length: 12, width: 18, isTrapezoid: true },
-      { angle: 225, length: 12, width: 18, isTrapezoid: true },
-      { angle: 315, length: 12, width: 18, isTrapezoid: true }
+      { angle: 90, length: 12, width: 18, isTrapezoid: true },
+      { angle: -90, length: 12, width: 18, isTrapezoid: true }
     ],
     tier: 2,
     unlocksAt: 30,
     upgradesFrom: ['sniper'],
     isDroneClass: true,
-    droneCount: 16,
+    droneCount: 8,
     droneType: 'triangle',
-    spawnerCount: 4
+    spawnerCount: 2
   },
   
   destroyer: {
@@ -137,7 +135,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     ],
     tier: 2,
     unlocksAt: 30,
-    upgradesFrom: ['basic']
+    upgradesFrom: ['machinegun']
   },
   
   triangle: {
@@ -145,7 +143,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     barrels: [
       { angle: 0, length: 40, width: 14 },
       { angle: 150, length: 30, width: 12 },
-      { angle: 210, length: 30, width: 12 }
+      { angle: -150, length: 30, width: 12 }
     ],
     tier: 2,
     unlocksAt: 30,
@@ -207,10 +205,10 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     name: 'Booster',
     barrels: [
       { angle: 0, length: 40, width: 14 },
-      { angle: 140, length: 28, width: 11 },
-      { angle: 160, length: 28, width: 11 },
-      { angle: 200, length: 28, width: 11 },
-      { angle: 220, length: 28, width: 11 }
+      { angle: 135, length: 28, width: 11 },
+      { angle: 150, length: 28, width: 11 },
+      { angle: -150, length: 28, width: 11 },
+      { angle: -135, length: 28, width: 11 }
     ],
     tier: 3,
     unlocksAt: 45,
@@ -223,8 +221,8 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
   smasher: {
     name: 'Smasher',
     barrels: [],
-    tier: 1,
-    unlocksAt: 15,
+    tier: 2,
+    unlocksAt: 30,
     upgradesFrom: ['basic'],
     bodyShape: 'hexagon'
   },
@@ -234,8 +232,8 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
   hunter: {
     name: 'Hunter',
     barrels: [
-      { angle: 0, length: 50, width: 11, offsetY: -3 },
-      { angle: 0, length: 40, width: 13, offsetY: 3 }
+      { angle: 0, length: 55, width: 14 },
+      { angle: 0, length: 50, width: 10 }
     ],
     tier: 2,
     unlocksAt: 30,
@@ -341,9 +339,9 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
   predator: {
     name: 'Predator',
     barrels: [
-      { angle: 0, length: 55, width: 10, offsetY: -6 },
-      { angle: 0, length: 58, width: 11, offsetY: 0 },
-      { angle: 0, length: 55, width: 10, offsetY: 6 }
+      { angle: 0, length: 60, width: 16 },
+      { angle: 0, length: 55, width: 12 },
+      { angle: 0, length: 50, width: 9 }
     ],
     tier: 3,
     unlocksAt: 45,
@@ -415,7 +413,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     ],
     tier: 3,
     unlocksAt: 45,
-    upgradesFrom: ['twinflank'],
+    upgradesFrom: ['overseer', 'twinflank'],
     isDroneClass: true,
     droneCount: 32,
     droneType: 'triangle',
@@ -427,9 +425,9 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     barrels: [
       { angle: 0, length: 40, width: 14 },
       { angle: 90, length: 32, width: 11 },
-      { angle: 270, length: 32, width: 11 },
+      { angle: -90, length: 32, width: 11 },
       { angle: 150, length: 28, width: 11 },
-      { angle: 210, length: 28, width: 11 }
+      { angle: -150, length: 28, width: 11 }
     ],
     tier: 3,
     unlocksAt: 45,
@@ -516,7 +514,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     ],
     tier: 3,
     unlocksAt: 45,
-    upgradesFrom: ['auto3'],
+    upgradesFrom: ['auto3', 'quadtank'],
     autoTurrets: 5
   },
   
@@ -540,7 +538,7 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
     barrels: [
       { angle: 0, length: 38, width: 18, isTrapezoid: true }
     ],
-    tier: 3,
+    tier: 4,
     unlocksAt: 45,
     upgradesFrom: ['machinegun']
   },
@@ -607,22 +605,18 @@ export const TANK_CONFIGS: Record<string, TankConfig> = {
   overlord: {
     name: 'Overlord',
     barrels: [
-      { angle: 0, length: 12, width: 18, isTrapezoid: true, offsetY: -8 },
-      { angle: 0, length: 12, width: 18, isTrapezoid: true, offsetY: 8 },
-      { angle: 90, length: 12, width: 18, isTrapezoid: true, offsetY: -8 },
-      { angle: 90, length: 12, width: 18, isTrapezoid: true, offsetY: 8 },
-      { angle: 180, length: 12, width: 18, isTrapezoid: true, offsetY: -8 },
-      { angle: 180, length: 12, width: 18, isTrapezoid: true, offsetY: 8 },
-      { angle: 270, length: 12, width: 18, isTrapezoid: true, offsetY: -8 },
-      { angle: 270, length: 12, width: 18, isTrapezoid: true, offsetY: 8 }
+      { angle: 0, length: 12, width: 18, isTrapezoid: true },
+      { angle: 90, length: 12, width: 18, isTrapezoid: true },
+      { angle: 180, length: 12, width: 18, isTrapezoid: true },
+      { angle: -90, length: 12, width: 18, isTrapezoid: true }
     ],
     tier: 3,
     unlocksAt: 45,
     upgradesFrom: ['overseer'],
     isDroneClass: true,
-    droneCount: 24,
+    droneCount: 8,
     droneType: 'triangle',
-    spawnerCount: 8
+    spawnerCount: 4
   }
 }
 

@@ -70,7 +70,7 @@ export class DroneSystem {
       // Check distance from player - prioritize staying close but allow full screen travel
       const distToPlayer = this.getDistance(drone.position, player.position)
       const maxFollowDistance = Math.max(this.viewportWidth, this.viewportHeight) * 1.5
-      const maxAttackRange = maxFollowDistance
+      const maxAttackRange = 500 // Attack enemies within 500px of the player
       
       // If drone is far from player, force return
       if (distToPlayer > maxFollowDistance) {
@@ -80,30 +80,40 @@ export class DroneSystem {
         return
       }
       
-      // Only look for targets when close to player
-      if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
-        // Clear any previous bot target tracking
-        this.botTargets.delete(drone.id)
+      // Continuously check for better targets (priority: enemies > shapes)
+      const currentBotId = this.botTargets.get(drone.id)
+      const currentBot = currentBotId ? botMap.get(currentBotId) : null
+      
+      // Always check for enemy bots first (highest priority)
+      const nearestEnemyBot = this.findNearestEnemyBot(drone, player, bots, maxAttackRange)
+      
+      if (nearestEnemyBot) {
+        // Switch to enemy bot if:
+        // 1. We don't have a bot target yet, OR
+        // 2. The new bot is closer/lower health than current target
+        const shouldSwitch = !currentBot || 
+                            currentBot.health <= 0 ||
+                            this.getDistance(player.position, nearestEnemyBot.position) < 
+                            this.getDistance(player.position, currentBot.position)
         
-        // Find enemy bots first (higher priority than loot)
-        const nearestEnemyBot = this.findNearestEnemyBot(drone, player, bots, maxAttackRange)
-        if (nearestEnemyBot) {
-          // Track bot target separately - don't use drone.target for bots
+        if (shouldSwitch) {
           this.botTargets.set(drone.id, nearestEnemyBot.id)
           drone.state = 'attacking'
           drone.target = null // Bot targets are tracked separately
           drone.targetPosition = { ...nearestEnemyBot.position }
+        }
+      } else if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
+        // No enemy bots nearby, clear bot tracking and look for shapes (low priority)
+        this.botTargets.delete(drone.id)
+        
+        const nearestTarget = this.findNearestTargetInView(drone, player, targets, maxAttackRange)
+        if (nearestTarget) {
+          drone.state = 'attacking'
+          drone.target = nearestTarget
+          drone.targetPosition = { ...nearestTarget.position }
         } else {
-          // If no enemy bots, find targets only within screen space and attack range
-          const nearestTarget = this.findNearestTargetInView(drone, player, targets, maxAttackRange)
-          if (nearestTarget) {
-            drone.state = 'attacking'
-            drone.target = nearestTarget
-            drone.targetPosition = { ...nearestTarget.position }
-          } else {
-            drone.state = 'idle'
-            drone.target = null
-          }
+          drone.state = 'idle'
+          drone.target = null
         }
       }
       
@@ -114,12 +124,13 @@ export class DroneSystem {
         if (trackedBotId) {
           const targetBot = botMap.get(trackedBotId)
           if (targetBot && targetBot.health > 0) {
-            // Update position of bot target and check if still valid
+            // Update position of bot target and check if still in range
             const targetDistToPlayer = this.getDistance(targetBot.position, player.position)
-            if (targetDistToPlayer < maxAttackRange && this.isInScreenView(targetBot.position, player)) {
+            if (targetDistToPlayer < maxAttackRange) {
               drone.targetPosition = { ...targetBot.position }
               this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
             } else {
+              // Target too far from player
               drone.state = 'returning'
               drone.target = null
               this.botTargets.delete(drone.id)
@@ -285,7 +296,8 @@ export class DroneSystem {
     if (!this.teamSystem) return null
     
     let nearest: BotPlayer | null = null
-    let nearestDist = range
+    let nearestDist = Infinity
+    let lowestHealthPercent = 1.0
     
     for (const bot of bots) {
       // Skip if bot is dead
@@ -294,18 +306,21 @@ export class DroneSystem {
       // Skip if bot is ally
       if (this.teamSystem.areAllies(player.team, bot.team)) continue
       
-      // Check if bot is in screen view
-      if (!this.isInScreenView(bot.position, player)) continue
-      
-      // Check distance from player
+      // Check distance from player - attack enemies within 500px, even slightly off-screen
       const distFromPlayer = this.getDistance(player.position, bot.position)
       if (distFromPlayer > range) continue
       
-      // Now check distance from drone for nearest calculation
+      // Calculate distance from drone
       const dist = this.getDistance(drone.position, bot.position)
-      if (dist < nearestDist) {
+      
+      // Prioritize low-health enemies
+      const healthPercent = bot.health / bot.maxHealth
+      
+      // Find closest low-health enemy, or just closest if all are healthy
+      if (healthPercent < lowestHealthPercent || (healthPercent === lowestHealthPercent && dist < nearestDist)) {
         nearest = bot
         nearestDist = dist
+        lowestHealthPercent = healthPercent
       }
     }
     
