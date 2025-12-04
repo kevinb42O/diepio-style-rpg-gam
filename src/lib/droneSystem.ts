@@ -91,10 +91,11 @@ export class DroneSystem {
         // Switch to enemy bot if:
         // 1. We don't have a bot target yet, OR
         // 2. The new bot is closer/lower health than current target
+        const distToNearestBot = this.getDistance(player.position, nearestEnemyBot.position)
+        const distToCurrentBot = currentBot ? this.getDistance(player.position, currentBot.position) : Infinity
         const shouldSwitch = !currentBot || 
                             currentBot.health <= 0 ||
-                            this.getDistance(player.position, nearestEnemyBot.position) < 
-                            this.getDistance(player.position, currentBot.position)
+                            distToNearestBot < distToCurrentBot
         
         if (shouldSwitch) {
           this.botTargets.set(drone.id, nearestEnemyBot.id)
@@ -295,8 +296,9 @@ export class DroneSystem {
   private findNearestEnemyBot(drone: Drone, player: Player, bots: BotPlayer[], range: number): BotPlayer | null {
     if (!this.teamSystem) return null
     
-    let nearest: BotPlayer | null = null
-    let nearestDist = Infinity
+    // Prioritize low-health enemies, then by proximity to drone
+    let bestTarget: BotPlayer | null = null
+    let bestDist = Infinity
     let lowestHealthPercent = 1.0
     
     for (const bot of bots) {
@@ -311,20 +313,20 @@ export class DroneSystem {
       if (distFromPlayer > range) continue
       
       // Calculate distance from drone
-      const dist = this.getDistance(drone.position, bot.position)
+      const distFromDrone = this.getDistance(drone.position, bot.position)
       
-      // Prioritize low-health enemies
+      // Prioritize low-health enemies first, then by closest to drone
       const healthPercent = bot.health / bot.maxHealth
       
-      // Find closest low-health enemy, or just closest if all are healthy
-      if (healthPercent < lowestHealthPercent || (healthPercent === lowestHealthPercent && dist < nearestDist)) {
-        nearest = bot
-        nearestDist = dist
+      // Select if: lower health than current best, OR same health but closer to drone
+      if (healthPercent < lowestHealthPercent || (healthPercent === lowestHealthPercent && distFromDrone < bestDist)) {
+        bestTarget = bot
+        bestDist = distFromDrone
         lowestHealthPercent = healthPercent
       }
     }
     
-    return nearest
+    return bestTarget
   }
 
   private findNearestTargetInView(drone: Drone, player: Player, targets: Loot[], range: number): Loot | null {

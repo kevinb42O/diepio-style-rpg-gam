@@ -8,6 +8,11 @@ import { TANK_CONFIGS } from './tankConfigs'
 import { TeamSystem } from './TeamSystem'
 import { BotNameGenerator } from './BotNameGenerator'
 
+// AI behavior constants
+const TEAM_BATTLE_RANGE = 500 // Range for prioritizing team battles over farming
+const CLOSE_ATTACK_RANGE = 400 // Range for triggering attack mode in non-passive bots
+const PASSIVE_ATTACK_RANGE = 300 // Range for passive bots to attack
+
 export class BotAISystem {
   private bots: BotPlayer[] = []
   private botIdCounter = 0
@@ -435,17 +440,17 @@ export class BotAISystem {
       return
     }
 
-    // Prioritize team battles: if enemy is within 500px and bot health > 50%, attack
-    const enemyInRange = (isPlayerEnemy && distanceToPlayer < 500) || (nearestEnemyBot && nearestEnemyDist < 500)
+    // Prioritize team battles: if enemy is within range and bot health > 50%, attack
+    const enemyInRange = (isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE) || (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE)
     if (enemyInRange && healthPercent > 0.5 && bot.personality !== 'passive') {
       bot.behaviorState = 'attacking'
       bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
       return
     }
 
-    // For all non-passive personalities, attack if enemy within 400px
+    // For all non-passive personalities, attack if enemy within close range
     if (bot.personality !== 'passive') {
-      const closeEnemy = (isPlayerEnemy && distanceToPlayer < 400) || (nearestEnemyBot && nearestEnemyDist < 400)
+      const closeEnemy = (isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || (nearestEnemyBot && nearestEnemyDist < CLOSE_ATTACK_RANGE)
       if (closeEnemy) {
         bot.behaviorState = 'attacking'
         bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
@@ -467,7 +472,7 @@ export class BotAISystem {
 
       case 'passive':
         // Prioritize farming, only fight if attacked or very close
-        if ((isPlayerEnemy && distanceToPlayer < 300) || (nearestEnemyBot && nearestEnemyDist < 300)) {
+        if ((isPlayerEnemy && distanceToPlayer < PASSIVE_ATTACK_RANGE) || (nearestEnemyBot && nearestEnemyDist < PASSIVE_ATTACK_RANGE)) {
           bot.behaviorState = 'attacking'
           bot.currentTarget = nearestEnemyDist < distanceToPlayer ? nearestEnemyBot!.id : 'player'
         } else {
@@ -496,7 +501,7 @@ export class BotAISystem {
           y: this.worldCenter.y 
         })
         
-        if ((isPlayerEnemy && distanceToPlayer < 500) || (nearestEnemyBot && nearestEnemyDist < 500)) {
+        if ((isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE) || (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE)) {
           bot.behaviorState = 'attacking'
           bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
         } else if (distFromSpawn > 600) {
@@ -511,7 +516,7 @@ export class BotAISystem {
         const rand = Math.random()
         if (rand < 0.4) {
           bot.behaviorState = 'farming'
-        } else if (rand < 0.7 && ((isPlayerEnemy && distanceToPlayer < 400) || nearestEnemyBot)) {
+        } else if (rand < 0.7 && ((isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || nearestEnemyBot)) {
           bot.behaviorState = 'attacking'
           bot.currentTarget = nearestEnemyBot ? nearestEnemyBot.id : 'player'
         } else {
