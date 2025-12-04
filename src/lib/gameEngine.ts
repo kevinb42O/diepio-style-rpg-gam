@@ -282,7 +282,7 @@ export class GameEngine {
     this.particlePool.update(deltaTime)
     this.zoneSystem.updatePlayerZone(this.player.position, this.gameTime)
     this.botAISystem.updateSpawning(this.zoneSystem.getZones(), this.gameTime)
-    const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime)
+    const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime, this.loot)
     this.projectiles.push(...botUpdate.projectiles)
     this.checkBotCollisions()
     

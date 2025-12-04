@@ -368,7 +368,7 @@ export class BotAISystem {
       shouldShoot = distance < 500
     }
 
-    return { targetPosition, shouldShoot }
+    return { targetPosition, shouldShoot, shootTarget: playerPosition, farmTargetId: null }
   }
 
   /**
@@ -465,6 +465,27 @@ export class BotAISystem {
 
     bot.health -= damage
     return bot.health <= 0
+  }
+
+  /**
+   * Find nearest loot to a position
+   */
+  private findNearestLoot(position: Vector2, loot: Loot[], maxDistance: number): Loot | null {
+    let nearest: Loot | null = null
+    let nearestDist = maxDistance
+
+    for (const item of loot) {
+      if (item.type !== 'box' && item.type !== 'treasure' && item.type !== 'boss') continue
+      if (!item.health || item.health <= 0) continue
+
+      const dist = this.getDistance(position, item.position)
+      if (dist < nearestDist) {
+        nearest = item
+        nearestDist = dist
+      }
+    }
+
+    return nearest
   }
 
   /**
