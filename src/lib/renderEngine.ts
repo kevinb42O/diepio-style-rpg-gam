@@ -1,5 +1,5 @@
 import type { GameEngine } from './gameEngine'
-import type { Vector2 } from './types'
+import type { Vector2, BotPlayer } from './types'
 import { TANK_CONFIGS, type BarrelConfig } from './tankConfigs'
 
 export class RenderEngine {
@@ -8,6 +8,7 @@ export class RenderEngine {
   private lastViewBounds = { left: 0, right: 0, top: 0, bottom: 0 }
   private offscreenCanvas: HTMLCanvasElement | null = null
   private offscreenCtx: CanvasRenderingContext2D | null = null
+  private gradientCache: Map<string, CanvasGradient> = new Map()
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -36,19 +37,25 @@ export class RenderEngine {
     this.ctx.save()
     this.ctx.translate(-engine.camera.x, -engine.camera.y)
 
+    this.drawZonedBackground(engine)
+    this.drawZoneBorders(engine)
+    this.drawPOIs(engine)
     this.drawGrid(engine)
     this.drawWorldBorder(engine)
     this.drawLoot(engine)
     this.drawProjectiles(engine)
+    this.drawBots(engine)
     this.drawDrones(engine)
     this.drawParticles(engine)
     this.drawEnhancedParticles(engine)
+    this.drawPooledParticles(engine)
     this.drawPlayer(engine)
 
     this.ctx.restore()
     
     // Draw screen effects (flash) after restoring context
     this.drawScreenEffects(engine)
+    this.drawZoneTransitionUI(engine)
   }
 
   private clear() {
@@ -105,12 +112,12 @@ export class RenderEngine {
     const statScale = 1 + (engine.upgradeManager.getStatPoints().maxHealth * 0.02)
     const finalRadius = player.radius * levelScale * statScale
 
-    // Get tier-based color and glow
+    // Get tier-based color and glow (updated for 2026 visuals)
     const tierColors = {
-      0: { fill: '#00B2E1', glow: null },
-      1: { fill: '#00C4F5', glow: null },
-      2: { fill: '#00D8FF', glow: 'rgba(0, 216, 255, 0.2)' },
-      3: { fill: '#00EEFF', glow: 'rgba(0, 238, 255, 0.4)' }
+      0: { fill: '#00B2E1', glow: null, shadowBlur: 0 },
+      1: { fill: '#00C4F5', glow: 'rgba(0, 196, 245, 0.15)', shadowBlur: 10 },
+      2: { fill: '#00D8FF', glow: 'rgba(0, 216, 255, 0.3)', shadowBlur: 15 },
+      3: { fill: '#00EEFF', glow: 'rgba(0, 238, 255, 0.5)', shadowBlur: 25 }
     }
     const tier = tankConfig.tier || 0
     const colors = tierColors[tier as keyof typeof tierColors] || tierColors[0]
@@ -144,7 +151,8 @@ export class RenderEngine {
       engine.barrelRecoil,
       tankConfig.bodyShape || 'circle',
       tankConfig.bodySpikes,
-      colors.glow
+      colors.glow,
+      player.barrelRecoils
     )
 
     // Draw drones
@@ -166,7 +174,8 @@ export class RenderEngine {
     recoilOffset: number = 0,
     bodyShape: 'circle' | 'square' | 'hexagon' | 'spikyHexagon' = 'circle',
     bodySpikes?: number,
-    glowColor?: string | null
+    glowColor?: string | null,
+    barrelRecoils?: number[]
   ) {
     this.ctx.save()
     this.ctx.translate(x, y)
@@ -178,11 +187,14 @@ export class RenderEngine {
       this.ctx.shadowColor = glowColor
     }
 
-    for (const barrel of barrelConfig) {
-      this.drawBarrel(barrel, color, recoilOffset)
+    // Draw barrels with per-barrel recoil
+    for (let i = 0; i < barrelConfig.length; i++) {
+      const barrel = barrelConfig[i]
+      const individualRecoil = barrelRecoils && barrelRecoils[i] !== undefined ? barrelRecoils[i] : recoilOffset
+      this.drawBarrel(barrel, color, individualRecoil)
     }
 
-    // Draw body based on shape
+    // Draw body based on shape with radial gradient
     this.ctx.beginPath()
     
     switch (bodyShape) {
@@ -204,7 +216,20 @@ export class RenderEngine {
         break
     }
     
-    this.ctx.fillStyle = color
+    // Create radial gradient for body
+    const gradient = this.ctx.createRadialGradient(
+      -bodyRadius * 0.3, -bodyRadius * 0.3, 0,
+      0, 0, bodyRadius
+    )
+    
+    // Parse base color and create gradient
+    const baseColor = color
+    const highlightColor = this.lightenColor(baseColor, 0.3)
+    gradient.addColorStop(0, highlightColor)
+    gradient.addColorStop(0.6, baseColor)
+    gradient.addColorStop(1, this.darkenColor(baseColor, 0.2))
+    
+    this.ctx.fillStyle = gradient
     this.ctx.fill()
     this.ctx.strokeStyle = '#000000'
     this.ctx.lineWidth = 3
@@ -658,6 +683,232 @@ export class RenderEngine {
     this.ctx.stroke()
     
     this.ctx.setLineDash([])
+    this.ctx.restore()
+  }
+
+  // Color manipulation helpers
+  private lightenColor(color: string, amount: number): string {
+    // Simple color lightening
+    const hex = color.replace('#', '')
+    const r = Math.min(255, parseInt(hex.substring(0, 2), 16) + Math.floor(255 * amount))
+    const g = Math.min(255, parseInt(hex.substring(2, 4), 16) + Math.floor(255 * amount))
+    const b = Math.min(255, parseInt(hex.substring(4, 6), 16) + Math.floor(255 * amount))
+    return `rgb(${r}, ${g}, ${b})`
+  }
+
+  private darkenColor(color: string, amount: number): string {
+    // Simple color darkening
+    const hex = color.replace('#', '')
+    const r = Math.max(0, parseInt(hex.substring(0, 2), 16) - Math.floor(255 * amount))
+    const g = Math.max(0, parseInt(hex.substring(2, 4), 16) - Math.floor(255 * amount))
+    const b = Math.max(0, parseInt(hex.substring(4, 6), 16) - Math.floor(255 * amount))
+    return `rgb(${r}, ${g}, ${b})`
+  }
+
+  // Zone rendering
+  private drawZonedBackground(engine: GameEngine) {
+    if (!engine.zoneSystem) return
+
+    const worldCenter = engine.zoneSystem.getWorldCenter()
+    const zones = engine.zoneSystem.getZones()
+
+    // Draw zones from outside to inside
+    for (let i = zones.length - 1; i >= 0; i--) {
+      const zone = zones[i]
+      const gradient = this.ctx.createRadialGradient(
+        worldCenter.x, worldCenter.y, zone.radiusMin,
+        worldCenter.x, worldCenter.y, zone.radiusMax
+      )
+      gradient.addColorStop(0, zone.floorColorInner)
+      gradient.addColorStop(1, zone.floorColorOuter)
+
+      this.ctx.fillStyle = gradient
+      this.ctx.beginPath()
+      this.ctx.arc(worldCenter.x, worldCenter.y, zone.radiusMax, 0, Math.PI * 2)
+      this.ctx.fill()
+    }
+  }
+
+  private drawZoneBorders(engine: GameEngine) {
+    if (!engine.zoneSystem) return
+
+    const worldCenter = engine.zoneSystem.getWorldCenter()
+    const borders = engine.zoneSystem.getZoneBorders()
+
+    for (const border of borders) {
+      this.ctx.save()
+      this.ctx.strokeStyle = border.color
+      this.ctx.lineWidth = 3
+      this.ctx.shadowBlur = 15
+      this.ctx.shadowColor = border.color
+      this.ctx.globalAlpha = 0.6
+
+      this.ctx.beginPath()
+      this.ctx.arc(worldCenter.x, worldCenter.y, border.radius, 0, Math.PI * 2)
+      this.ctx.stroke()
+
+      // Draw zone name
+      this.ctx.shadowBlur = 0
+      this.ctx.globalAlpha = 0.8
+      this.ctx.fillStyle = border.color
+      this.ctx.font = 'bold 20px Arial'
+      this.ctx.textAlign = 'center'
+      this.ctx.fillText(border.name, worldCenter.x, worldCenter.y - border.radius - 20)
+
+      this.ctx.restore()
+    }
+  }
+
+  private drawPOIs(engine: GameEngine) {
+    if (!engine.zoneSystem) return
+
+    const zones = engine.zoneSystem.getZones()
+    
+    for (const zone of zones) {
+      if (!zone.poi) continue
+      const poi = zone.poi
+
+      this.ctx.save()
+      
+      // Pulsing glow effect
+      const pulse = Math.sin(Date.now() / 500) * 0.3 + 0.7
+      this.ctx.shadowBlur = 30 * pulse
+      
+      if (poi.type === 'sanctuary') {
+        this.ctx.shadowColor = '#00ff00'
+        this.ctx.strokeStyle = '#00ff00'
+      } else if (poi.type === 'arena') {
+        this.ctx.shadowColor = '#ffaa00'
+        this.ctx.strokeStyle = '#ffaa00'
+      } else if (poi.type === 'nexus') {
+        this.ctx.shadowColor = '#ff00ff'
+        this.ctx.strokeStyle = '#ff00ff'
+      }
+
+      this.ctx.lineWidth = 4
+      this.ctx.globalAlpha = 0.5
+      this.ctx.beginPath()
+      this.ctx.arc(poi.position.x, poi.position.y, poi.radius, 0, Math.PI * 2)
+      this.ctx.stroke()
+
+      // Draw POI name
+      this.ctx.shadowBlur = 0
+      this.ctx.globalAlpha = 1
+      this.ctx.fillStyle = this.ctx.strokeStyle
+      this.ctx.font = 'bold 18px Arial'
+      this.ctx.textAlign = 'center'
+      this.ctx.fillText(poi.name, poi.position.x, poi.position.y - poi.radius - 15)
+
+      this.ctx.restore()
+    }
+  }
+
+  private drawBots(engine: GameEngine) {
+    if (!engine.botAISystem) return
+
+    const bots = engine.botAISystem.getBots()
+    const bounds = this.lastViewBounds
+
+    for (const bot of bots) {
+      if (bot.position.x < bounds.left || bot.position.x > bounds.right ||
+          bot.position.y < bounds.top || bot.position.y > bounds.bottom) {
+        continue
+      }
+
+      // Draw bot using same rendering as player
+      const tankConfig = TANK_CONFIGS[bot.tankClass] || TANK_CONFIGS.basic
+
+      // Calculate aim angle towards player
+      const dx = engine.player.position.x - bot.position.x
+      const dy = engine.player.position.y - bot.position.y
+      const aimAngle = Math.atan2(dy, dx)
+
+      // Calculate size
+      const levelScale = 1 + (bot.level - 1) * 0.012
+      const finalRadius = bot.radius * levelScale
+
+      // Tier-based colors for bots (red-tinted)
+      const tierColors = {
+        0: { fill: '#E12B00', glow: null, shadowBlur: 0 },
+        1: { fill: '#F54300', glow: 'rgba(245, 67, 0, 0.15)', shadowBlur: 10 },
+        2: { fill: '#FF5500', glow: 'rgba(255, 85, 0, 0.3)', shadowBlur: 15 },
+        3: { fill: '#FF6600', glow: 'rgba(255, 102, 0, 0.5)', shadowBlur: 25 }
+      }
+      const tier = tankConfig.tier || 0
+      const colors = tierColors[tier as keyof typeof tierColors] || tierColors[0]
+
+      this.drawTank(
+        bot.position.x,
+        bot.position.y,
+        colors.fill,
+        tankConfig.barrels,
+        aimAngle,
+        finalRadius,
+        0,
+        tankConfig.bodyShape || 'circle',
+        tankConfig.bodySpikes,
+        colors.glow,
+        bot.barrelRecoils
+      )
+
+      // Draw health bar
+      if (bot.health < bot.maxHealth) {
+        this.drawHealthBar(
+          bot.position.x,
+          bot.position.y - finalRadius - 15,
+          finalRadius * 2.5,
+          6,
+          bot.health / bot.maxHealth
+        )
+      }
+    }
+  }
+
+  private drawPooledParticles(engine: GameEngine) {
+    if (!engine.particlePool) return
+
+    const particles = engine.particlePool.getActiveParticles()
+    const bounds = this.lastViewBounds
+
+    for (const particle of particles) {
+      if (particle.position.x < bounds.left || particle.position.x > bounds.right ||
+          particle.position.y < bounds.top || particle.position.y > bounds.bottom) {
+        continue
+      }
+
+      this.ctx.save()
+      this.ctx.globalAlpha = particle.alpha
+      this.ctx.translate(particle.position.x, particle.position.y)
+      
+      if (particle.rotation) {
+        this.ctx.rotate(particle.rotation)
+      }
+
+      this.ctx.beginPath()
+      this.ctx.arc(0, 0, particle.size * particle.scale, 0, Math.PI * 2)
+      this.ctx.fillStyle = particle.color
+      this.ctx.fill()
+
+      this.ctx.restore()
+    }
+  }
+
+  private drawZoneTransitionUI(engine: GameEngine) {
+    if (!engine.zoneSystem) return
+
+    const currentTime = Date.now()
+    if (!engine.zoneSystem.shouldShowZoneWarning(currentTime)) return
+
+    const zone = engine.zoneSystem.getZone(engine.player.position)
+    
+    this.ctx.save()
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+    this.ctx.fillRect(this.canvas.width / 2 - 200, 100, 400, 60)
+
+    this.ctx.fillStyle = zone.id === 1 ? '#00ff00' : zone.id === 2 ? '#ffaa00' : '#ff0000'
+    this.ctx.font = 'bold 24px Arial'
+    this.ctx.textAlign = 'center'
+    this.ctx.fillText(`Entering ${zone.name}`, this.canvas.width / 2, 135)
     this.ctx.restore()
   }
 }

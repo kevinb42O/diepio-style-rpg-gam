@@ -1,4 +1,4 @@
-import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor, DroneControlMode } from './types'
+import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor, DroneControlMode, PointOfInterest } from './types'
 import { UpgradeManager, type StatType } from './upgradeSystem'
 import { ParticleSystem } from '@/systems/ParticleSystem'
 import { QuadTree } from '@/utils/QuadTree'
@@ -8,6 +8,9 @@ import { audioManager } from '@/audio/AudioManager'
 import { ObjectPool } from '@/utils/ObjectPool'
 import { TANK_CONFIGS } from './tankConfigs'
 import { DroneSystem } from './droneSystem'
+import { ParticlePool } from './particlePool'
+import { ZoneSystem } from './zoneSystem'
+import { BotAISystem } from './botAI'
 
 export class GameEngine {
   upgradeManager: UpgradeManager
@@ -23,7 +26,9 @@ export class GameEngine {
   particles: Particle[] = []
   mobileInput: Vector2 = { x: 0, y: 0 }
   mobileShootDirection: Vector2 = { x: 0, y: 0 }
-  worldSize = 4000
+  worldSize = 16000 // Circular world diameter
+  worldRadius = 8000
+  worldCenter: Vector2 = { x: 8000, y: 8000 }
   camera: Vector2 = { x: 0, y: 0 }
   cameraVelocity = { x: 0, y: 0 }
   viewportWidth = 800
@@ -46,6 +51,11 @@ export class GameEngine {
   lastKillTime = 0
   comboMultiplier = 1
   currentBarrelIndex = 0 // For alternating fire pattern
+  
+  // New systems
+  particlePool: ParticlePool
+  zoneSystem: ZoneSystem
+  botAISystem: BotAISystem
 
   constructor() {
     this.upgradeManager = new UpgradeManager()
@@ -72,6 +82,9 @@ export class GameEngine {
       20,
       100
     )
+    this.particlePool = new ParticlePool()
+    this.zoneSystem = new ZoneSystem()
+    this.botAISystem = new BotAISystem()
   }
 
   setRenderCallback(callback: (() => void) | null) {
@@ -81,7 +94,7 @@ export class GameEngine {
   createPlayer(): Player {
     return {
       id: 'player',
-      position: { x: this.worldSize / 2, y: this.worldSize / 2 },
+      position: { x: this.worldCenter.x, y: this.worldCenter.y },
       velocity: { x: 0, y: 0 },
       radius: 15,
       health: 100,
@@ -106,6 +119,7 @@ export class GameEngine {
       invisibility: 0,
       invisibilityTimer: 0,
       bodyShape: 'circle',
+      barrelRecoils: [0],
     }
   }
 
@@ -125,59 +139,57 @@ export class GameEngine {
     this.comboKills = 0
     this.lastKillTime = 0
     this.comboMultiplier = 1
+    this.particlePool.clear()
+    this.botAISystem.clear()
     
     this.generateWorldLoot()
   }
 
   generateWorldLoot() {
-    const clusters = 20
+    const zones = this.zoneSystem.getZones()
     
-    for (let c = 0; c < clusters; c++) {
-      const clusterX = Math.random() * this.worldSize
-      const clusterY = Math.random() * this.worldSize
-      const clusterRadius = 200 + Math.random() * 300
-      const boxCount = 12 + Math.floor(Math.random() * 15)
+    // Generate loot per zone
+    for (const zone of zones) {
+      const lootCount = zone.id === 1 ? 100 : zone.id === 2 ? 150 : 200
       
-      for (let i = 0; i < boxCount; i++) {
+      for (let i = 0; i < lootCount; i++) {
+        // Random position in zone (circular)
         const angle = Math.random() * Math.PI * 2
-        const distance = Math.random() * clusterRadius
-        const x = clusterX + Math.cos(angle) * distance
-        const y = clusterY + Math.sin(angle) * distance
+        const minDist = zone.radiusMin + 100
+        const maxDist = zone.radiusMax - 100
+        const distance = minDist + Math.random() * (maxDist - minDist)
+        const x = this.worldCenter.x + Math.cos(angle) * distance
+        const y = this.worldCenter.y + Math.sin(angle) * distance
         
-        if (x < 100 || x > this.worldSize - 100 || y < 100 || y > this.worldSize - 100) continue
-        
-        const distFromCenter = Math.sqrt(
-          Math.pow(x - this.worldSize / 2, 2) + Math.pow(y - this.worldSize / 2, 2)
-        )
-        const normalizedDist = distFromCenter / (this.worldSize / 2)
-        
-        const size = Math.random() + normalizedDist * 0.5
+        // Size increases with zone
+        const baseSize = zone.id === 1 ? 0.3 : zone.id === 2 ? 0.5 : 0.7
+        const size = baseSize + Math.random() * 0.5
         let radius: number, health: number, contactDamage: number, xpValue: number
         
-        if (size < 0.6) {
+        if (size < 0.5) {
           radius = 15
-          health = 20
-          contactDamage = 5
-          xpValue = 15
-        } else if (size < 1.2) {
+          health = 20 * zone.id
+          contactDamage = 5 * zone.id
+          xpValue = 15 * zone.id
+        } else if (size < 0.8) {
           radius = 25
-          health = 50
-          contactDamage = 15
-          xpValue = 40
-        } else if (size < 1.8) {
+          health = 50 * zone.id
+          contactDamage = 15 * zone.id
+          xpValue = 40 * zone.id
+        } else if (size < 1.1) {
           radius = 35
-          health = 100
-          contactDamage = 30
-          xpValue = 80
+          health = 100 * zone.id
+          contactDamage = 30 * zone.id
+          xpValue = 80 * zone.id
         } else {
           radius = 50
-          health = 200
-          contactDamage = 50
-          xpValue = 150
+          health = 200 * zone.id
+          contactDamage = 50 * zone.id
+          xpValue = 150 * zone.id
         }
         
         this.loot.push({
-          id: `box_initial_${c}_${i}`,
+          id: `box_zone${zone.id}_${i}`,
           position: { x, y },
           type: 'box',
           value: xpValue,
@@ -188,98 +200,49 @@ export class GameEngine {
         })
       }
     }
+
+    // Spawn POI loot at each POI
+    for (const zone of zones) {
+      if (zone.poi) {
+        this.spawnPOILoot(zone.poi)
+      }
+    }
+
+    // Add boss spawns in danger zone
+    for (let i = 0; i < 3; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const distance = 5000 + Math.random() * 2500
+      const x = this.worldCenter.x + Math.cos(angle) * distance
+      const y = this.worldCenter.y + Math.sin(angle) * distance
+      
+      this.loot.push({
+        id: `boss_${i}`,
+        position: { x, y },
+        type: 'boss',
+        value: 1000,
+        health: 500,
+        maxHealth: 500,
+        radius: 60,
+        contactDamage: 80,
+        isBoss: true,
+      })
+    }
+  }
+
+  spawnPOILoot(poi: PointOfInterest) {
+    // Spawn loot at POI center
+    const rarityMultiplier = poi.lootRarity === 'legendary' ? 5 : poi.lootRarity === 'epic' ? 3 : 2
     
-    const edgeBoxCount = 40
-    for (let i = 0; i < edgeBoxCount; i++) {
-      const side = Math.floor(Math.random() * 4)
-      let x, y
-      
-      switch (side) {
-        case 0: x = Math.random() * this.worldSize; y = 100 + Math.random() * 200; break
-        case 1: x = Math.random() * this.worldSize; y = this.worldSize - 300 + Math.random() * 200; break
-        case 2: x = 100 + Math.random() * 200; y = Math.random() * this.worldSize; break
-        default: x = this.worldSize - 300 + Math.random() * 200; y = Math.random() * this.worldSize; break
-      }
-      
-      const size = Math.random()
-      let radius: number, health: number, contactDamage: number, xpValue: number
-      
-      if (size < 0.3) {
-        radius = 35
-        health = 100
-        contactDamage = 30
-        xpValue = 80
-      } else if (size < 0.7) {
-        radius = 50
-        health = 200
-        contactDamage = 50
-        xpValue = 150
-      } else {
-        radius = 70
-        health = 400
-        contactDamage = 80
-        xpValue = 300
-      }
-      
-      this.loot.push({
-        id: `box_edge_${i}`,
-        position: { x, y },
-        type: 'box',
-        value: xpValue,
-        health,
-        maxHealth: health,
-        radius,
-        contactDamage,
-      })
-    }
-
-    // Add low-reward small cubes scattered everywhere (200 cubes)
-    for (let i = 0; i < 200; i++) {
-      const x = 150 + Math.random() * (this.worldSize - 300)
-      const y = 150 + Math.random() * (this.worldSize - 300)
-      
-      this.loot.push({
-        id: `cube_${i}`,
-        position: { x, y },
-        type: 'box',
-        value: 5,
-        health: 10,
-        maxHealth: 10,
-        radius: 10,
-        contactDamage: 2,
-      })
-    }
-
-    // Add random treasure chests (10 treasures)
-    for (let i = 0; i < 10; i++) {
-      const x = 200 + Math.random() * (this.worldSize - 400)
-      const y = 200 + Math.random() * (this.worldSize - 400)
-      
-      this.loot.push({
-        id: `treasure_${i}`,
-        position: { x, y },
-        type: 'treasure',
-        value: 500,
-        health: 150,
-        maxHealth: 150,
-        radius: 30,
-        contactDamage: 20,
-        isTreasure: true,
-      })
-    }
-
-    // Add the BOSS in the center of the map
     this.loot.push({
-      id: 'boss_center',
-      position: { x: this.worldSize / 2, y: this.worldSize / 2 },
-      type: 'boss',
-      value: 2000,
-      health: 5000,
-      maxHealth: 5000,
-      radius: 100,
-      contactDamage: 150,
-      isBoss: true,
-      driftSpeed: 20,
+      id: `poi_loot_${poi.id}_${Date.now()}`,
+      position: { ...poi.position },
+      type: 'treasure',
+      value: 500 * rarityMultiplier,
+      health: 200 * rarityMultiplier,
+      maxHealth: 200 * rarityMultiplier,
+      radius: 35,
+      contactDamage: 25 * rarityMultiplier,
+      isTreasure: true,
     })
   }
 
@@ -314,6 +277,20 @@ export class GameEngine {
     this.droneSystem.setViewport(this.camera, this.viewportWidth, this.viewportHeight)
     this.droneSystem.update(deltaTime, this.mousePosition, this.player, this.loot)
     this.checkDroneCollisions()
+    
+    // Update new systems
+    this.particlePool.update(deltaTime)
+    this.zoneSystem.updatePlayerZone(this.player.position, this.gameTime)
+    this.botAISystem.updateSpawning(this.zoneSystem.getZones(), this.gameTime)
+    const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime)
+    this.projectiles.push(...botUpdate.projectiles)
+    this.checkBotCollisions()
+    
+    // Check for POI loot respawn
+    const poiToRespawn = this.zoneSystem.trySpawnPOILoot(this.gameTime)
+    if (poiToRespawn) {
+      this.spawnPOILoot(poiToRespawn)
+    }
 
     if (this.renderCallback) {
       this.renderCallback()
@@ -323,6 +300,15 @@ export class GameEngine {
   updateRecoilAndFlash(deltaTime: number) {
     if (this.barrelRecoil > 0) {
       this.barrelRecoil = Math.max(0, this.barrelRecoil - deltaTime * 30)
+    }
+
+    // Update per-barrel recoils
+    if (this.player.barrelRecoils) {
+      for (let i = 0; i < this.player.barrelRecoils.length; i++) {
+        if (this.player.barrelRecoils[i] > 0) {
+          this.player.barrelRecoils[i] = Math.max(0, this.player.barrelRecoils[i] - deltaTime * 30)
+        }
+      }
     }
 
     for (const flash of this.muzzleFlashes) {
@@ -548,6 +534,15 @@ export class GameEngine {
         spread: Math.PI / 4,
         type: 'muzzle-flash'
       })
+
+      // Particle pool effects
+      this.particlePool.emitMuzzleFlash({ x: barrelTipX, y: barrelTipY }, barrelAngle)
+      this.particlePool.emitSmoke({ x: barrelTipX, y: barrelTipY }, barrelAngle)
+
+      // Set per-barrel recoil
+      if (this.player.barrelRecoils && this.player.barrelRecoils[barrelIdx] !== undefined) {
+        this.player.barrelRecoils[barrelIdx] = 8
+      }
 
       // Add slight spread for multi-barrel shots
       const spread = barrels.length > 1 ? (Math.random() - 0.5) * 0.05 : 0
@@ -819,7 +814,95 @@ export class GameEngine {
     }
   }
 
-
+  checkBotCollisions() {
+    const bots = this.botAISystem.getBots()
+    
+    // Check projectile-bot collisions
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const projectile = this.projectiles[i]
+      
+      // Player projectiles vs bots
+      if (projectile.isPlayerProjectile) {
+        for (const bot of bots) {
+          const dx = projectile.position.x - bot.position.x
+          const dy = projectile.position.y - bot.position.y
+          const distSq = dx * dx + dy * dy
+          const radSum = projectile.radius + bot.radius
+          
+          if (distSq < radSum * radSum) {
+            // Damage bot
+            const killed = this.botAISystem.damageBot(bot.id, projectile.damage)
+            this.projectiles.splice(i, 1)
+            
+            // Particle effects
+            this.particlePool.emitSparkBurst(bot.position, 5)
+            this.particleSystem.createDamageNumber(bot.position, projectile.damage)
+            audioManager.play('hit')
+            
+            if (killed) {
+              // Bot died - give XP
+              this.player.xp += bot.level * 10
+              this.particlePool.emitDebris(bot.position, bot.velocity, '#ff6600')
+              this.screenEffects.startShake(3, 0.2)
+              audioManager.play('polygonDeath')
+              
+              // Check for level up
+              if (this.player.xp >= this.player.xpToNextLevel) {
+                this.levelUp()
+              }
+            }
+            break
+          }
+        }
+      }
+      // Bot projectiles vs player
+      else {
+        const dx = projectile.position.x - this.player.position.x
+        const dy = projectile.position.y - this.player.position.y
+        const distSq = dx * dx + dy * dy
+        const radSum = projectile.radius + this.player.radius
+        
+        if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
+          this.player.health -= projectile.damage
+          this.projectiles.splice(i, 1)
+          
+          // Particle effects
+          this.particlePool.emitSparkBurst(this.player.position, 3)
+          this.screenEffects.startShake(5, 0.3)
+          audioManager.play('playerDamage')
+          
+          if (this.player.health <= 0) {
+            this.player.health = 0
+          }
+        }
+      }
+    }
+    
+    // Check player-bot body collisions
+    for (const bot of bots) {
+      const dx = this.player.position.x - bot.position.x
+      const dy = this.player.position.y - bot.position.y
+      const distSq = dx * dx + dy * dy
+      const radSum = this.player.radius + bot.radius
+      
+      if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
+        // Deal damage both ways
+        const playerDamage = this.player.bodyDamage
+        const botDamage = bot.bodyDamage
+        
+        this.player.health -= botDamage * 0.016
+        this.botAISystem.damageBot(bot.id, playerDamage * 0.016)
+        
+        // Knockback
+        const dist = Math.sqrt(distSq)
+        if (dist > 0) {
+          const knockbackForce = 15
+          this.player.velocity.x += (dx / dist) * knockbackForce
+          this.player.velocity.y += (dy / dist) * knockbackForce
+        }
+      }
+    }
+  }
 
   breakLootBox(index: number) {
     const box = this.loot[index]
@@ -831,13 +914,16 @@ export class GameEngine {
     
     if (isBoss) {
       this.particleSystem.createExplosion(box.position, explosionSize * 2, '#FF0066')
+      this.particlePool.emitDebris(box.position, { x: 0, y: 0 }, '#FF0066')
       this.screenEffects.startShake(15, 0.8)
       this.screenEffects.startFlash('#FF0066', 0.5)
     } else if (isTreasure) {
       this.particleSystem.createExplosion(box.position, explosionSize * 1.5, '#FFD700')
+      this.particlePool.emitDebris(box.position, { x: 0, y: 0 }, '#FFD700')
       this.screenEffects.startShake(10, 0.5)
     } else {
       this.particleSystem.createExplosion(box.position, explosionSize, '#ff8800')
+      this.particlePool.emitDebris(box.position, { x: 0, y: 0 }, '#ff8800')
       
       // Screen shake on big polygon kills
       if (explosionSize > 30) {
@@ -1020,6 +1106,7 @@ export class GameEngine {
     this.player.xp = this.player.xp - this.player.xpToNextLevel
     this.player.xpToNextLevel = Math.floor(this.player.xpToNextLevel * 1.5)
     this.createLevelUpParticles()
+    this.particlePool.emitLevelUpBurst(this.player.position)
   }
 
   allocateStat(stat: StatType) {
@@ -1056,6 +1143,10 @@ export class GameEngine {
       const tankConfig = TANK_CONFIGS[tankKey]
       if (tankConfig) {
         this.player.bodyShape = tankConfig.bodyShape || 'circle'
+        
+        // Initialize per-barrel recoils
+        const barrelCount = tankConfig.barrels.length
+        this.player.barrelRecoils = new Array(barrelCount).fill(0)
       }
       
       audioManager.play('upgrade')

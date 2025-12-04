@@ -33,6 +33,7 @@ export interface Player extends Entity {
   invisibility: number
   invisibilityTimer: number
   bodyShape: 'circle' | 'square' | 'hexagon' | 'spikyHexagon'
+  barrelRecoils?: number[] // Per-barrel recoil tracking
 }
 
 export interface Enemy extends Entity {
@@ -129,4 +130,54 @@ export interface Trap {
   damage: number
   lifetime: number
   ownerId: string
+}
+
+export interface BotPlayer extends Player {
+  behaviorState: 'idle' | 'attacking' | 'fleeing' | 'patrolling'
+  targetPlayer: boolean
+  lastBehaviorChange: number
+  spawnZone: number
+  statPoints: Record<string, number>
+}
+
+export interface Zone {
+  id: number
+  name: string
+  radiusMin: number
+  radiusMax: number
+  floorColorInner: string
+  floorColorOuter: string
+  enemyLevelMin: number
+  enemyLevelMax: number
+  enemyTiers: number[]
+  maxBots: number
+  lootRarities: Rarity[]
+  poi?: PointOfInterest
+}
+
+export interface PointOfInterest {
+  id: string
+  name: string
+  position: Vector2
+  radius: number
+  type: 'sanctuary' | 'arena' | 'nexus'
+  guardCount: number
+  lootRarity: Rarity
+  lootRespawnTime: number
+  lastLootSpawn: number
+}
+
+export interface PooledParticle {
+  position: Vector2
+  velocity: Vector2
+  life: number
+  maxLife: number
+  alpha: number
+  color: string
+  size: number
+  rotation: number
+  rotationSpeed: number
+  scale: number
+  type: 'muzzle' | 'smoke' | 'spark' | 'energy' | 'levelup' | 'debris' | 'trail'
+  active: boolean
 }
