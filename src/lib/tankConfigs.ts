@@ -625,8 +625,13 @@ export function getAvailableUpgrades(currentClass: string, level: number): TankC
   
   for (const key in TANK_CONFIGS) {
     const config = TANK_CONFIGS[key]
-    if (config.unlocksAt === level && config.upgradesFrom?.includes(currentClass)) {
-      available.push(config)
+    // Use <= instead of === to catch level-ups even if player skipped levels
+    // Also add tier check to only show next tier upgrades
+    if (config.unlocksAt <= level && config.upgradesFrom?.includes(currentClass)) {
+      const currentConfig = TANK_CONFIGS[currentClass]
+      if (config.tier === (currentConfig?.tier || 0) + 1) {
+        available.push(config)
+      }
     }
   }
   
