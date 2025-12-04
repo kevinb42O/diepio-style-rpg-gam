@@ -41,7 +41,7 @@ export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      <div className={`p-2 md:p-4 flex flex-col ${isMobile ? 'gap-1' : 'gap-3'}`}>
+      <div className={`${isMobile ? 'p-2 pt-12' : 'p-2 md:p-4'} flex flex-col ${isMobile ? 'gap-1' : 'gap-3'}`}>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className={isMobile ? 'text-sm font-bold' : 'text-lg font-bold'}>
             <Star className="mr-1" weight="fill" size={isMobile ? 14 : 16} />
@@ -57,7 +57,7 @@ export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel
           </Badge>
         </div>
 
-        <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-2'} bg-card/80 backdrop-blur-sm rounded-lg ${isMobile ? 'p-2 w-48' : 'p-3 w-64'} border border-border`}>
+        <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-2'} bg-card/80 backdrop-blur-sm rounded-lg ${isMobile ? 'p-2 w-44' : 'p-3 w-64'} border border-border`}>
           <div className={`flex items-center justify-between ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <div className="flex items-center gap-1">
               <Heart weight="fill" className="text-red-400" size={isMobile ? 12 : 16} />
@@ -75,7 +75,7 @@ export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel
           </div>
         </div>
 
-        <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-2'} bg-card/80 backdrop-blur-sm rounded-lg ${isMobile ? 'p-2 w-48' : 'p-3 w-64'} border border-border`}>
+        <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-2'} bg-card/80 backdrop-blur-sm rounded-lg ${isMobile ? 'p-2 w-44' : 'p-3 w-64'} border border-border`}>
           <div className={`flex items-center justify-between ${isMobile ? 'text-xs' : 'text-sm'}`}>
             <div className="flex items-center gap-1">
               <Star weight="fill" className="text-accent" size={isMobile ? 12 : 16} />
