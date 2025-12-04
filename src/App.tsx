@@ -82,13 +82,22 @@ function App() {
       }
     }
 
-    const handleMouseDown = () => {
+    const handleMouseDown = (e: MouseEvent) => {
       if (isMobile || gameState !== 'playing') return
+      
+      // Call drone control handler
+      engine.handleMouseDown(e.button)
+      
+      // Regular shooting for non-drone classes
       engine.isShooting = true
     }
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
       if (isMobile) return
+      
+      // Call drone control handler
+      engine.handleMouseUp(e.button)
+      
       engine.isShooting = false
     }
 
@@ -146,9 +155,15 @@ function App() {
       }
     }
 
+    const handleContextMenu = (e: MouseEvent) => {
+      // Prevent default right-click menu for drone control
+      e.preventDefault()
+    }
+
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mousedown', handleMouseDown)
     window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('contextmenu', handleContextMenu)
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
 
@@ -156,6 +171,7 @@ function App() {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mousedown', handleMouseDown)
       window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('contextmenu', handleContextMenu)
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
@@ -312,9 +328,12 @@ function App() {
   }
 
   const handleSelectClass = (className: string) => {
-    engineRef.current.player.tankClass = className
-    toast.success(`Class upgraded to ${className}!`)
-    setGameState('playing')
+    if (engineRef.current.upgradeTank(className)) {
+      toast.success(`Class upgraded to ${className}!`)
+      setGameState('playing')
+    } else {
+      toast.error('Failed to upgrade class')
+    }
   }
 
   const handleCloseClassUpgrade = () => {
