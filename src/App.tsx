@@ -56,7 +56,6 @@ function App() {
   const [showFPS, setShowFPS] = useState(false)
   const [killFeedItems, setKillFeedItems] = useState<KillFeedItem[]>([])
   const [isOwner, setIsOwner] = useState(false)
-  const [statModalKey, setStatModalKey] = useState(0)
 
   useEffect(() => {
     const checkOwner = async () => {
@@ -302,7 +301,6 @@ function App() {
     }
     
     engineRef.current.allocateStat(stat)
-    setStatModalKey(prev => prev + 1)
     toast.success('Stat upgraded!')
   }
 
@@ -339,7 +337,6 @@ function App() {
   const handleAdminSetLevel = (level: number) => {
     if (engineRef.current.setLevel(level)) {
       toast.success(`Level set to ${level}!`)
-      setStatModalKey(prev => prev + 1)
       
       const availableClasses = getUpgradesForClassAtLevel(engineRef.current.player.tankClass, level)
       if (availableClasses.length > 0 && gameState === 'playing') {
@@ -352,7 +349,6 @@ function App() {
   const handleAdminAddStatPoints = (amount: number) => {
     engineRef.current.addStatPoints(amount)
     toast.success(`Added ${amount} levels for stat points!`)
-    setStatModalKey(prev => prev + 1)
   }
 
   const handleToggleStatsPanel = () => {
@@ -467,7 +463,6 @@ function App() {
 
       {gameState === 'statupgrade' && (
         <StatUpgradeModal
-          key={statModalKey}
           level={engineRef.current.player.level}
           availablePoints={engineRef.current.upgradeManager.getAvailableSkillPoints()}
           statPoints={engineRef.current.upgradeManager.getStatPoints()}

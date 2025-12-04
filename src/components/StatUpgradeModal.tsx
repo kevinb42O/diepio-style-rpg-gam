@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress'
 import { motion } from 'framer-motion'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { StatType } from '@/lib/upgradeSystem'
+import { memo } from 'react'
 
 interface StatUpgradeModalProps {
   level: number
@@ -71,12 +72,66 @@ const STAT_INFO: { [key in StatType]: { icon: typeof Heart; label: string; color
   }
 }
 
+const StatRow = memo(({ 
+  stat, 
+  points, 
+  availablePoints, 
+  onAllocate, 
+  isMobile 
+}: { 
+  stat: StatType
+  points: number
+  availablePoints: number
+  onAllocate: (stat: StatType) => void
+  isMobile: boolean
+}) => {
+  const info = STAT_INFO[stat]
+  const Icon = info.icon
+  const MAX_STAT_POINTS = 30
+  const isMaxed = points >= MAX_STAT_POINTS
+  const canUpgrade = availablePoints > 0 && !isMaxed
+  
+  return (
+    <div
+      className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'} bg-muted/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-border ${isMaxed ? 'opacity-75' : ''}`}
+    >
+      <Icon weight="fill" size={isMobile ? 20 : 32} className={info.color} />
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className={`font-semibold ${isMobile ? 'text-xs' : 'text-sm'}`}>
+            {info.label}
+          </span>
+          <span className={`text-xs ${isMaxed ? 'text-accent font-bold' : 'text-muted-foreground'}`}>
+            {points}/{MAX_STAT_POINTS}
+          </span>
+        </div>
+        <div className="bg-border rounded-full h-1.5 mb-1">
+          <div 
+            className={`${isMaxed ? 'bg-accent' : 'bg-primary'} h-full rounded-full transition-all duration-200`}
+            style={{ width: `${Math.min(100, (points / MAX_STAT_POINTS) * 100)}%` }}
+          />
+        </div>
+        {!isMobile && <p className="text-xs text-muted-foreground">{isMaxed ? '⭐ MAXED' : info.description}</p>}
+      </div>
+      
+      <Button
+        onClick={() => onAllocate(stat)}
+        disabled={!canUpgrade}
+        size="sm"
+        variant={canUpgrade ? 'default' : 'outline'}
+        className="shrink-0"
+      >
+        {isMaxed ? '✓' : '+'}
+      </Button>
+    </div>
+  )
+})
+
+StatRow.displayName = 'StatRow'
+
 export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocate, onClose }: StatUpgradeModalProps) {
   const isMobile = useIsMobile()
-
-  const handleAllocate = (stat: StatType) => {
-    onAllocate(stat)
-  }
 
   return (
     <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4">
@@ -96,51 +151,16 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
             </CardDescription>
           </CardHeader>
           <CardContent className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isMobile ? 'max-h-[calc(90vh-180px)]' : 'max-h-[60vh]'} overflow-y-auto`}>
-            {(Object.keys(STAT_INFO) as StatType[]).map((stat) => {
-              const info = STAT_INFO[stat]
-              const Icon = info.icon
-              const points = statPoints[stat]
-              const MAX_STAT_POINTS = 30
-              const isMaxed = points >= MAX_STAT_POINTS
-              const canUpgrade = availablePoints > 0 && !isMaxed
-              
-              return (
-                <div
-                  key={stat}
-                  className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'} bg-muted/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-border ${isMaxed ? 'opacity-75' : ''}`}
-                >
-                  <Icon weight="fill" size={isMobile ? 20 : 32} className={info.color} />
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`font-semibold ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                        {info.label}
-                      </span>
-                      <span className={`text-xs ${isMaxed ? 'text-accent font-bold' : 'text-muted-foreground'}`}>
-                        {points}/{MAX_STAT_POINTS}
-                      </span>
-                    </div>
-                    <div className="bg-border rounded-full h-1.5 mb-1">
-                      <div 
-                        className={`${isMaxed ? 'bg-accent' : 'bg-primary'} h-full rounded-full transition-all`}
-                        style={{ width: `${Math.min(100, (points / MAX_STAT_POINTS) * 100)}%` }}
-                      />
-                    </div>
-                    {!isMobile && <p className="text-xs text-muted-foreground">{isMaxed ? '⭐ MAXED' : info.description}</p>}
-                  </div>
-                  
-                  <Button
-                    onClick={() => handleAllocate(stat)}
-                    disabled={!canUpgrade}
-                    size="sm"
-                    variant={canUpgrade ? 'default' : 'outline'}
-                    className="shrink-0"
-                  >
-                    {isMaxed ? '✓' : '+'}
-                  </Button>
-                </div>
-              )
-            })}
+            {(Object.keys(STAT_INFO) as StatType[]).map((stat) => (
+              <StatRow
+                key={stat}
+                stat={stat}
+                points={statPoints[stat]}
+                availablePoints={availablePoints}
+                onAllocate={onAllocate}
+                isMobile={isMobile}
+              />
+            ))}
           </CardContent>
           <div className="p-4 border-t border-border">
             <Button onClick={onClose} className="w-full" variant="secondary">
