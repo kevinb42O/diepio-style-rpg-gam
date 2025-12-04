@@ -45,7 +45,7 @@ export class DroneSystem {
     if (isAutoAttackClass) {
       // Check distance from player - prioritize staying close but allow full screen travel
       const distToPlayer = this.getDistance(drone.position, player.position)
-      const maxFollowDistance = Math.max(this.viewportWidth, this.viewportHeight) * 0.75
+      const maxFollowDistance = Math.max(this.viewportWidth, this.viewportHeight) * 1.5
       const maxAttackRange = maxFollowDistance
       
       // If drone is far from player, force return

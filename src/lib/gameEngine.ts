@@ -398,28 +398,18 @@ export class GameEngine {
     const collisions = this.droneSystem.checkDroneCollisions(this.loot)
     
     for (const collision of collisions) {
-      const loot = this.loot.find(l => l.id === collision.targetId)
-      if (loot && loot.health !== undefined) {
-        loot.health = Math.max(0, loot.health - collision.damage)
-        
-        // Check if shape was destroyed
-        if (loot.health <= 0) {
-          // Try to convert to drone for Necromancer
-          if (this.player.tankClass === 'necromancer') {
-            this.droneSystem.convertShapeToDrone(loot, this.player)
-          }
+      const lootIndex = this.loot.findIndex(l => l.id === collision.targetId)
+      if (lootIndex !== -1) {
+        const loot = this.loot[lootIndex]
+        if (loot.health !== undefined) {
+          loot.health = Math.max(0, loot.health - collision.damage)
           
-          // Award XP
-          this.player.xp += loot.value || 0
-          this.player.kills++
-          
-          // Level up check
-          if (this.player.xp >= this.player.xpToNextLevel) {
-            this.player.level++
-            this.player.xpToNextLevel = this.upgradeManager.getXPForLevel(this.player.level + 1)
-            if (this.onLevelUp) {
-              this.onLevelUp()
+          if (loot.health <= 0) {
+            if (this.player.tankClass === 'necromancer') {
+              this.droneSystem.convertShapeToDrone(loot, this.player)
             }
+            
+            this.breakLootBox(lootIndex)
           }
         }
       }
