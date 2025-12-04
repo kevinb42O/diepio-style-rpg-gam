@@ -966,7 +966,7 @@ export class GameEngine {
 
   // Admin methods
   setLevel(level: number) {
-    if (level < 1 || level > 45) return false
+    if (level < 1) return false
     const xpNeeded = this.upgradeManager.getXPForLevel(level)
     this.upgradeManager['totalXP'] = xpNeeded
     this.upgradeManager['level'] = level
@@ -977,7 +977,7 @@ export class GameEngine {
 
   addStatPoints(amount: number) {
     const currentLevel = this.upgradeManager.getLevel()
-    const targetLevel = Math.min(45, currentLevel + amount)
+    const targetLevel = currentLevel + amount
     if (this.setLevel(targetLevel)) {
       this.applyStatsToPlayer()
     }

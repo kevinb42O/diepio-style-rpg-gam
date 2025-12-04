@@ -29,12 +29,16 @@ export interface BarrelConfig {
   length: number
 }
 
-const SKILL_POINTS_BY_LEVEL: { [key: number]: number } = {
+const SKILL_POINTS_BY_LEVEL_LEGACY: { [key: number]: number } = {
   1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 8, 10: 9,
   11: 10, 12: 11, 13: 12, 14: 13, 15: 14, 16: 15, 17: 16, 18: 17, 19: 18, 20: 19,
   21: 20, 22: 21, 23: 22, 24: 23, 25: 24, 26: 25, 27: 26, 28: 27,
   29: 27, 30: 28, 31: 28, 32: 29, 33: 29, 34: 30, 35: 30, 36: 31,
   37: 31, 38: 31, 39: 32, 40: 32, 41: 32, 42: 33, 43: 33, 44: 33, 45: 33
+}
+
+function getSkillPointsForLevel(level: number): number {
+  return level - 1
 }
 
 const XP_CURVE: { [key: number]: number } = {
@@ -271,7 +275,7 @@ export class UpgradeManager {
 
   getAvailableSkillPoints(): number {
     const totalAllocated = Object.values(this.statPoints).reduce((sum, val) => sum + val, 0)
-    const maxPoints = SKILL_POINTS_BY_LEVEL[this.level] || 0
+    const maxPoints = getSkillPointsForLevel(this.level)
     return maxPoints - totalAllocated
   }
 
@@ -336,14 +340,19 @@ export class UpgradeManager {
   }
 
   getXPForLevel(level: number): number {
-    return XP_CURVE[level] || 0
+    if (level <= 45) {
+      return XP_CURVE[level] || 0
+    }
+    const baseXP = XP_CURVE[45] || 1110000
+    const levelsAbove45 = level - 45
+    return baseXP + (levelsAbove45 * 150000)
   }
 
   addXP(amount: number): boolean {
     this.totalXP += amount
     const nextLevel = this.level + 1
     
-    if (nextLevel <= 45 && this.totalXP >= this.getXPForLevel(nextLevel)) {
+    if (this.totalXP >= this.getXPForLevel(nextLevel)) {
       this.level = nextLevel
       return true
     }
@@ -416,7 +425,6 @@ export class UpgradeManager {
   }
 
   getXPToNextLevel(): number {
-    if (this.level >= 45) return 0
     return this.getXPForLevel(this.level + 1) - this.totalXP
   }
 
@@ -426,7 +434,6 @@ export class UpgradeManager {
   }
 
   getXPRequiredForCurrentLevel(): number {
-    if (this.level >= 45) return 0
     const currentLevelXP = this.getXPForLevel(this.level)
     const nextLevelXP = this.getXPForLevel(this.level + 1)
     return nextLevelXP - currentLevelXP
