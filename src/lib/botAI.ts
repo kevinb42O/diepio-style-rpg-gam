@@ -405,11 +405,21 @@ export class BotAISystem {
   }
 
   /**
-   * Try to shoot at player
+   * Try to shoot at target (player or loot)
    */
-  private tryShoot(bot: BotPlayer, playerPosition: Vector2, currentTime: number): Projectile[] {
+  private tryShoot(bot: BotPlayer, targetPosition: Vector2, currentTime: number): Projectile[] {
     const config = TANK_CONFIGS[bot.tankClass]
     if (!config || config.isDroneClass || config.bodyShape === 'hexagon' || config.bodyShape === 'spikyHexagon') {
+      return []
+    }
+
+    const distance = this.getDistance(bot.position, targetPosition)
+    
+    const maxRange = bot.tankClass.includes('sniper') || bot.tankClass.includes('ranger') || bot.tankClass.includes('assassin')
+      ? 600
+      : 400
+
+    if (distance > maxRange) {
       return []
     }
 
@@ -421,9 +431,8 @@ export class BotAISystem {
     bot.lastShotTime = currentTime
 
     const projectiles: Projectile[] = []
-    const angle = Math.atan2(playerPosition.y - bot.position.y, playerPosition.x - bot.position.x)
+    const angle = Math.atan2(targetPosition.y - bot.position.y, targetPosition.x - bot.position.x)
 
-    // Calculate bullet speed and damage with stat boosts
     const bulletSpeed = bot.bulletSpeed * (1 + bot.statPoints.bulletSpeed * 0.05)
     const damage = bot.damage * (1 + bot.statPoints.bulletDamage * 0.1)
 
@@ -431,7 +440,6 @@ export class BotAISystem {
       const barrel = config.barrels[i]
       const barrelAngle = angle + (barrel.angle * Math.PI) / 180
 
-      // Set barrel recoil
       if (bot.barrelRecoils && bot.barrelRecoils[i] !== undefined) {
         bot.barrelRecoils[i] = 8
       }
