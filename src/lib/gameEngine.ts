@@ -146,54 +146,50 @@ export class GameEngine {
   }
 
   generateWorldLoot() {
-    const clusters = 20
+    const zones = this.zoneSystem.getZones()
     
-    for (let c = 0; c < clusters; c++) {
-      const clusterX = Math.random() * this.worldSize
-      const clusterY = Math.random() * this.worldSize
-      const clusterRadius = 200 + Math.random() * 300
-      const boxCount = 12 + Math.floor(Math.random() * 15)
+    // Generate loot per zone
+    for (const zone of zones) {
+      const lootCount = zone.id === 1 ? 100 : zone.id === 2 ? 150 : 200
       
-      for (let i = 0; i < boxCount; i++) {
+      for (let i = 0; i < lootCount; i++) {
+        // Random position in zone (circular)
         const angle = Math.random() * Math.PI * 2
-        const distance = Math.random() * clusterRadius
-        const x = clusterX + Math.cos(angle) * distance
-        const y = clusterY + Math.sin(angle) * distance
+        const minDist = zone.radiusMin + 100
+        const maxDist = zone.radiusMax - 100
+        const distance = minDist + Math.random() * (maxDist - minDist)
+        const x = this.worldCenter.x + Math.cos(angle) * distance
+        const y = this.worldCenter.y + Math.sin(angle) * distance
         
-        if (x < 100 || x > this.worldSize - 100 || y < 100 || y > this.worldSize - 100) continue
-        
-        const distFromCenter = Math.sqrt(
-          Math.pow(x - this.worldSize / 2, 2) + Math.pow(y - this.worldSize / 2, 2)
-        )
-        const normalizedDist = distFromCenter / (this.worldSize / 2)
-        
-        const size = Math.random() + normalizedDist * 0.5
+        // Size increases with zone
+        const baseSize = zone.id === 1 ? 0.3 : zone.id === 2 ? 0.5 : 0.7
+        const size = baseSize + Math.random() * 0.5
         let radius: number, health: number, contactDamage: number, xpValue: number
         
-        if (size < 0.6) {
+        if (size < 0.5) {
           radius = 15
-          health = 20
-          contactDamage = 5
-          xpValue = 15
-        } else if (size < 1.2) {
+          health = 20 * zone.id
+          contactDamage = 5 * zone.id
+          xpValue = 15 * zone.id
+        } else if (size < 0.8) {
           radius = 25
-          health = 50
-          contactDamage = 15
-          xpValue = 40
-        } else if (size < 1.8) {
+          health = 50 * zone.id
+          contactDamage = 15 * zone.id
+          xpValue = 40 * zone.id
+        } else if (size < 1.1) {
           radius = 35
-          health = 100
-          contactDamage = 30
-          xpValue = 80
+          health = 100 * zone.id
+          contactDamage = 30 * zone.id
+          xpValue = 80 * zone.id
         } else {
           radius = 50
-          health = 200
-          contactDamage = 50
-          xpValue = 150
+          health = 200 * zone.id
+          contactDamage = 50 * zone.id
+          xpValue = 150 * zone.id
         }
         
         this.loot.push({
-          id: `box_initial_${c}_${i}`,
+          id: `box_zone${zone.id}_${i}`,
           position: { x, y },
           type: 'box',
           value: xpValue,
@@ -204,98 +200,49 @@ export class GameEngine {
         })
       }
     }
+
+    // Spawn POI loot at each POI
+    for (const zone of zones) {
+      if (zone.poi) {
+        this.spawnPOILoot(zone.poi)
+      }
+    }
+
+    // Add boss spawns in danger zone
+    for (let i = 0; i < 3; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const distance = 5000 + Math.random() * 2500
+      const x = this.worldCenter.x + Math.cos(angle) * distance
+      const y = this.worldCenter.y + Math.sin(angle) * distance
+      
+      this.loot.push({
+        id: `boss_${i}`,
+        position: { x, y },
+        type: 'boss',
+        value: 1000,
+        health: 500,
+        maxHealth: 500,
+        radius: 60,
+        contactDamage: 80,
+        isBoss: true,
+      })
+    }
+  }
+
+  spawnPOILoot(poi: import('./types').PointOfInterest) {
+    // Spawn loot at POI center
+    const rarityMultiplier = poi.lootRarity === 'legendary' ? 5 : poi.lootRarity === 'epic' ? 3 : 2
     
-    const edgeBoxCount = 40
-    for (let i = 0; i < edgeBoxCount; i++) {
-      const side = Math.floor(Math.random() * 4)
-      let x, y
-      
-      switch (side) {
-        case 0: x = Math.random() * this.worldSize; y = 100 + Math.random() * 200; break
-        case 1: x = Math.random() * this.worldSize; y = this.worldSize - 300 + Math.random() * 200; break
-        case 2: x = 100 + Math.random() * 200; y = Math.random() * this.worldSize; break
-        default: x = this.worldSize - 300 + Math.random() * 200; y = Math.random() * this.worldSize; break
-      }
-      
-      const size = Math.random()
-      let radius: number, health: number, contactDamage: number, xpValue: number
-      
-      if (size < 0.3) {
-        radius = 35
-        health = 100
-        contactDamage = 30
-        xpValue = 80
-      } else if (size < 0.7) {
-        radius = 50
-        health = 200
-        contactDamage = 50
-        xpValue = 150
-      } else {
-        radius = 70
-        health = 400
-        contactDamage = 80
-        xpValue = 300
-      }
-      
-      this.loot.push({
-        id: `box_edge_${i}`,
-        position: { x, y },
-        type: 'box',
-        value: xpValue,
-        health,
-        maxHealth: health,
-        radius,
-        contactDamage,
-      })
-    }
-
-    // Add low-reward small cubes scattered everywhere (200 cubes)
-    for (let i = 0; i < 200; i++) {
-      const x = 150 + Math.random() * (this.worldSize - 300)
-      const y = 150 + Math.random() * (this.worldSize - 300)
-      
-      this.loot.push({
-        id: `cube_${i}`,
-        position: { x, y },
-        type: 'box',
-        value: 5,
-        health: 10,
-        maxHealth: 10,
-        radius: 10,
-        contactDamage: 2,
-      })
-    }
-
-    // Add random treasure chests (10 treasures)
-    for (let i = 0; i < 10; i++) {
-      const x = 200 + Math.random() * (this.worldSize - 400)
-      const y = 200 + Math.random() * (this.worldSize - 400)
-      
-      this.loot.push({
-        id: `treasure_${i}`,
-        position: { x, y },
-        type: 'treasure',
-        value: 500,
-        health: 150,
-        maxHealth: 150,
-        radius: 30,
-        contactDamage: 20,
-        isTreasure: true,
-      })
-    }
-
-    // Add the BOSS in the center of the map
     this.loot.push({
-      id: 'boss_center',
-      position: { x: this.worldSize / 2, y: this.worldSize / 2 },
-      type: 'boss',
-      value: 2000,
-      health: 5000,
-      maxHealth: 5000,
-      radius: 100,
-      contactDamage: 150,
-      isBoss: true,
-      driftSpeed: 20,
+      id: `poi_loot_${poi.id}_${Date.now()}`,
+      position: { ...poi.position },
+      type: 'treasure',
+      value: 500 * rarityMultiplier,
+      health: 200 * rarityMultiplier,
+      maxHealth: 200 * rarityMultiplier,
+      radius: 35,
+      contactDamage: 25 * rarityMultiplier,
+      isTreasure: true,
     })
   }
 
@@ -338,6 +285,12 @@ export class GameEngine {
     const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime)
     this.projectiles.push(...botUpdate.projectiles)
     this.checkBotCollisions()
+    
+    // Check for POI loot respawn
+    const poiToRespawn = this.zoneSystem.trySpawnPOILoot(this.gameTime)
+    if (poiToRespawn) {
+      this.spawnPOILoot(poiToRespawn)
+    }
 
     if (this.renderCallback) {
       this.renderCallback()
