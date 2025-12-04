@@ -155,9 +155,9 @@ export class GameEngine {
   generateWorldLoot() {
     const zones = this.zoneSystem.getZones()
     
-    // Generate loot per zone
+    // Generate loot per zone with significantly increased counts
     for (const zone of zones) {
-      const lootCount = zone.id === 1 ? 100 : zone.id === 2 ? 150 : 200
+      const lootCount = zone.id === 1 ? 400 : zone.id === 2 ? 600 : 800
       
       for (let i = 0; i < lootCount; i++) {
         // Random position in zone (circular)
@@ -216,7 +216,7 @@ export class GameEngine {
     }
 
     // Add boss spawns in danger zone
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       const angle = Math.random() * Math.PI * 2
       const distance = 5000 + Math.random() * 2500
       const x = this.worldCenter.x + Math.cos(angle) * distance
@@ -650,27 +650,31 @@ export class GameEngine {
   spawnLootBoxes() {
     if (this.gameTime - this.lastBoxSpawnTime < this.boxSpawnInterval) return
 
-    const numBoxes = 2 + Math.floor(Math.random() * 3)
-    const LEVEL_SCALING_FACTOR = 0.15 // 15% increase per level
+    const numBoxes = 5 + Math.floor(Math.random() * 8)
+    const LEVEL_SCALING_FACTOR = 0.15
 
     for (let i = 0; i < numBoxes; i++) {
-      const clusterNearPlayer = Math.random() < 0.3
+      const clusterNearPlayer = Math.random() < 0.4
       let x, y
       
       if (clusterNearPlayer) {
         const angle = Math.random() * Math.PI * 2
-        const distance = 300 + Math.random() * 500
+        const distance = 400 + Math.random() * 700
         x = this.player.position.x + Math.cos(angle) * distance
         y = this.player.position.y + Math.sin(angle) * distance
       } else {
-        x = Math.random() * this.worldSize
-        y = Math.random() * this.worldSize
+        const playerZone = this.zoneSystem.getZone(this.player.position)
+        const angle = Math.random() * Math.PI * 2
+        const minDist = playerZone.radiusMin + 100
+        const maxDist = playerZone.radiusMax - 100
+        const distance = minDist + Math.random() * (maxDist - minDist)
+        x = this.worldCenter.x + Math.cos(angle) * distance
+        y = this.worldCenter.y + Math.sin(angle) * distance
       }
       
       x = Math.max(100, Math.min(this.worldSize - 100, x))
       y = Math.max(100, Math.min(this.worldSize - 100, y))
       
-      // Scale enemy difficulty with player level
       const levelMultiplier = 1 + (this.player.level - 1) * LEVEL_SCALING_FACTOR
       const size = Math.random()
       let radius: number, health: number, contactDamage: number, xpValue: number
@@ -706,13 +710,13 @@ export class GameEngine {
         maxHealth: health,
         radius,
         contactDamage,
-        spawnAlpha: 0, // Fade in effect
+        spawnAlpha: 0,
         rotationAngle: Math.random() * Math.PI * 2,
       })
     }
 
     this.lastBoxSpawnTime = this.gameTime
-    this.boxSpawnInterval = 4000 + Math.random() * 3000
+    this.boxSpawnInterval = 2000 + Math.random() * 2000
   }
 
 
@@ -1301,7 +1305,7 @@ export class GameEngine {
       p => p.position.x > -50 && p.position.x < this.worldSize + 50 && p.position.y > -50 && p.position.y < this.worldSize + 50
     )
 
-    if (this.loot.length > 300) {
+    if (this.loot.length > 2500) {
       this.loot.sort((a, b) => {
         const dx1 = a.position.x - this.player.position.x
         const dy1 = a.position.y - this.player.position.y
@@ -1309,7 +1313,7 @@ export class GameEngine {
         const dy2 = b.position.y - this.player.position.y
         return (dx2 * dx2 + dy2 * dy2) - (dx1 * dx1 + dy1 * dy1)
       })
-      this.loot.splice(250)
+      this.loot.splice(2000)
     }
 
     this.particles = this.particles.filter(p => p.life > 0)
