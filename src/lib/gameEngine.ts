@@ -154,7 +154,6 @@ export class GameEngine {
 
   generateWorldLoot() {
     const zones = this.zoneSystem.getZones()
-    const SPAWN_SAFE_ZONE = 800
     
     // Generate loot per zone
     for (const zone of zones) {
@@ -163,7 +162,7 @@ export class GameEngine {
       for (let i = 0; i < lootCount; i++) {
         // Random position in zone (circular)
         const angle = Math.random() * Math.PI * 2
-        const minDist = Math.max(zone.radiusMin + 100, SPAWN_SAFE_ZONE)
+        const minDist = zone.radiusMin + 100
         const maxDist = zone.radiusMax - 100
         const distance = minDist + Math.random() * (maxDist - minDist)
         const x = this.worldCenter.x + Math.cos(angle) * distance
