@@ -16,6 +16,7 @@ interface HUDProps {
     speed: number
     weapon: Weapon | null
     armor: Armor | null
+    team?: 'blue' | 'red' | 'neutral'
   }
   gameTime: number
   currentXPInLevel?: number
@@ -46,6 +47,15 @@ export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel
     <div className="absolute inset-0 pointer-events-none">
       <div className={`${isMobile ? 'p-2 pt-12' : 'p-2 md:p-4'} flex flex-col ${isMobile ? 'gap-1' : 'gap-3'}`}>
         <div className="flex items-center gap-2">
+          {player.team && player.team !== 'neutral' && (
+            <Badge 
+              variant="secondary" 
+              className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold ${player.team === 'blue' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}
+            >
+              {player.team === 'blue' ? '🔵 Blue Team' : '🔴 Red Team'}
+            </Badge>
+          )}
+          
           <Badge variant="secondary" className={isMobile ? 'text-sm font-bold' : 'text-lg font-bold'}>
             <Star className="mr-1" weight="fill" size={isMobile ? 14 : 16} />
             Level {player.level}

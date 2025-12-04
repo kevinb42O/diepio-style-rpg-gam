@@ -11,6 +11,7 @@ import { DroneSystem } from './droneSystem'
 import { ParticlePool } from './particlePool'
 import { ZoneSystem } from './zoneSystem'
 import { BotAISystem } from './botAI'
+import { TeamSystem } from './TeamSystem'
 
 export class GameEngine {
   upgradeManager: UpgradeManager
@@ -56,8 +57,11 @@ export class GameEngine {
   particlePool: ParticlePool
   zoneSystem: ZoneSystem
   botAISystem: BotAISystem
+  teamSystem: TeamSystem
+  botFarmTargets: Map<string, string> = new Map()
 
   constructor() {
+    this.teamSystem = new TeamSystem()
     this.upgradeManager = new UpgradeManager()
     this.player = this.createPlayer()
     this.particleSystem = new ParticleSystem()
@@ -84,7 +88,7 @@ export class GameEngine {
     )
     this.particlePool = new ParticlePool()
     this.zoneSystem = new ZoneSystem()
-    this.botAISystem = new BotAISystem()
+    this.botAISystem = new BotAISystem(this.teamSystem)
   }
 
   setRenderCallback(callback: (() => void) | null) {
@@ -120,10 +124,13 @@ export class GameEngine {
       invisibilityTimer: 0,
       bodyShape: 'circle',
       barrelRecoils: [0],
+      team: this.teamSystem.getPlayerTeam(),
+      name: 'You',
     }
   }
 
   reset() {
+    this.teamSystem.reset()
     this.upgradeManager.reset()
     this.player = this.createPlayer()
     this.projectiles = []
@@ -282,9 +289,10 @@ export class GameEngine {
     this.particlePool.update(deltaTime)
     this.zoneSystem.updatePlayerZone(this.player.position, this.gameTime)
     this.botAISystem.updateSpawning(this.zoneSystem.getZones(), this.gameTime)
-    const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime, this.loot)
+    const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime, this.loot, this.player.team)
     this.projectiles.push(...botUpdate.projectiles)
-    this.checkBotCollisions()
+    this.botFarmTargets = botUpdate.farmTargets
+    this.checkBotCollisions(botUpdate.farmTargets)
     
     // Check for POI loot respawn
     const poiToRespawn = this.zoneSystem.trySpawnPOILoot(this.gameTime)
@@ -558,6 +566,8 @@ export class GameEngine {
         damage: this.player.damage,
         radius: 5,
         isPlayerProjectile: true,
+        ownerId: this.player.id,
+        team: this.player.team,
       }
 
       this.projectiles.push(projectile)
@@ -814,7 +824,7 @@ export class GameEngine {
     }
   }
 
-  checkBotCollisions() {
+  checkBotCollisions(farmTargets: Map<string, string>) {
     const bots = this.botAISystem.getBots()
     
     // Check projectile-bot collisions
@@ -824,6 +834,11 @@ export class GameEngine {
       // Player projectiles vs bots
       if (projectile.isPlayerProjectile) {
         for (const bot of bots) {
+          // Check for friendly fire - skip if same team
+          if (this.teamSystem.areAllies(this.player.team, bot.team)) {
+            continue
+          }
+
           const dx = projectile.position.x - bot.position.x
           const dy = projectile.position.y - bot.position.y
           const distSq = dx * dx + dy * dy
@@ -835,6 +850,7 @@ export class GameEngine {
             this.projectiles.splice(i, 1)
             
             // Particle effects
+            const botColor = this.teamSystem.getTeamColor(bot.team)
             this.particlePool.emitSparkBurst(bot.position, 5)
             this.particleSystem.createDamageNumber(bot.position, projectile.damage)
             audioManager.play('hit')
@@ -842,7 +858,8 @@ export class GameEngine {
             if (killed) {
               // Bot died - give XP
               this.player.xp += bot.level * 10
-              this.particlePool.emitDebris(bot.position, bot.velocity, '#ff6600')
+              this.player.kills++
+              this.particlePool.emitDebris(bot.position, bot.velocity, botColor)
               this.screenEffects.startShake(3, 0.2)
               audioManager.play('polygonDeath')
               
@@ -855,24 +872,57 @@ export class GameEngine {
           }
         }
       }
-      // Bot projectiles vs player
+      // Bot projectiles vs player or other bots
       else {
-        const dx = projectile.position.x - this.player.position.x
-        const dy = projectile.position.y - this.player.position.y
-        const distSq = dx * dx + dy * dy
-        const radSum = projectile.radius + this.player.radius
-        
-        if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
-          this.player.health -= projectile.damage
-          this.projectiles.splice(i, 1)
+        // Check vs player
+        if (projectile.team && !this.teamSystem.areAllies(projectile.team, this.player.team)) {
+          const dx = projectile.position.x - this.player.position.x
+          const dy = projectile.position.y - this.player.position.y
+          const distSq = dx * dx + dy * dy
+          const radSum = projectile.radius + this.player.radius
           
-          // Particle effects
-          this.particlePool.emitSparkBurst(this.player.position, 3)
-          this.screenEffects.startShake(5, 0.3)
-          audioManager.play('playerDamage')
+          if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
+            this.player.health -= projectile.damage
+            this.player.lastRegenTime = this.gameTime
+            this.projectiles.splice(i, 1)
+            
+            // Particle effects
+            this.particlePool.emitSparkBurst(this.player.position, 3)
+            this.screenEffects.startShake(5, 0.3)
+            audioManager.play('playerDamage')
+            
+            if (this.player.health <= 0) {
+              this.player.health = 0
+            }
+            continue
+          }
+        }
+
+        // Check vs other bots
+        for (const bot of bots) {
+          // Skip friendly fire
+          if (projectile.team && this.teamSystem.areAllies(projectile.team, bot.team)) {
+            continue
+          }
+
+          const dx = projectile.position.x - bot.position.x
+          const dy = projectile.position.y - bot.position.y
+          const distSq = dx * dx + dy * dy
+          const radSum = projectile.radius + bot.radius
           
-          if (this.player.health <= 0) {
-            this.player.health = 0
+          if (distSq < radSum * radSum) {
+            const killed = this.botAISystem.damageBot(bot.id, projectile.damage)
+            this.projectiles.splice(i, 1)
+            
+            // Particle effects
+            this.particlePool.emitSparkBurst(bot.position, 3)
+            audioManager.play('hit')
+            
+            if (killed && projectile.ownerId) {
+              // Award XP to the killer bot
+              this.botAISystem.awardXP(projectile.ownerId, bot.level * 10)
+            }
+            break
           }
         }
       }
@@ -880,6 +930,11 @@ export class GameEngine {
     
     // Check player-bot body collisions
     for (const bot of bots) {
+      // Skip friendly collision damage
+      if (this.teamSystem.areAllies(this.player.team, bot.team)) {
+        continue
+      }
+
       const dx = this.player.position.x - bot.position.x
       const dy = this.player.position.y - bot.position.y
       const distSq = dx * dx + dy * dy
@@ -891,6 +946,7 @@ export class GameEngine {
         const botDamage = bot.bodyDamage
         
         this.player.health -= botDamage * 0.016
+        this.player.lastRegenTime = this.gameTime
         this.botAISystem.damageBot(bot.id, playerDamage * 0.016)
         
         // Knockback
@@ -902,10 +958,37 @@ export class GameEngine {
         }
       }
     }
+
+    // Check bot-bot body collisions
+    for (let i = 0; i < bots.length; i++) {
+      for (let j = i + 1; j < bots.length; j++) {
+        const bot1 = bots[i]
+        const bot2 = bots[j]
+        
+        // Skip friendly collisions
+        if (this.teamSystem.areAllies(bot1.team, bot2.team)) {
+          continue
+        }
+
+        const dx = bot1.position.x - bot2.position.x
+        const dy = bot1.position.y - bot2.position.y
+        const distSq = dx * dx + dy * dy
+        const radSum = bot1.radius + bot2.radius
+        
+        if (distSq < radSum * radSum) {
+          // Deal body damage to both
+          this.botAISystem.damageBot(bot1.id, bot2.bodyDamage * 0.016)
+          this.botAISystem.damageBot(bot2.id, bot1.bodyDamage * 0.016)
+        }
+      }
+    }
   }
 
   breakLootBox(index: number) {
     const box = this.loot[index]
+    
+    // Award XP to any bots that were farming this loot
+    this.botAISystem.awardXPForLoot(this.botFarmTargets, box.id, box.value)
     
     // Enhanced explosion effect
     const explosionSize = box.radius || 20

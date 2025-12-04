@@ -3,6 +3,8 @@ export interface Vector2 {
   y: number
 }
 
+export type Team = 'blue' | 'red' | 'neutral'
+
 export interface Entity {
   id: string
   position: Vector2
@@ -34,6 +36,8 @@ export interface Player extends Entity {
   invisibilityTimer: number
   bodyShape: 'circle' | 'square' | 'hexagon' | 'spikyHexagon'
   barrelRecoils?: number[] // Per-barrel recoil tracking
+  team: Team
+  name?: string
 }
 
 export interface Enemy extends Entity {
@@ -50,6 +54,8 @@ export interface Projectile {
   damage: number
   radius: number
   isPlayerProjectile: boolean
+  ownerId?: string
+  team?: Team
 }
 
 export interface Loot {
@@ -132,12 +138,20 @@ export interface Trap {
   ownerId: string
 }
 
+export type BotPersonality = 'aggressive' | 'passive' | 'opportunist' | 'territorial' | 'noob' | 'pro'
+
 export interface BotPlayer extends Player {
-  behaviorState: 'idle' | 'attacking' | 'fleeing' | 'patrolling'
+  behaviorState: 'idle' | 'attacking' | 'fleeing' | 'patrolling' | 'farming'
   targetPlayer: boolean
   lastBehaviorChange: number
   spawnZone: number
   statPoints: Record<string, number>
+  personality: BotPersonality
+  farmingPriority: number // 0-1, how much to prioritize farming over combat
+  aimAccuracy: number // 0-1, how accurate the aim is
+  reactionTime: number // milliseconds delay before reacting
+  lastReactionTime: number
+  currentTarget: string | null // ID of current target (bot or shape)
 }
 
 export interface Zone {
