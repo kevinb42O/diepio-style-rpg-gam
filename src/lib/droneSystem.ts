@@ -24,7 +24,7 @@ export class DroneSystem {
   private botTargets: Map<string, string> = new Map() // droneId -> botId mapping
 
   constructor(teamSystem?: TeamSystem) {
-    this.teamSystem = teamSystem || null
+    this.teamSystem = teamSystem ?? null
   }
 
   setViewport(camera: Vector2, width: number, height: number) {
@@ -55,6 +55,12 @@ export class DroneSystem {
   private updateDrone(drone: Drone, deltaTime: number, mousePosition: Vector2, player: Player, targets: Loot[], bots: BotPlayer[]) {
     const tankConfig = TANK_CONFIGS[player.tankClass]
     
+    // Create bot lookup map for O(1) access
+    const botMap = new Map<string, BotPlayer>()
+    for (const bot of bots) {
+      botMap.set(bot.id, bot)
+    }
+    
     // Sniper evolution classes (Overseer, Overlord, Manager, Factory, Battleship, Hybrid, Overtrapper)
     // should auto-attack without mouse control
     const isAutoAttackClass = tankConfig?.isDroneClass && 
@@ -82,18 +88,10 @@ export class DroneSystem {
         // Find enemy bots first (higher priority than loot)
         const nearestEnemyBot = this.findNearestEnemyBot(drone, player, bots, maxAttackRange)
         if (nearestEnemyBot) {
-          // Track bot target separately
+          // Track bot target separately - don't use drone.target for bots
           this.botTargets.set(drone.id, nearestEnemyBot.id)
           drone.state = 'attacking'
-          drone.target = {
-            id: nearestEnemyBot.id,
-            position: { ...nearestEnemyBot.position },
-            type: 'box',
-            value: 0,
-            health: nearestEnemyBot.health,
-            maxHealth: nearestEnemyBot.maxHealth,
-            radius: nearestEnemyBot.radius
-          } as Loot
+          drone.target = null // Bot targets are tracked separately
           drone.targetPosition = { ...nearestEnemyBot.position }
         } else {
           // If no enemy bots, find targets only within screen space and attack range
@@ -110,17 +108,15 @@ export class DroneSystem {
       }
       
       // Execute behavior based on state
-      if (drone.state === 'attacking' && drone.target) {
+      if (drone.state === 'attacking') {
         // Check if we're tracking a bot target
         const trackedBotId = this.botTargets.get(drone.id)
         if (trackedBotId) {
-          const targetBot = bots.find(b => b.id === trackedBotId)
+          const targetBot = botMap.get(trackedBotId)
           if (targetBot && targetBot.health > 0) {
             // Update position of bot target and check if still valid
             const targetDistToPlayer = this.getDistance(targetBot.position, player.position)
             if (targetDistToPlayer < maxAttackRange && this.isInScreenView(targetBot.position, player)) {
-              drone.target.position = { ...targetBot.position }
-              drone.target.health = targetBot.health
               drone.targetPosition = { ...targetBot.position }
               this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
             } else {
@@ -134,7 +130,7 @@ export class DroneSystem {
             drone.target = null
             this.botTargets.delete(drone.id)
           }
-        } else if (drone.target.health && drone.target.health > 0) {
+        } else if (drone.target && drone.target.health && drone.target.health > 0) {
           // Regular loot target
           const targetDistToPlayer = this.getDistance(drone.target.position, player.position)
           
