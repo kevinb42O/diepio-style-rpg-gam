@@ -43,10 +43,10 @@ export class DroneSystem {
       ['overseer', 'overlord', 'manager', 'factory', 'battleship', 'hybrid', 'overtrapper'].includes(player.tankClass)
     
     if (isAutoAttackClass) {
-      // Check distance from player - prioritize staying close
+      // Check distance from player - prioritize staying close but allow full screen travel
       const distToPlayer = this.getDistance(drone.position, player.position)
-      const maxFollowDistance = 250
-      const attackRange = 350
+      const maxFollowDistance = Math.max(this.viewportWidth, this.viewportHeight) * 0.75
+      const maxAttackRange = maxFollowDistance
       
       // If drone is far from player, force return
       if (distToPlayer > maxFollowDistance) {
@@ -59,7 +59,7 @@ export class DroneSystem {
       // Only look for targets when close to player
       if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
         // Find targets only within screen space and attack range
-        const nearestTarget = this.findNearestTargetInView(drone, player, targets, attackRange)
+        const nearestTarget = this.findNearestTargetInView(drone, player, targets, maxAttackRange)
         if (nearestTarget) {
           drone.state = 'attacking'
           drone.target = nearestTarget
@@ -74,11 +74,10 @@ export class DroneSystem {
       if (drone.state === 'attacking' && drone.target) {
         // Check if target is still valid and in range
         if (drone.target.health && drone.target.health > 0) {
-          const distToTarget = this.getDistance(drone.position, drone.target.position)
           const targetDistToPlayer = this.getDistance(drone.target.position, player.position)
           
           // Only continue attacking if target is within range and in view
-          if (distToTarget < attackRange && targetDistToPlayer < attackRange && this.isInScreenView(drone.target.position, player)) {
+          if (targetDistToPlayer < maxAttackRange && this.isInScreenView(drone.target.position, player)) {
             drone.targetPosition = { ...drone.target.position }
             this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
           } else {
