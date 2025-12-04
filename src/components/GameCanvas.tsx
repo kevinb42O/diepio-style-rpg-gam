@@ -36,19 +36,12 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
     const uiManager = uiManagerRef.current
 
     const updateCanvasSize = () => {
-      if (isMobile) {
-        const width = window.innerWidth
-        const height = window.innerHeight
-        renderEngine.resize(width, height)
-        uiManager.resize(width, height)
-        engine.viewportWidth = width
-        engine.viewportHeight = height
-      } else {
-        renderEngine.resize(800, 600)
-        uiManager.resize(800, 600)
-        engine.viewportWidth = 800
-        engine.viewportHeight = 600
-      }
+      const width = window.innerWidth
+      const height = window.innerHeight
+      renderEngine.resize(width, height)
+      uiManager.resize(width, height)
+      engine.viewportWidth = width
+      engine.viewportHeight = height
     }
 
     updateCanvasSize()
@@ -109,10 +102,10 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
   }, [engine, isMobile, showStatUI, onStatClick])
 
   return (
-    <div ref={containerRef} className={isMobile ? 'w-full h-full relative' : 'w-full relative'}>
+    <div ref={containerRef} className="w-full h-full relative">
       <canvas
         ref={gameCanvasRef}
-        className={isMobile ? '' : 'border-2 border-border rounded-lg max-w-full'}
+        className=""
         style={{ touchAction: 'none', display: 'block' }}
       />
       <canvas
