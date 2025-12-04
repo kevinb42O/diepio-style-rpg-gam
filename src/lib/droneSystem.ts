@@ -26,55 +26,30 @@ export class DroneSystem {
   }
 
   private updateDrone(drone: Drone, deltaTime: number, mousePosition: Vector2, player: Player, targets: Loot[]) {
-    const dt = deltaTime / 1000 // Convert to seconds
+    const dt = deltaTime / 1000
+    const tankConfig = TANK_CONFIGS[player.tankClass]
     
-    // Update state based on control mode
-    switch (this.controlMode) {
-      case 'attract':
-        drone.state = 'controlled'
-        drone.targetPosition = { ...mousePosition }
-        break
-      
-      case 'repel':
-        drone.state = 'controlled'
-        // Calculate repel position (away from mouse)
-        const repelDx = player.position.x - mousePosition.x
-        const repelDy = player.position.y - mousePosition.y
-        const repelDist = Math.sqrt(repelDx * repelDx + repelDy * repelDy)
-        if (repelDist > 0) {
-          const repelAngle = Math.atan2(repelDy, repelDx)
-          drone.targetPosition = {
-            x: player.position.x + Math.cos(repelAngle) * 400,
-            y: player.position.y + Math.sin(repelAngle) * 400
-          }
-        }
-        break
-      
-      case 'idle':
-        // Check for nearby targets if not already attacking
-        if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
-          const nearestTarget = this.findNearestTarget(drone, player, targets, 300)
-          if (nearestTarget) {
-            drone.state = 'attacking'
-            drone.target = nearestTarget
-            drone.targetPosition = { ...nearestTarget.position }
-          } else {
-            drone.state = 'idle'
-            drone.target = null
-          }
-        }
-        break
-    }
+    // Sniper evolution classes (Overseer, Overlord, Manager, Factory, Battleship, Hybrid, Overtrapper)
+    // should auto-attack without mouse control
+    const isAutoAttackClass = tankConfig?.isDroneClass && 
+      ['overseer', 'overlord', 'manager', 'factory', 'battleship', 'hybrid', 'overtrapper'].includes(player.tankClass)
     
-    // Execute behavior based on state
-    switch (drone.state) {
-      case 'controlled':
-        if (drone.targetPosition) {
-          this.moveDroneToPosition(drone, drone.targetPosition, dt)
+    if (isAutoAttackClass) {
+      // Auto-attack mode: drones automatically find and attack targets
+      if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
+        const nearestTarget = this.findNearestTarget(drone, player, targets, 400)
+        if (nearestTarget) {
+          drone.state = 'attacking'
+          drone.target = nearestTarget
+          drone.targetPosition = { ...nearestTarget.position }
+        } else {
+          drone.state = 'idle'
+          drone.target = null
         }
-        break
+      }
       
-      case 'attacking':
+      // Execute behavior based on state
+      if (drone.state === 'attacking') {
         if (drone.target && drone.target.health && drone.target.health > 0) {
           drone.targetPosition = { ...drone.target.position }
           this.moveDroneToPosition(drone, drone.targetPosition, dt)
@@ -82,20 +57,78 @@ export class DroneSystem {
           drone.state = 'returning'
           drone.target = null
         }
-        break
-      
-      case 'returning':
-      case 'idle':
-        // Orbit around player
+      } else {
+        // returning or idle - follow player at a distance
         this.orbitAroundPlayer(drone, player, dt)
-        break
-    }
-    
-    // Check if drone is too far from player
-    const distToPlayer = this.getDistance(drone.position, player.position)
-    if (distToPlayer > 800) {
-      drone.state = 'returning'
-      drone.target = null
+      }
+      
+      // Check if drone is too far from player
+      const distToPlayer = this.getDistance(drone.position, player.position)
+      if (distToPlayer > 600) {
+        drone.state = 'returning'
+        drone.target = null
+      }
+    } else {
+      // Original mouse-controlled behavior for Necromancer
+      switch (this.controlMode) {
+        case 'attract':
+          drone.state = 'controlled'
+          drone.targetPosition = { ...mousePosition }
+          break
+        
+        case 'repel':
+          drone.state = 'controlled'
+          const repelDx = player.position.x - mousePosition.x
+          const repelDy = player.position.y - mousePosition.y
+          const repelDist = Math.sqrt(repelDx * repelDx + repelDy * repelDy)
+          if (repelDist > 0) {
+            const repelAngle = Math.atan2(repelDy, repelDx)
+            drone.targetPosition = {
+              x: player.position.x + Math.cos(repelAngle) * 400,
+              y: player.position.y + Math.sin(repelAngle) * 400
+            }
+          }
+          break
+        
+        case 'idle':
+          if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
+            const nearestTarget = this.findNearestTarget(drone, player, targets, 300)
+            if (nearestTarget) {
+              drone.state = 'attacking'
+              drone.target = nearestTarget
+              drone.targetPosition = { ...nearestTarget.position }
+            } else {
+              drone.state = 'idle'
+              drone.target = null
+            }
+          }
+          break
+      }
+      
+      // Execute behavior based on state
+      if (drone.state === 'controlled') {
+        if (drone.targetPosition) {
+          this.moveDroneToPosition(drone, drone.targetPosition, dt)
+        }
+      } else if (drone.state === 'attacking') {
+        if (drone.target && drone.target.health && drone.target.health > 0) {
+          drone.targetPosition = { ...drone.target.position }
+          this.moveDroneToPosition(drone, drone.targetPosition, dt)
+        } else {
+          drone.state = 'returning'
+          drone.target = null
+        }
+      } else {
+        // returning or idle
+        this.orbitAroundPlayer(drone, player, dt)
+      }
+      
+      // Check if drone is too far from player
+      const distToPlayer = this.getDistance(drone.position, player.position)
+      if (distToPlayer > 800) {
+        drone.state = 'returning'
+        drone.target = null
+      }
     }
   }
 

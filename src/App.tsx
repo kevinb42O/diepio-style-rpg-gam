@@ -84,11 +84,16 @@ function App() {
     const handleMouseDown = (e: MouseEvent) => {
       if (isMobile || gameState !== 'playing') return
       
-      // Call drone control handler
+      // Call drone control handler for drone classes
       engine.handleMouseDown(e.button)
       
-      // Regular shooting for non-drone classes
-      engine.isShooting = true
+      // Regular shooting for non-drone auto-attack classes
+      const tankConfig = engine.player.tankClass
+      const isAutoAttackDroneClass = ['overseer', 'overlord', 'manager', 'factory', 'battleship'].includes(tankConfig)
+      
+      if (!isAutoAttackDroneClass) {
+        engine.isShooting = true
+      }
     }
 
     const handleMouseUp = (e: MouseEvent) => {
@@ -215,7 +220,14 @@ function App() {
         const input = mobileInputRef.current
         engine.mobileInput = { x: input.x, y: input.y }
         engine.mobileShootDirection = { x: input.shootX, y: input.shootY }
-        engine.isShooting = input.shootX !== 0 || input.shootY !== 0
+        
+        // Disable shooting for auto-attack drone classes on mobile
+        const tankConfig = engine.player.tankClass
+        const isAutoAttackDroneClass = ['overseer', 'overlord', 'manager', 'factory', 'battleship'].includes(tankConfig)
+        
+        if (!isAutoAttackDroneClass) {
+          engine.isShooting = input.shootX !== 0 || input.shootY !== 0
+        }
       }
 
       engine.update(deltaTime)

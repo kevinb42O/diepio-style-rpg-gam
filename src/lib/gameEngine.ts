@@ -462,10 +462,17 @@ export class GameEngine {
     this.player.position.y = Math.max(this.player.radius, Math.min(this.worldSize - this.player.radius, this.player.position.y))
 
     // Shooting (manual or auto-fire)
-    const shouldShoot = this.isShooting || this.autoFire
-    if (shouldShoot && this.gameTime - this.player.lastShotTime > this.player.fireRate) {
-      this.shootProjectile()
-      this.player.lastShotTime = this.gameTime
+    // Disable shooting for pure drone classes that auto-attack
+    const tankConfig = TANK_CONFIGS[this.player.tankClass]
+    const isAutoAttackDroneClass = tankConfig?.isDroneClass && 
+      ['overseer', 'overlord', 'manager', 'factory', 'battleship'].includes(this.player.tankClass)
+    
+    if (!isAutoAttackDroneClass) {
+      const shouldShoot = this.isShooting || this.autoFire
+      if (shouldShoot && this.gameTime - this.player.lastShotTime > this.player.fireRate) {
+        this.shootProjectile()
+        this.player.lastShotTime = this.gameTime
+      }
     }
   }
 
@@ -1179,6 +1186,10 @@ export class GameEngine {
     const tankConfig = TANK_CONFIGS[this.player.tankClass]
     if (!tankConfig || !tankConfig.isDroneClass) return
     
+    // Only Necromancer uses mouse control for drones
+    // Other drone classes auto-attack
+    if (this.player.tankClass !== 'necromancer') return
+    
     if (button === 0) {
       // Left click - attract drones
       this.droneControlMode = 'attract'
@@ -1193,6 +1204,9 @@ export class GameEngine {
   handleMouseUp(button: number) {
     const tankConfig = TANK_CONFIGS[this.player.tankClass]
     if (!tankConfig || !tankConfig.isDroneClass) return
+    
+    // Only Necromancer uses mouse control for drones
+    if (this.player.tankClass !== 'necromancer') return
     
     if (button === 0 || button === 2) {
       // Release control - return to idle
