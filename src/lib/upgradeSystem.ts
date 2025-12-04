@@ -280,7 +280,8 @@ export class UpgradeManager {
   }
 
   canAllocateStat(stat: StatType): boolean {
-    return this.getAvailableSkillPoints() > 0
+    const MAX_STAT_POINTS = 30
+    return this.getAvailableSkillPoints() > 0 && this.statPoints[stat] < MAX_STAT_POINTS
   }
 
   allocateStat(stat: StatType): boolean {

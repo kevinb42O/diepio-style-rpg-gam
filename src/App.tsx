@@ -288,6 +288,19 @@ function App() {
   }
 
   const handleAllocateStat = (stat: StatType) => {
+    const statPoints = engineRef.current.upgradeManager.getStatPoints()
+    const MAX_STAT_POINTS = 30
+    
+    if (statPoints[stat] >= MAX_STAT_POINTS) {
+      toast.warning(`${stat} is already maxed at ${MAX_STAT_POINTS} points!`)
+      return
+    }
+    
+    if (engineRef.current.upgradeManager.getAvailableSkillPoints() === 0) {
+      toast.warning('No skill points available!')
+      return
+    }
+    
     engineRef.current.allocateStat(stat)
     setStatModalKey(prev => prev + 1)
     toast.success('Stat upgraded!')

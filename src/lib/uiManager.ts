@@ -47,7 +47,7 @@ export class UIManager {
     const barHeight = 25
     const barSpacing = 8
     const barWidth = 220
-    const maxStatPoints = Math.max(15, Math.max(...Object.values(statPoints)))
+    const MAX_STAT_POINTS = 30
 
     this.statBarBounds.clear()
 
@@ -73,20 +73,25 @@ export class UIManager {
       const x = padding
       const y = this.canvas.height - (STAT_BARS.length - index) * (barHeight + barSpacing) - padding - 10
       const points = statPoints[stat.key] || 0
-      const fillWidth = Math.min(barWidth, (barWidth * points) / maxStatPoints)
+      const isMaxed = points >= MAX_STAT_POINTS
+      const fillWidth = Math.min(barWidth, (barWidth * points) / MAX_STAT_POINTS)
       const isHovered = this.hoveredStat === stat.key
-      const canUpgrade = availablePoints > 0
+      const canUpgrade = availablePoints > 0 && !isMaxed
 
       this.statBarBounds.set(stat.key, { x, y, width: barWidth, height: barHeight })
 
       this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
       this.ctx.fillRect(x, y, barWidth, barHeight)
 
-      this.ctx.fillStyle = stat.color
+      this.ctx.fillStyle = isMaxed ? '#9966FF' : stat.color
       this.ctx.fillRect(x, y, fillWidth, barHeight)
 
       if (isHovered && canUpgrade) {
         this.ctx.strokeStyle = '#FFFFFF'
+        this.ctx.lineWidth = 2
+        this.ctx.strokeRect(x, y, barWidth, barHeight)
+      } else if (isMaxed) {
+        this.ctx.strokeStyle = '#FFD700'
         this.ctx.lineWidth = 2
         this.ctx.strokeRect(x, y, barWidth, barHeight)
       } else {
@@ -99,10 +104,11 @@ export class UIManager {
       this.ctx.font = '12px Inter, sans-serif'
       this.ctx.shadowColor = '#000000'
       this.ctx.shadowBlur = 3
-      this.ctx.fillText(`[${stat.hotkey}] ${stat.label} (${points})`, x + 5, y + 17)
+      const label = isMaxed ? `[${stat.hotkey}] ${stat.label} (${points}/30 ⭐)` : `[${stat.hotkey}] ${stat.label} (${points}/30)`
+      this.ctx.fillText(label, x + 5, y + 17)
       this.ctx.shadowBlur = 0
 
-      const segmentCount = Math.min(15, maxStatPoints)
+      const segmentCount = 15
       for (let i = 0; i < segmentCount; i++) {
         const segmentX = x + (barWidth * i) / segmentCount
         this.ctx.strokeStyle = '#000000'

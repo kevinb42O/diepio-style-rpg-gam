@@ -100,12 +100,14 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
               const info = STAT_INFO[stat]
               const Icon = info.icon
               const points = statPoints[stat]
-              const canUpgrade = availablePoints > 0
+              const MAX_STAT_POINTS = 30
+              const isMaxed = points >= MAX_STAT_POINTS
+              const canUpgrade = availablePoints > 0 && !isMaxed
               
               return (
                 <div
                   key={stat}
-                  className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'} bg-muted/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-border`}
+                  className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'} bg-muted/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-border ${isMaxed ? 'opacity-75' : ''}`}
                 >
                   <Icon weight="fill" size={isMobile ? 20 : 32} className={info.color} />
                   
@@ -114,17 +116,17 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
                       <span className={`font-semibold ${isMobile ? 'text-xs' : 'text-sm'}`}>
                         {info.label}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {points}
+                      <span className={`text-xs ${isMaxed ? 'text-accent font-bold' : 'text-muted-foreground'}`}>
+                        {points}/{MAX_STAT_POINTS}
                       </span>
                     </div>
                     <div className="bg-border rounded-full h-1.5 mb-1">
                       <div 
-                        className="bg-primary h-full rounded-full transition-all"
-                        style={{ width: `${Math.min(100, (points / 15) * 100)}%` }}
+                        className={`${isMaxed ? 'bg-accent' : 'bg-primary'} h-full rounded-full transition-all`}
+                        style={{ width: `${Math.min(100, (points / MAX_STAT_POINTS) * 100)}%` }}
                       />
                     </div>
-                    {!isMobile && <p className="text-xs text-muted-foreground">{info.description}</p>}
+                    {!isMobile && <p className="text-xs text-muted-foreground">{isMaxed ? '⭐ MAXED' : info.description}</p>}
                   </div>
                   
                   <Button
@@ -134,7 +136,7 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
                     variant={canUpgrade ? 'default' : 'outline'}
                     className="shrink-0"
                   >
-                    +
+                    {isMaxed ? '✓' : '+'}
                   </Button>
                 </div>
               )
