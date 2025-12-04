@@ -154,6 +154,7 @@ export class GameEngine {
 
   generateWorldLoot() {
     const zones = this.zoneSystem.getZones()
+    const SPAWN_SAFE_ZONE = 800
     
     // Generate loot per zone
     for (const zone of zones) {
@@ -162,7 +163,7 @@ export class GameEngine {
       for (let i = 0; i < lootCount; i++) {
         // Random position in zone (circular)
         const angle = Math.random() * Math.PI * 2
-        const minDist = zone.radiusMin + 100
+        const minDist = Math.max(zone.radiusMin + 100, SPAWN_SAFE_ZONE)
         const maxDist = zone.radiusMax - 100
         const distance = minDist + Math.random() * (maxDist - minDist)
         const x = this.worldCenter.x + Math.cos(angle) * distance
@@ -683,6 +684,7 @@ export class GameEngine {
 
     const numBoxes = 5 + Math.floor(Math.random() * 8)
     const LEVEL_SCALING_FACTOR = 0.15
+    const SPAWN_SAFE_ZONE = 800
 
     for (let i = 0; i < numBoxes; i++) {
       const clusterNearPlayer = Math.random() < 0.4
@@ -705,6 +707,14 @@ export class GameEngine {
       
       x = Math.max(100, Math.min(this.worldSize - 100, x))
       y = Math.max(100, Math.min(this.worldSize - 100, y))
+      
+      const distToCenter = Math.sqrt(
+        Math.pow(x - this.worldCenter.x, 2) + 
+        Math.pow(y - this.worldCenter.y, 2)
+      )
+      if (distToCenter < SPAWN_SAFE_ZONE) {
+        continue
+      }
       
       const levelMultiplier = 1 + (this.player.level - 1) * LEVEL_SCALING_FACTOR
       const size = Math.random()
