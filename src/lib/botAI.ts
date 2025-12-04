@@ -1,22 +1,38 @@
 /**
  * Bot AI System
- * Manages bot spawning, behavior, and combat
+ * Manages bot spawning, behavior, and combat with team support
  */
 
-import type { BotPlayer, Vector2, Projectile, Loot, Drone, Zone } from './types'
+import type { BotPlayer, Vector2, Projectile, Loot, Drone, Zone, Team, BotPersonality } from './types'
 import { TANK_CONFIGS } from './tankConfigs'
+import { TeamSystem } from './TeamSystem'
+import { BotNameGenerator } from './BotNameGenerator'
 
 export class BotAISystem {
   private bots: BotPlayer[] = []
   private botIdCounter = 0
   private lastSpawnTime = 0
   private worldCenter: Vector2 = { x: 8000, y: 8000 }
+  private teamSystem: TeamSystem
+  private nameGenerator: BotNameGenerator
+
+  constructor(teamSystem: TeamSystem) {
+    this.teamSystem = teamSystem
+    this.nameGenerator = new BotNameGenerator()
+  }
 
   /**
    * Get all bots
    */
   getBots(): BotPlayer[] {
     return this.bots
+  }
+
+  /**
+   * Get team system
+   */
+  getTeamSystem(): TeamSystem {
+    return this.teamSystem
   }
 
   /**
@@ -55,7 +71,21 @@ export class BotAISystem {
     const level = zone.enemyLevelMin + Math.floor(Math.random() * (zone.enemyLevelMax - zone.enemyLevelMin + 1))
 
     // Random tank class from allowed tiers
-    const tankClass = this.selectRandomTankClass(zone.enemyTiers)
+    const tankClass = this.selectRandomTankClass(zone.enemyTiers, level)
+
+    // Assign team (balanced)
+    const blueBots = this.bots.filter(b => b.team === 'blue').length
+    const redBots = this.bots.filter(b => b.team === 'red').length
+    const team = this.teamSystem.assignBotTeam(blueBots, redBots)
+
+    // Assign personality
+    const personality = this.assignPersonality(level)
+
+    // Calculate farming priority based on level and personality
+    const farmingPriority = this.calculateFarmingPriority(level, personality)
+
+    // Generate bot name
+    const name = this.nameGenerator.generateName()
 
     // Create bot
     const bot: BotPlayer = {
@@ -67,7 +97,7 @@ export class BotAISystem {
       maxHealth: 100 + level * 5,
       level,
       xp: 0,
-      xpToNextLevel: 100,
+      xpToNextLevel: this.getXPForLevel(level + 1),
       damage: 10 + level * 2,
       fireRate: 300,
       speed: 150 + Math.random() * 50,
@@ -85,35 +115,170 @@ export class BotAISystem {
       invisibility: 0,
       invisibilityTimer: 0,
       bodyShape: TANK_CONFIGS[tankClass]?.bodyShape || 'circle',
-      behaviorState: 'patrolling',
+      behaviorState: 'farming',
       targetPlayer: false,
       lastBehaviorChange: Date.now(),
       spawnZone: zone.id,
       statPoints: this.generateStatPoints(level, tankClass),
       barrelRecoils: [],
+      team,
+      name,
+      personality,
+      farmingPriority,
+      aimAccuracy: this.getAimAccuracy(personality),
+      reactionTime: this.getReactionTime(personality),
+      lastReactionTime: 0,
+      currentTarget: null,
     }
 
     // Initialize barrel recoils
     const barrelCount = TANK_CONFIGS[tankClass]?.barrels.length || 1
     bot.barrelRecoils = new Array(barrelCount).fill(0)
 
+    // Apply stat points to bot
+    this.applyStatPointsToBot(bot)
+
     this.bots.push(bot)
   }
 
   /**
-   * Select random tank class from allowed tiers
+   * Select random tank class from allowed tiers based on bot level
    */
-  private selectRandomTankClass(allowedTiers: number[]): string {
+  private selectRandomTankClass(allowedTiers: number[], level: number): string {
     const availableClasses: string[] = []
 
+    // Filter by tier and level requirements
     for (const [className, config] of Object.entries(TANK_CONFIGS)) {
-      if (allowedTiers.includes(config.tier)) {
+      if (allowedTiers.includes(config.tier) && level >= config.unlocksAt) {
         availableClasses.push(className)
       }
     }
 
     if (availableClasses.length === 0) return 'basic'
     return availableClasses[Math.floor(Math.random() * availableClasses.length)]
+  }
+
+  /**
+   * Assign personality based on level
+   */
+  private assignPersonality(level: number): BotPersonality {
+    const rand = Math.random()
+    
+    if (level < 10) {
+      // Low level - more noobs
+      if (rand < 0.4) return 'noob'
+      if (rand < 0.6) return 'passive'
+      if (rand < 0.8) return 'opportunist'
+      return 'aggressive'
+    } else if (level < 30) {
+      // Mid level - balanced
+      if (rand < 0.2) return 'noob'
+      if (rand < 0.4) return 'passive'
+      if (rand < 0.6) return 'opportunist'
+      if (rand < 0.8) return 'aggressive'
+      return 'territorial'
+    } else {
+      // High level - more pros
+      if (rand < 0.2) return 'pro'
+      if (rand < 0.4) return 'aggressive'
+      if (rand < 0.6) return 'territorial'
+      if (rand < 0.8) return 'opportunist'
+      return 'passive'
+    }
+  }
+
+  /**
+   * Calculate farming priority based on level and personality
+   */
+  private calculateFarmingPriority(level: number, personality: BotPersonality): number {
+    let basePriority = 0.8 - (level * 0.015) // Decreases as level increases
+    basePriority = Math.max(0.1, Math.min(0.9, basePriority))
+
+    // Adjust based on personality
+    switch (personality) {
+      case 'passive':
+        return Math.min(0.95, basePriority + 0.3)
+      case 'aggressive':
+        return Math.max(0.1, basePriority - 0.4)
+      case 'opportunist':
+        return basePriority
+      case 'territorial':
+        return Math.max(0.2, basePriority - 0.2)
+      case 'noob':
+        return Math.min(0.9, basePriority + 0.2)
+      case 'pro':
+        return Math.max(0.3, basePriority - 0.1)
+      default:
+        return basePriority
+    }
+  }
+
+  /**
+   * Get aim accuracy based on personality
+   */
+  private getAimAccuracy(personality: BotPersonality): number {
+    switch (personality) {
+      case 'pro':
+        return 0.9 + Math.random() * 0.1 // 90-100%
+      case 'aggressive':
+        return 0.75 + Math.random() * 0.15 // 75-90%
+      case 'territorial':
+        return 0.7 + Math.random() * 0.2 // 70-90%
+      case 'opportunist':
+        return 0.65 + Math.random() * 0.2 // 65-85%
+      case 'passive':
+        return 0.6 + Math.random() * 0.2 // 60-80%
+      case 'noob':
+        return 0.3 + Math.random() * 0.3 // 30-60%
+      default:
+        return 0.7
+    }
+  }
+
+  /**
+   * Get reaction time based on personality (in milliseconds)
+   */
+  private getReactionTime(personality: BotPersonality): number {
+    switch (personality) {
+      case 'pro':
+        return 50 + Math.random() * 100 // 50-150ms
+      case 'aggressive':
+        return 100 + Math.random() * 150 // 100-250ms
+      case 'territorial':
+        return 150 + Math.random() * 150 // 150-300ms
+      case 'opportunist':
+        return 200 + Math.random() * 200 // 200-400ms
+      case 'passive':
+        return 300 + Math.random() * 300 // 300-600ms
+      case 'noob':
+        return 500 + Math.random() * 500 // 500-1000ms
+      default:
+        return 200
+    }
+  }
+
+  /**
+   * Get XP required for a level
+   */
+  private getXPForLevel(level: number): number {
+    if (level <= 1) return 0
+    return Math.floor(100 * Math.pow(1.5, level - 1))
+  }
+
+  /**
+   * Apply stat points to bot stats
+   */
+  private applyStatPointsToBot(bot: BotPlayer) {
+    // Apply stat multipliers based on stat points
+    bot.maxHealth = Math.floor(bot.maxHealth * (1 + bot.statPoints.maxHealth * 0.05))
+    bot.health = bot.maxHealth
+    bot.damage = Math.floor(bot.damage * (1 + bot.statPoints.bulletDamage * 0.1))
+    bot.fireRate = Math.floor(bot.fireRate * (1 - bot.statPoints.reloadSpeed * 0.02))
+    bot.speed = Math.floor(bot.speed * (1 + bot.statPoints.movementSpeed * 0.05))
+    bot.bulletSpeed = Math.floor(bot.bulletSpeed * (1 + bot.statPoints.bulletSpeed * 0.05))
+    bot.bulletPenetration = Math.floor(bot.bulletPenetration * (1 + bot.statPoints.bulletPenetration * 0.1))
+    bot.bodyDamage = Math.floor(bot.bodyDamage * (1 + bot.statPoints.bodyDamage * 0.1))
+    bot.healthRegen = bot.healthRegen * (1 + bot.statPoints.healthRegen * 0.2)
   }
 
   /**
@@ -174,6 +339,547 @@ export class BotAISystem {
   }
 
   /**
+   * Level up a bot
+   */
+  private levelUpBot(bot: BotPlayer) {
+    bot.level++
+    bot.xp = 0
+    bot.xpToNextLevel = this.getXPForLevel(bot.level + 1)
+    
+    // Update farming priority for new level
+    bot.farmingPriority = this.calculateFarmingPriority(bot.level, bot.personality)
+    
+    // Allocate a stat point randomly based on class
+    const statKeys = Object.keys(bot.statPoints) as Array<keyof typeof bot.statPoints>
+    const randomStat = statKeys[Math.floor(Math.random() * statKeys.length)]
+    bot.statPoints[randomStat]++
+    
+    // Apply the new stat
+    this.applyStatPointsToBot(bot)
+    
+    // Check for tank upgrades at levels 15, 30, 45
+    if (bot.level === 15 || bot.level === 30 || bot.level === 45) {
+      this.tryUpgradeBotTank(bot)
+    }
+  }
+
+  /**
+   * Try to upgrade bot tank at milestone levels
+   */
+  private tryUpgradeBotTank(bot: BotPlayer) {
+    const currentConfig = TANK_CONFIGS[bot.tankClass]
+    if (!currentConfig) return
+
+    // Find available upgrades
+    const availableUpgrades: string[] = []
+    for (const [className, config] of Object.entries(TANK_CONFIGS)) {
+      if (config.upgradesFrom?.includes(bot.tankClass) && 
+          config.unlocksAt === bot.level &&
+          config.tier === currentConfig.tier + 1) {
+        availableUpgrades.push(className)
+      }
+    }
+
+    if (availableUpgrades.length > 0) {
+      // Pick a random upgrade
+      const newClass = availableUpgrades[Math.floor(Math.random() * availableUpgrades.length)]
+      bot.tankClass = newClass
+      
+      // Update body shape
+      const newConfig = TANK_CONFIGS[newClass]
+      if (newConfig) {
+        bot.bodyShape = newConfig.bodyShape || 'circle'
+        const barrelCount = newConfig.barrels.length || 1
+        bot.barrelRecoils = new Array(barrelCount).fill(0)
+      }
+      
+      // Regenerate stat distribution for new class
+      bot.statPoints = this.generateStatPoints(bot.level, newClass)
+      this.applyStatPointsToBot(bot)
+    }
+  }
+
+  /**
+   * Decide bot behavior based on personality and situation
+   */
+  private decideBehavior(
+    bot: BotPlayer,
+    distanceToPlayer: number,
+    isPlayerEnemy: boolean,
+    healthPercent: number,
+    allBots: BotPlayer[]
+  ) {
+    // Find nearest enemy bot
+    let nearestEnemyBot: BotPlayer | null = null
+    let nearestEnemyDist = Infinity
+    
+    for (const otherBot of allBots) {
+      if (otherBot.id === bot.id) continue
+      if (this.teamSystem.areAllies(bot.team, otherBot.team)) continue
+      
+      const dist = this.getDistance(bot.position, otherBot.position)
+      if (dist < nearestEnemyDist && dist < 800) {
+        nearestEnemyBot = otherBot
+        nearestEnemyDist = dist
+      }
+    }
+
+    // Low health - retreat regardless of personality
+    if (healthPercent < 0.3 && bot.personality !== 'aggressive') {
+      bot.behaviorState = 'fleeing'
+      return
+    }
+
+    // Personality-based decision making
+    switch (bot.personality) {
+      case 'aggressive':
+        // Always seek combat if enemy is nearby
+        if ((isPlayerEnemy && distanceToPlayer < 800) || nearestEnemyBot) {
+          bot.behaviorState = 'attacking'
+          bot.currentTarget = nearestEnemyBot ? nearestEnemyBot.id : 'player'
+        } else {
+          bot.behaviorState = 'patrolling'
+        }
+        break
+
+      case 'passive':
+        // Prioritize farming, only fight if attacked or very close
+        if ((isPlayerEnemy && distanceToPlayer < 300) || (nearestEnemyBot && nearestEnemyDist < 300)) {
+          bot.behaviorState = 'attacking'
+          bot.currentTarget = nearestEnemyDist < distanceToPlayer ? nearestEnemyBot!.id : 'player'
+        } else {
+          bot.behaviorState = 'farming'
+        }
+        break
+
+      case 'opportunist':
+        // Attack weakened enemies or farm
+        const shouldAttackPlayer = isPlayerEnemy && distanceToPlayer < 600 && healthPercent > 0.6
+        const shouldAttackBot = nearestEnemyBot && nearestEnemyDist < 600 && 
+                               nearestEnemyBot.health / nearestEnemyBot.maxHealth < 0.5
+        
+        if (shouldAttackPlayer || shouldAttackBot) {
+          bot.behaviorState = 'attacking'
+          bot.currentTarget = shouldAttackBot && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+        } else {
+          bot.behaviorState = Math.random() < bot.farmingPriority ? 'farming' : 'patrolling'
+        }
+        break
+
+      case 'territorial':
+        // Stay in area and defend it
+        const distFromSpawn = this.getDistance(bot.position, { 
+          x: this.worldCenter.x, 
+          y: this.worldCenter.y 
+        })
+        
+        if ((isPlayerEnemy && distanceToPlayer < 500) || (nearestEnemyBot && nearestEnemyDist < 500)) {
+          bot.behaviorState = 'attacking'
+          bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+        } else if (distFromSpawn > 600) {
+          bot.behaviorState = 'patrolling' // Return to territory
+        } else {
+          bot.behaviorState = 'farming'
+        }
+        break
+
+      case 'noob':
+        // Random, inefficient behavior
+        const rand = Math.random()
+        if (rand < 0.4) {
+          bot.behaviorState = 'farming'
+        } else if (rand < 0.7 && ((isPlayerEnemy && distanceToPlayer < 400) || nearestEnemyBot)) {
+          bot.behaviorState = 'attacking'
+          bot.currentTarget = nearestEnemyBot ? nearestEnemyBot.id : 'player'
+        } else {
+          bot.behaviorState = 'patrolling'
+        }
+        break
+
+      case 'pro':
+        // Efficient, smart behavior - farm when safe, fight when advantageous
+        const hasAdvantage = healthPercent > 0.7 && bot.level >= bot.level
+        const enemyNearby = (isPlayerEnemy && distanceToPlayer < 700) || (nearestEnemyBot && nearestEnemyDist < 700)
+        
+        if (enemyNearby && hasAdvantage) {
+          bot.behaviorState = 'attacking'
+          bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+        } else if (enemyNearby && !hasAdvantage) {
+          bot.behaviorState = healthPercent < 0.5 ? 'fleeing' : 'patrolling'
+        } else {
+          bot.behaviorState = Math.random() < bot.farmingPriority ? 'farming' : 'patrolling'
+        }
+        break
+
+      default:
+        bot.behaviorState = 'farming'
+    }
+  }
+
+  /**
+   * Farming behavior - find and destroy shapes
+   */
+  private farmingBehavior(
+    bot: BotPlayer,
+    loot: Loot[]
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
+    const config = TANK_CONFIGS[bot.tankClass]
+    const isSmasher = config?.bodyShape === 'hexagon' || config?.bodyShape === 'spikyHexagon'
+    
+    // Find nearest valuable loot
+    const nearestLoot = this.findBestFarmTarget(bot, loot)
+    
+    if (nearestLoot) {
+      const distToLoot = this.getDistance(bot.position, nearestLoot.position)
+      
+      // For smashers, just ram into it
+      if (isSmasher) {
+        return {
+          targetPosition: nearestLoot.position,
+          shouldShoot: false,
+          shootTarget: null,
+          farmTargetId: nearestLoot.id
+        }
+      }
+      
+      // For shooters, keep distance and shoot
+      const optimalDist = 250
+      let targetPosition = nearestLoot.position
+      
+      if (distToLoot < optimalDist * 0.7) {
+        // Too close, back up
+        const angle = Math.atan2(bot.position.y - nearestLoot.position.y, bot.position.x - nearestLoot.position.x)
+        targetPosition = {
+          x: bot.position.x + Math.cos(angle) * 50,
+          y: bot.position.y + Math.sin(angle) * 50
+        }
+      }
+      
+      return {
+        targetPosition,
+        shouldShoot: distToLoot < 350,
+        shootTarget: nearestLoot.position,
+        farmTargetId: nearestLoot.id
+      }
+    }
+    
+    // No loot nearby, patrol
+    return this.patrollingBehavior(bot, Date.now())
+  }
+
+  /**
+   * Attacking behavior - engage enemy
+   */
+  private attackingBehavior(
+    bot: BotPlayer,
+    playerPosition: Vector2,
+    isPlayerEnemy: boolean,
+    allBots: BotPlayer[],
+    currentTime: number
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
+    const config = TANK_CONFIGS[bot.tankClass]
+    
+    // Find target (player or enemy bot)
+    let targetPos = playerPosition
+    let targetId = 'player'
+    
+    if (bot.currentTarget && bot.currentTarget !== 'player') {
+      const targetBot = allBots.find(b => b.id === bot.currentTarget)
+      if (targetBot && this.teamSystem.areEnemies(bot.team, targetBot.team)) {
+        targetPos = targetBot.position
+        targetId = targetBot.id
+      }
+    } else if (!isPlayerEnemy) {
+      // Player is not enemy, find an enemy bot
+      for (const otherBot of allBots) {
+        if (this.teamSystem.areEnemies(bot.team, otherBot.team)) {
+          const dist = this.getDistance(bot.position, otherBot.position)
+          if (dist < 600) {
+            targetPos = otherBot.position
+            targetId = otherBot.id
+            break
+          }
+        }
+      }
+    }
+    
+    const distance = this.getDistance(bot.position, targetPos)
+    
+    // Apply aim inaccuracy
+    const aimOffset = this.applyAimError(bot, targetPos)
+    
+    // Class-specific behavior
+    return this.getClassSpecificAttackBehavior(bot, targetPos, aimOffset, distance)
+  }
+
+  /**
+   * Fleeing behavior - retreat from danger
+   */
+  private fleeingBehavior(
+    bot: BotPlayer,
+    playerPosition: Vector2,
+    allBots: BotPlayer[]
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
+    // Find nearest threat
+    let threatPos = playerPosition
+    let minThreatDist = this.getDistance(bot.position, playerPosition)
+    
+    for (const otherBot of allBots) {
+      if (this.teamSystem.areEnemies(bot.team, otherBot.team)) {
+        const dist = this.getDistance(bot.position, otherBot.position)
+        if (dist < minThreatDist) {
+          threatPos = otherBot.position
+          minThreatDist = dist
+        }
+      }
+    }
+    
+    // Run away from threat
+    const angle = Math.atan2(bot.position.y - threatPos.y, bot.position.x - threatPos.x)
+    const fleeDistance = 300
+    
+    return {
+      targetPosition: {
+        x: bot.position.x + Math.cos(angle) * fleeDistance,
+        y: bot.position.y + Math.sin(angle) * fleeDistance
+      },
+      shouldShoot: false, // Don't shoot while fleeing
+      shootTarget: null,
+      farmTargetId: null
+    }
+  }
+
+  /**
+   * Patrolling behavior - wander around
+   */
+  private patrollingBehavior(
+    bot: BotPlayer,
+    currentTime: number
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
+    // Random patrol direction
+    if (currentTime - bot.lastBehaviorChange > 2000 || !bot.velocity.x && !bot.velocity.y) {
+      const angle = Math.random() * Math.PI * 2
+      const patrolDist = 150 + Math.random() * 150
+      
+      return {
+        targetPosition: {
+          x: bot.position.x + Math.cos(angle) * patrolDist,
+          y: bot.position.y + Math.sin(angle) * patrolDist
+        },
+        shouldShoot: false,
+        shootTarget: null,
+        farmTargetId: null
+      }
+    }
+    
+    return { targetPosition: null, shouldShoot: false, shootTarget: null, farmTargetId: null }
+  }
+
+  /**
+   * Find best farm target based on bot level and value
+   */
+  private findBestFarmTarget(bot: BotPlayer, loot: Loot[]): Loot | null {
+    let bestTarget: Loot | null = null
+    let bestScore = -1
+    const maxDistance = 500
+    
+    for (const item of loot) {
+      if (item.type !== 'box' && item.type !== 'treasure' && item.type !== 'boss') continue
+      if (!item.health || item.health <= 0) continue
+      
+      const dist = this.getDistance(bot.position, item.position)
+      if (dist > maxDistance) continue
+      
+      // Score based on value, distance, and size
+      const valueScore = item.value / 100
+      const distScore = (maxDistance - dist) / maxDistance
+      const sizeScore = (item.radius || 20) / 50
+      
+      // Low level bots prefer small shapes, high level prefer big ones
+      const levelPreference = bot.level < 20 
+        ? (1 - sizeScore) // Prefer small shapes
+        : sizeScore // Prefer big shapes
+      
+      const score = valueScore * 0.4 + distScore * 0.4 + levelPreference * 0.2
+      
+      if (score > bestScore) {
+        bestScore = score
+        bestTarget = item
+      }
+    }
+    
+    return bestTarget
+  }
+
+  /**
+   * Apply aim error based on bot accuracy
+   */
+  private applyAimError(bot: BotPlayer, targetPos: Vector2): Vector2 {
+    const error = (1 - bot.aimAccuracy) * 100 // Max 100 pixels error
+    const errorAngle = Math.random() * Math.PI * 2
+    
+    return {
+      x: targetPos.x + Math.cos(errorAngle) * error,
+      y: targetPos.y + Math.sin(errorAngle) * error
+    }
+  }
+
+  /**
+   * Get class-specific attack behavior
+   */
+  private getClassSpecificAttackBehavior(
+    bot: BotPlayer,
+    targetPos: Vector2,
+    aimTarget: Vector2,
+    distance: number
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
+    const config = TANK_CONFIGS[bot.tankClass]
+    
+    // Smasher behavior - aggressive ramming
+    if (config?.bodyShape === 'hexagon' || config?.bodyShape === 'spikyHexagon') {
+      return {
+        targetPosition: targetPos,
+        shouldShoot: false,
+        shootTarget: null,
+        farmTargetId: null
+      }
+    }
+    
+    // Sniper behavior - keep distance
+    if (bot.tankClass.includes('sniper') || bot.tankClass.includes('ranger') || bot.tankClass.includes('assassin')) {
+      const optimalDistance = 500
+      let targetPosition = targetPos
+      
+      if (distance < optimalDistance) {
+        // Retreat
+        const angle = Math.atan2(bot.position.y - targetPos.y, bot.position.x - targetPos.x)
+        targetPosition = {
+          x: bot.position.x + Math.cos(angle) * 100,
+          y: bot.position.y + Math.sin(angle) * 100
+        }
+      } else {
+        // Strafe
+        const angle = Math.atan2(targetPos.y - bot.position.y, targetPos.x - bot.position.x)
+        const perpAngle = angle + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1)
+        targetPosition = {
+          x: bot.position.x + Math.cos(perpAngle) * 50,
+          y: bot.position.y + Math.sin(perpAngle) * 50
+        }
+      }
+      
+      return {
+        targetPosition,
+        shouldShoot: distance < 700,
+        shootTarget: aimTarget,
+        farmTargetId: null
+      }
+    }
+    
+    // Drone class behavior - orbit
+    if (config?.isDroneClass) {
+      const orbitDistance = 400
+      const angle = Math.atan2(bot.position.y - targetPos.y, bot.position.x - targetPos.x)
+      
+      return {
+        targetPosition: {
+          x: targetPos.x + Math.cos(angle) * orbitDistance,
+          y: targetPos.y + Math.sin(angle) * orbitDistance
+        },
+        shouldShoot: distance < 500,
+        shootTarget: aimTarget,
+        farmTargetId: null
+      }
+    }
+    
+    // Speed tanks - hit and run
+    if (bot.tankClass.includes('booster') || bot.tankClass.includes('fighter')) {
+      if (distance < 300) {
+        // Rush away
+        const angle = Math.atan2(bot.position.y - targetPos.y, bot.position.x - targetPos.x)
+        return {
+          targetPosition: {
+            x: bot.position.x + Math.cos(angle) * 200,
+            y: bot.position.y + Math.sin(angle) * 200
+          },
+          shouldShoot: true,
+          shootTarget: aimTarget,
+          farmTargetId: null
+        }
+      } else {
+        // Rush in
+        return {
+          targetPosition: targetPos,
+          shouldShoot: distance < 400,
+          shootTarget: aimTarget,
+          farmTargetId: null
+        }
+      }
+    }
+    
+    // Default bullet tank - medium distance strafe
+    const optimalDistance = 350
+    let targetPosition = targetPos
+    
+    if (distance < optimalDistance - 50) {
+      // Back up
+      const angle = Math.atan2(bot.position.y - targetPos.y, bot.position.x - targetPos.x)
+      targetPosition = {
+        x: bot.position.x + Math.cos(angle) * 80,
+        y: bot.position.y + Math.sin(angle) * 80
+      }
+    } else if (distance > optimalDistance + 50) {
+      // Approach
+      targetPosition = targetPos
+    } else {
+      // Strafe
+      const angle = Math.atan2(targetPos.y - bot.position.y, targetPos.x - bot.position.x)
+      const perpAngle = angle + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1)
+      targetPosition = {
+        x: bot.position.x + Math.cos(perpAngle) * 60,
+        y: bot.position.y + Math.sin(perpAngle) * 60
+      }
+    }
+    
+    return {
+      targetPosition,
+      shouldShoot: distance < 500,
+      shootTarget: aimTarget,
+      farmTargetId: null
+    }
+  }
+
+  /**
+   * Execute current behavior and return action
+   */
+  private executeBehavior(
+    bot: BotPlayer,
+    playerPosition: Vector2,
+    currentTime: number,
+    loot: Loot[],
+    isPlayerEnemy: boolean,
+    allBots: BotPlayer[]
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
+    const config = TANK_CONFIGS[bot.tankClass]
+
+    switch (bot.behaviorState) {
+      case 'farming':
+        return this.farmingBehavior(bot, loot)
+      
+      case 'attacking':
+        return this.attackingBehavior(bot, playerPosition, isPlayerEnemy, allBots, currentTime)
+      
+      case 'fleeing':
+        return this.fleeingBehavior(bot, playerPosition, allBots)
+      
+      case 'patrolling':
+        return this.patrollingBehavior(bot, currentTime)
+      
+      default:
+        return { targetPosition: null, shouldShoot: false, shootTarget: null, farmTargetId: null }
+    }
+  }
+
+  /**
    * Update all bots
    */
   update(
@@ -181,7 +887,8 @@ export class BotAISystem {
     playerPosition: Vector2,
     playerRadius: number,
     currentTime: number,
-    loot: Loot[]
+    loot: Loot[],
+    playerTeam: Team
   ): { projectiles: Projectile[]; targetPositions: Map<string, Vector2>; farmTargets: Map<string, string> } {
     const projectiles: Projectile[] = []
     const targetPositions = new Map<string, Vector2>()
@@ -196,6 +903,16 @@ export class BotAISystem {
         continue
       }
 
+      // Health regeneration
+      if (bot.health < bot.maxHealth && currentTime - bot.lastRegenTime > 1000) {
+        bot.health = Math.min(bot.health + bot.healthRegen * deltaTime, bot.maxHealth)
+      }
+
+      // Check for level up
+      if (bot.xp >= bot.xpToNextLevel) {
+        this.levelUpBot(bot)
+      }
+
       // Update barrel recoils
       if (bot.barrelRecoils) {
         for (let j = 0; j < bot.barrelRecoils.length; j++) {
@@ -203,13 +920,13 @@ export class BotAISystem {
         }
       }
 
-      // Update behavior (now includes farming)
-      const behavior = this.updateBehavior(bot, playerPosition, playerRadius, currentTime, loot)
+      // Update behavior (now includes farming and team awareness)
+      const behavior = this.updateBehavior(bot, playerPosition, playerRadius, currentTime, loot, playerTeam, this.bots)
       
       // Move bot
       this.moveBot(bot, behavior.targetPosition, deltaTime)
 
-      // Shoot at target (player or loot)
+      // Shoot at target (player, bot, or loot)
       if (behavior.shouldShoot && behavior.shootTarget) {
         const newProjectiles = this.tryShoot(bot, behavior.shootTarget, currentTime)
         projectiles.push(...newProjectiles)
@@ -230,145 +947,50 @@ export class BotAISystem {
   }
 
   /**
-   * Update bot behavior based on class and situation
+   * Update bot behavior based on class, personality, and team
    */
   private updateBehavior(
     bot: BotPlayer,
     playerPosition: Vector2,
     playerRadius: number,
     currentTime: number,
-    loot: Loot[]
+    loot: Loot[],
+    playerTeam: Team,
+    allBots: BotPlayer[]
   ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
-    const distance = this.getDistance(bot.position, playerPosition)
+    const distanceToPlayer = this.getDistance(bot.position, playerPosition)
     const config = TANK_CONFIGS[bot.tankClass]
+    const isPlayerAlly = this.teamSystem.areAllies(bot.team, playerTeam)
+    const isPlayerEnemy = this.teamSystem.areEnemies(bot.team, playerTeam)
 
-    // Change behavior periodically
-    if (currentTime - bot.lastBehaviorChange > 3000) {
+    // Health-based retreat logic
+    const healthPercent = bot.health / bot.maxHealth
+    if (healthPercent < 0.3 && bot.personality !== 'aggressive') {
+      bot.behaviorState = 'fleeing'
+    }
+
+    // Reaction time - don't instantly react to everything
+    const timeSinceLastReaction = currentTime - bot.lastReactionTime
+    if (timeSinceLastReaction < bot.reactionTime) {
+      // Still in reaction delay, use previous behavior
+      return this.executeBehavior(bot, playerPosition, currentTime, loot, isPlayerEnemy, allBots)
+    }
+
+    bot.lastReactionTime = currentTime
+
+    // Change behavior periodically based on personality
+    const behaviorChangeInterval = bot.personality === 'pro' ? 2000 : 
+                                   bot.personality === 'noob' ? 5000 : 3000
+    
+    if (currentTime - bot.lastBehaviorChange > behaviorChangeInterval) {
       bot.lastBehaviorChange = currentTime
-      if (distance < 600) {
-        bot.targetPlayer = true
-      } else if (Math.random() > 0.7) {
-        bot.targetPlayer = false
-      }
-    }
-
-    // Behavior based on class type
-    let targetPosition: Vector2 | null = null
-    let shouldShoot = false
-    let shootTarget: Vector2 | null = null
-    let farmTargetId: string | null = null
-    const visualRange = 800
-
-    if (!bot.targetPlayer || distance > visualRange) {
-      // Not targeting player - find loot to farm
-      const nearestLoot = this.findNearestLoot(bot.position, loot, 400)
       
-      if (nearestLoot) {
-        // Farm the loot
-        targetPosition = nearestLoot.position
-        
-        // Shoot at loot if not a smasher
-        if (config?.bodyShape !== 'hexagon' && config?.bodyShape !== 'spikyHexagon') {
-          const distToLoot = this.getDistance(bot.position, nearestLoot.position)
-          if (distToLoot < 300) {
-            shouldShoot = true
-            shootTarget = nearestLoot.position
-            farmTargetId = nearestLoot.id
-          }
-        }
-        
-        return { targetPosition, shouldShoot, shootTarget, farmTargetId }
-      }
-      
-      // No loot nearby - patrol around spawn zone
-      if (currentTime - bot.lastBehaviorChange > 2000) {
-        const angle = Math.random() * Math.PI * 2
-        const patrolDist = 200
-        targetPosition = {
-          x: bot.position.x + Math.cos(angle) * patrolDist,
-          y: bot.position.y + Math.sin(angle) * patrolDist,
-        }
-      }
-      return { targetPosition, shouldShoot: false, shootTarget: null, farmTargetId: null }
+      // Decide behavior based on personality and situation
+      this.decideBehavior(bot, distanceToPlayer, isPlayerEnemy, healthPercent, allBots)
     }
 
-    // Smasher behavior - aggressive ramming
-    if (config?.bodyShape === 'hexagon' || config?.bodyShape === 'spikyHexagon') {
-      targetPosition = playerPosition
-      shouldShoot = false
-    }
-    // Sniper behavior - keep distance
-    else if (bot.tankClass.includes('sniper') || bot.tankClass.includes('ranger') || bot.tankClass.includes('assassin')) {
-      const optimalDistance = 500
-      if (distance < optimalDistance) {
-        // Retreat
-        const angle = Math.atan2(bot.position.y - playerPosition.y, bot.position.x - playerPosition.x)
-        targetPosition = {
-          x: bot.position.x + Math.cos(angle) * 100,
-          y: bot.position.y + Math.sin(angle) * 100,
-        }
-      } else {
-        // Strafe
-        const angle = Math.atan2(playerPosition.y - bot.position.y, playerPosition.x - bot.position.x)
-        const perpAngle = angle + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1)
-        targetPosition = {
-          x: bot.position.x + Math.cos(perpAngle) * 50,
-          y: bot.position.y + Math.sin(perpAngle) * 50,
-        }
-      }
-      shouldShoot = distance < 700
-    }
-    // Drone class behavior - orbit and attack
-    else if (config?.isDroneClass) {
-      const orbitDistance = 400
-      const angle = Math.atan2(bot.position.y - playerPosition.y, bot.position.x - playerPosition.x)
-      targetPosition = {
-        x: playerPosition.x + Math.cos(angle) * orbitDistance,
-        y: playerPosition.y + Math.sin(angle) * orbitDistance,
-      }
-      shouldShoot = distance < 500
-    }
-    // Speed tanks - hit and run
-    else if (bot.tankClass.includes('booster') || bot.tankClass.includes('fighter')) {
-      if (distance < 300) {
-        // Rush away
-        const angle = Math.atan2(bot.position.y - playerPosition.y, bot.position.x - playerPosition.x)
-        targetPosition = {
-          x: bot.position.x + Math.cos(angle) * 200,
-          y: bot.position.y + Math.sin(angle) * 200,
-        }
-      } else {
-        // Rush in
-        targetPosition = playerPosition
-      }
-      shouldShoot = distance < 400 && distance > 200
-    }
-    // Bullet tanks - medium distance, strafe
-    else {
-      const optimalDistance = 350
-      if (distance < optimalDistance - 50) {
-        // Back up
-        const angle = Math.atan2(bot.position.y - playerPosition.y, bot.position.x - playerPosition.x)
-        targetPosition = {
-          x: bot.position.x + Math.cos(angle) * 80,
-          y: bot.position.y + Math.sin(angle) * 80,
-        }
-      } else if (distance > optimalDistance + 50) {
-        // Approach
-        targetPosition = playerPosition
-      } else {
-        // Strafe
-        const angle = Math.atan2(playerPosition.y - bot.position.y, playerPosition.x - bot.position.x)
-        const perpAngle = angle + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1)
-        targetPosition = {
-          x: bot.position.x + Math.cos(perpAngle) * 60,
-          y: bot.position.y + Math.sin(perpAngle) * 60,
-        }
-      }
-      shouldShoot = distance < 500
-    }
-
-    return { targetPosition, shouldShoot, shootTarget: playerPosition, farmTargetId: null }
+    // Execute the behavior
+    return this.executeBehavior(bot, playerPosition, currentTime, loot, isPlayerEnemy, allBots)
   }
 
   /**
@@ -446,6 +1068,8 @@ export class BotAISystem {
       const spawnX = bot.position.x + Math.cos(barrelAngle) * spawnDist
       const spawnY = bot.position.y + Math.sin(barrelAngle) * spawnDist
 
+      const bulletSpeed = bot.bulletSpeed * (1 + bot.statPoints.bulletSpeed * 0.05)
+
       projectiles.push({
         id: `proj_bot_${bot.id}_${Date.now()}_${i}`,
         position: { x: spawnX, y: spawnY },
@@ -456,6 +1080,8 @@ export class BotAISystem {
         damage,
         radius: 5,
         isPlayerProjectile: false,
+        ownerId: bot.id,
+        team: bot.team,
       })
     }
 
@@ -470,28 +1096,29 @@ export class BotAISystem {
     if (!bot) return false
 
     bot.health -= damage
+    bot.lastRegenTime = Date.now()
     return bot.health <= 0
   }
 
   /**
-   * Find nearest loot to a position
+   * Award XP to a bot (for killing shapes or enemies)
    */
-  private findNearestLoot(position: Vector2, loot: Loot[], maxDistance: number): Loot | null {
-    let nearest: Loot | null = null
-    let nearestDist = maxDistance
+  awardXP(botId: string, xp: number) {
+    const bot = this.bots.find(b => b.id === botId)
+    if (!bot) return
 
-    for (const item of loot) {
-      if (item.type !== 'box' && item.type !== 'treasure' && item.type !== 'boss') continue
-      if (!item.health || item.health <= 0) continue
+    bot.xp += xp
+  }
 
-      const dist = this.getDistance(position, item.position)
-      if (dist < nearestDist) {
-        nearest = item
-        nearestDist = dist
+  /**
+   * Award XP to bot by loot ID (for farming)
+   */
+  awardXPForLoot(farmTargets: Map<string, string>, lootId: string, xpValue: number) {
+    for (const [botId, targetId] of farmTargets.entries()) {
+      if (targetId === lootId) {
+        this.awardXP(botId, xpValue)
       }
     }
-
-    return nearest
   }
 
   /**
