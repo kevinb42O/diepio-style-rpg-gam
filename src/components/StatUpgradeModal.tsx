@@ -73,12 +73,12 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
   }
 
   return (
-    <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', duration: 0.4 }}
-        className="w-full max-w-2xl"
+        className="w-full max-w-2xl max-h-[90vh] overflow-hidden"
       >
         <Card className="border-2 border-accent shadow-2xl">
           <CardHeader className="text-center pb-3">
@@ -89,7 +89,7 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
               Available Skill Points: <span className="text-accent font-bold text-lg">{availablePoints}</span>
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+          <CardContent className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isMobile ? 'max-h-[calc(90vh-180px)]' : 'max-h-[60vh]'} overflow-y-auto`}>
             {(Object.keys(STAT_INFO) as StatType[]).map((stat) => {
               const info = STAT_INFO[stat]
               const Icon = info.icon
@@ -99,9 +99,9 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
               return (
                 <div
                   key={stat}
-                  className="flex items-center gap-3 bg-muted/50 rounded-lg p-3 border border-border"
+                  className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'} bg-muted/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-border`}
                 >
-                  <Icon weight="fill" size={isMobile ? 24 : 32} className={info.color} />
+                  <Icon weight="fill" size={isMobile ? 20 : 32} className={info.color} />
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
@@ -113,7 +113,7 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
                       </span>
                     </div>
                     <Progress value={(points / 7) * 100} className="h-1.5 mb-1" />
-                    <p className="text-xs text-muted-foreground">{info.description}</p>
+                    {!isMobile && <p className="text-xs text-muted-foreground">{info.description}</p>}
                   </div>
                   
                   <Button

@@ -549,6 +549,7 @@ export class GameEngine {
     if (this.gameTime - this.lastBoxSpawnTime < this.boxSpawnInterval) return
 
     const numBoxes = 2 + Math.floor(Math.random() * 3)
+    const LEVEL_SCALING_FACTOR = 0.15 // 15% increase per level
 
     for (let i = 0; i < numBoxes; i++) {
       const clusterNearPlayer = Math.random() < 0.3
@@ -567,29 +568,31 @@ export class GameEngine {
       x = Math.max(100, Math.min(this.worldSize - 100, x))
       y = Math.max(100, Math.min(this.worldSize - 100, y))
       
+      // Scale enemy difficulty with player level
+      const levelMultiplier = 1 + (this.player.level - 1) * LEVEL_SCALING_FACTOR
       const size = Math.random()
       let radius: number, health: number, contactDamage: number, xpValue: number
 
       if (size < 0.5) {
         radius = 15
-        health = 20
-        contactDamage = 5
-        xpValue = 15
+        health = Math.floor(20 * levelMultiplier)
+        contactDamage = Math.floor(5 * levelMultiplier)
+        xpValue = Math.floor(15 * levelMultiplier)
       } else if (size < 0.8) {
         radius = 25
-        health = 50
-        contactDamage = 15
-        xpValue = 40
+        health = Math.floor(50 * levelMultiplier)
+        contactDamage = Math.floor(15 * levelMultiplier)
+        xpValue = Math.floor(40 * levelMultiplier)
       } else if (size < 0.95) {
         radius = 35
-        health = 100
-        contactDamage = 30
-        xpValue = 80
+        health = Math.floor(100 * levelMultiplier)
+        contactDamage = Math.floor(30 * levelMultiplier)
+        xpValue = Math.floor(80 * levelMultiplier)
       } else {
         radius = 50
-        health = 200
-        contactDamage = 50
-        xpValue = 150
+        health = Math.floor(200 * levelMultiplier)
+        contactDamage = Math.floor(50 * levelMultiplier)
+        xpValue = Math.floor(150 * levelMultiplier)
       }
 
       this.loot.push({

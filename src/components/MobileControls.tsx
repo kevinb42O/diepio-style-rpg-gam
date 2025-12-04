@@ -136,12 +136,12 @@ export function MobileControls({ onMove, onShootDirection }: MobileControlsProps
     <div className="fixed inset-0 pointer-events-none z-50">
       <div
         ref={moveJoystickRef}
-        className="absolute bottom-8 left-8 w-32 h-32 pointer-events-auto touch-none"
+        className="absolute bottom-20 left-4 w-28 h-28 pointer-events-auto touch-none"
         style={{ touchAction: 'none' }}
       >
         <div className="absolute inset-0 bg-primary/20 rounded-full border-2 border-primary/40" />
         <div 
-          className="absolute top-1/2 left-1/2 w-12 h-12 -ml-6 -mt-6 bg-primary/80 rounded-full border-2 border-primary"
+          className="absolute top-1/2 left-1/2 w-11 h-11 -ml-5.5 -mt-5.5 bg-primary/80 rounded-full border-2 border-primary"
           style={{
             transform: `translate(${moveStickPosition.x}px, ${moveStickPosition.y}px)`,
             transition: moveStickPosition.x === 0 && moveStickPosition.y === 0 ? 'transform 0.1s ease-out' : 'none'
@@ -156,12 +156,12 @@ export function MobileControls({ onMove, onShootDirection }: MobileControlsProps
 
       <div
         ref={shootJoystickRef}
-        className="absolute bottom-8 right-8 w-32 h-32 pointer-events-auto touch-none"
+        className="absolute bottom-20 right-4 w-28 h-28 pointer-events-auto touch-none"
         style={{ touchAction: 'none' }}
       >
         <div className="absolute inset-0 bg-secondary/20 rounded-full border-2 border-secondary/40" />
         <div 
-          className="absolute top-1/2 left-1/2 w-12 h-12 -ml-6 -mt-6 bg-secondary/80 rounded-full border-2 border-secondary"
+          className="absolute top-1/2 left-1/2 w-11 h-11 -ml-5.5 -mt-5.5 bg-secondary/80 rounded-full border-2 border-secondary"
           style={{
             transform: `translate(${shootStickPosition.x}px, ${shootStickPosition.y}px)`,
             transition: shootStickPosition.x === 0 && shootStickPosition.y === 0 ? 'transform 0.1s ease-out' : 'none'

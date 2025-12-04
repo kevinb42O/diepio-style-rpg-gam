@@ -44,9 +44,9 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
         onClick={() => setIsOpen(!isOpen)}
         size="icon"
         variant="secondary"
-        className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full shadow-lg"
+        className="fixed top-2 right-2 md:top-4 md:right-4 z-50 w-8 h-8 md:w-10 md:h-10 rounded-full shadow-lg"
       >
-        <Gear weight="fill" size={20} />
+        <Gear weight="fill" className="w-4 h-4 md:w-5 md:h-5" />
       </Button>
 
       <AnimatePresence>
@@ -56,12 +56,12 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
             animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, x: 20, y: -20 }}
             transition={{ type: 'spring', duration: 0.3 }}
-            className="fixed top-16 right-4 z-50"
+            className="fixed top-12 right-2 md:top-16 md:right-4 z-50 max-h-[calc(100vh-80px)] overflow-y-auto"
           >
-            <Card className="w-80 shadow-2xl border-2 border-accent">
+            <Card className="w-72 md:w-80 shadow-2xl border-2 border-accent">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Admin Panel</CardTitle>
+                  <CardTitle className="text-base md:text-lg">Admin Panel</CardTitle>
                   <Button
                     onClick={() => setIsOpen(false)}
                     size="icon"
@@ -74,7 +74,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="level-input">Set Level (1-45)</Label>
+                  <Label htmlFor="level-input" className="text-sm">Set Level (1-45)</Label>
                   <div className="flex gap-2">
                     <Input
                       id="level-input"
@@ -83,7 +83,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
                       max="45"
                       value={levelInput}
                       onChange={(e) => setLevelInput(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 text-sm"
                     />
                     <Button onClick={handleSetLevel} size="sm">
                       Set
@@ -95,7 +95,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="stat-points-input">Add Levels (Stat Points)</Label>
+                  <Label htmlFor="stat-points-input" className="text-sm">Add Levels (Stat Points)</Label>
                   <div className="flex gap-2">
                     <Input
                       id="stat-points-input"
@@ -103,7 +103,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
                       min="1"
                       value={statPointsInput}
                       onChange={(e) => setStatPointsInput(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 text-sm"
                     />
                     <Button onClick={handleAddStatPoints} size="sm">
                       Add
