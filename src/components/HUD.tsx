@@ -1,6 +1,7 @@
-import { Heart, Sword, Lightning, Wind, Star } from '@phosphor-icons/react'
+import { Heart, Sword, Lightning, Wind, Star, ChartBar } from '@phosphor-icons/react'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { Weapon, Armor } from '@/lib/types'
 
@@ -19,9 +20,11 @@ interface HUDProps {
   gameTime: number
   currentXPInLevel?: number
   xpRequiredForLevel?: number
+  onToggleStats?: () => void
+  availableStatPoints?: number
 }
 
-export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel = 100 }: HUDProps) {
+export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel = 100, onToggleStats, availableStatPoints = 0 }: HUDProps) {
   const isMobile = useIsMobile()
   const healthPercentage = (player.health / player.maxHealth) * 100
   
@@ -55,6 +58,22 @@ export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel
           <Badge variant="outline" className={isMobile ? 'text-xs' : 'text-base'}>
             Kills: {player.kills}
           </Badge>
+
+          {onToggleStats && (
+            <Button
+              onClick={onToggleStats}
+              size={isMobile ? 'sm' : 'default'}
+              variant="outline"
+              className="pointer-events-auto relative"
+            >
+              <ChartBar size={isMobile ? 14 : 18} weight="fill" />
+              {availableStatPoints > 0 && (
+                <span className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {availableStatPoints}
+                </span>
+              )}
+            </Button>
+          )}
         </div>
 
         <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-2'} bg-card/80 backdrop-blur-sm rounded-lg ${isMobile ? 'p-2 w-44' : 'p-3 w-64'} border border-border`}>

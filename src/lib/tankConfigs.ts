@@ -202,3 +202,19 @@ export function getAvailableUpgrades(currentClass: string, level: number): TankC
   
   return available
 }
+
+export function getUpgradesForClassAtLevel(currentClass: string, level: number): TankConfig[] {
+  const available: TankConfig[] = []
+  
+  for (const key in TANK_CONFIGS) {
+    const config = TANK_CONFIGS[key]
+    if (config.unlocksAt <= level && config.upgradesFrom?.includes(currentClass)) {
+      const currentConfig = TANK_CONFIGS[currentClass]
+      if (config.tier === (currentConfig?.tier || 0) + 1) {
+        available.push(config)
+      }
+    }
+  }
+  
+  return available
+}

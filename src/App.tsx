@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { HighScore, GameStats } from '@/lib/types'
 import type { StatType } from '@/lib/upgradeSystem'
-import { getAvailableUpgrades } from '@/lib/tankConfigs'
+import { getAvailableUpgrades, getUpgradesForClassAtLevel } from '@/lib/tankConfigs'
 import { audioManager } from '@/audio/AudioManager'
 
 type GameState = 'menu' | 'playing' | 'paused' | 'statupgrade' | 'classupgrade' | 'dead'
@@ -99,6 +99,13 @@ function App() {
       if (e.key === 'F3') {
         e.preventDefault()
         setShowFPS(prev => !prev)
+        return
+      }
+
+      // K to toggle stats panel
+      if (e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        handleToggleStatsPanel()
         return
       }
 
@@ -321,7 +328,7 @@ function App() {
       toast.success(`Level set to ${level}!`)
       setStatModalKey(prev => prev + 1)
       
-      const availableClasses = getAvailableUpgrades(engineRef.current.player.tankClass, level)
+      const availableClasses = getUpgradesForClassAtLevel(engineRef.current.player.tankClass, level)
       if (availableClasses.length > 0 && gameState === 'playing') {
         setGameState('classupgrade')
         toast.success(`Choose your class upgrade!`)
@@ -330,18 +337,16 @@ function App() {
   }
 
   const handleAdminAddStatPoints = (amount: number) => {
-    const oldLevel = engineRef.current.player.level
     engineRef.current.addStatPoints(amount)
-    const newLevel = engineRef.current.player.level
     toast.success(`Added ${amount} levels for stat points!`)
     setStatModalKey(prev => prev + 1)
-    
-    const availableClasses = getAvailableUpgrades(engineRef.current.player.tankClass, newLevel)
-    if (availableClasses.length > 0 && gameState === 'playing') {
-      setGameState('classupgrade')
-      toast.success(`Choose your class upgrade!`)
-    } else if (engineRef.current.upgradeManager.getAvailableSkillPoints() > 0 && gameState === 'playing') {
+  }
+
+  const handleToggleStatsPanel = () => {
+    if (gameState === 'playing') {
       setGameState('statupgrade')
+    } else if (gameState === 'statupgrade') {
+      setGameState('playing')
     }
   }
 
@@ -399,6 +404,8 @@ function App() {
               <div><span className="font-mono bg-card px-2 py-1 rounded">ZQSD</span> - Move</div>
               <div><span className="font-mono bg-card px-2 py-1 rounded">Mouse</span> - Aim</div>
               <div><span className="font-mono bg-card px-2 py-1 rounded">Click / Space</span> - Shoot</div>
+              <div><span className="font-mono bg-card px-2 py-1 rounded">K</span> - Toggle Stats Panel</div>
+              <div><span className="font-mono bg-card px-2 py-1 rounded">1-9</span> - Quick Upgrade Stats</div>
             </>
           )}
         </div>
@@ -425,6 +432,8 @@ function App() {
               gameTime={gameTime}
               currentXPInLevel={xpProgress.current}
               xpRequiredForLevel={xpProgress.required}
+              onToggleStats={handleToggleStatsPanel}
+              availableStatPoints={engineRef.current.upgradeManager.getAvailableSkillPoints()}
             />
             <MobileControls 
               onMove={handleMobileMove}
@@ -456,7 +465,7 @@ function App() {
 
       {gameState === 'classupgrade' && (
         <ClassUpgradeModal
-          availableClasses={getAvailableUpgrades(engineRef.current.player.tankClass, engineRef.current.player.level)}
+          availableClasses={getUpgradesForClassAtLevel(engineRef.current.player.tankClass, engineRef.current.player.level)}
           onSelect={handleSelectClass}
           onClose={handleCloseClassUpgrade}
         />
