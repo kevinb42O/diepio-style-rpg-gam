@@ -67,7 +67,7 @@ export class GameEngine {
     this.particleSystem = new ParticleSystem()
     this.screenEffects = new ScreenEffects()
     this.quadTree = new QuadTree({ x: 0, y: 0, width: this.worldSize, height: this.worldSize })
-    this.droneSystem = new DroneSystem()
+    this.droneSystem = new DroneSystem(this.teamSystem)
     this.projectilePool = new ObjectPool<Projectile>(
       () => ({
         id: `proj_${Date.now()}_${Math.random()}`,
@@ -281,9 +281,6 @@ export class GameEngine {
     // Update enhanced systems
     this.particleSystem.update(deltaTime)
     this.screenEffects.update(deltaTime)
-    this.droneSystem.setViewport(this.camera, this.viewportWidth, this.viewportHeight)
-    this.droneSystem.update(deltaTime, this.mousePosition, this.player, this.loot)
-    this.checkDroneCollisions()
     
     // Update new systems
     this.particlePool.update(deltaTime)
@@ -292,6 +289,12 @@ export class GameEngine {
     const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime, this.loot, this.player.team)
     this.projectiles.push(...botUpdate.projectiles)
     this.botFarmTargets = botUpdate.farmTargets
+    
+    // Update drones with bot information for enemy targeting
+    this.droneSystem.setViewport(this.camera, this.viewportWidth, this.viewportHeight)
+    this.droneSystem.update(deltaTime, this.mousePosition, this.player, this.loot, this.botAISystem.getBots())
+    this.checkDroneCollisions()
+    
     this.checkBotCollisions(botUpdate.farmTargets)
     
     // Check for POI loot respawn
@@ -389,6 +392,7 @@ export class GameEngine {
   }
 
   checkDroneCollisions() {
+    // Check drone-loot collisions
     const collisions = this.droneSystem.checkDroneCollisions(this.loot)
     
     for (const collision of collisions) {
@@ -404,6 +408,33 @@ export class GameEngine {
             }
             
             this.breakLootBox(lootIndex)
+          }
+        }
+      }
+    }
+    
+    // Check drone-bot collisions
+    const botCollisions = this.droneSystem.checkDroneBotCollisions(this.botAISystem.getBots(), this.player.team)
+    
+    for (const collision of botCollisions) {
+      const killed = this.botAISystem.damageBot(collision.botId, collision.damage)
+      
+      if (killed) {
+        // Find the bot for XP calculation
+        const bot = this.botAISystem.getBots().find(b => b.id === collision.botId)
+        if (bot) {
+          this.player.xp += bot.level * 10
+          this.player.kills++
+          
+          // Particle effects
+          const botColor = this.teamSystem.getTeamColor(bot.team)
+          this.particlePool.emitDebris(bot.position, bot.velocity, botColor)
+          this.screenEffects.startShake(3, 0.2)
+          audioManager.play('polygonDeath')
+          
+          // Check for level up
+          if (this.player.xp >= this.player.xpToNextLevel) {
+            this.levelUp()
           }
         }
       }
@@ -741,7 +772,6 @@ export class GameEngine {
     // Use QuadTree for projectile collision checks
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const projectile = this.projectiles[i]
-      if (!projectile.isPlayerProjectile) continue
 
       const nearby = this.quadTree.retrieve({
         x: projectile.position.x,
@@ -774,6 +804,10 @@ export class GameEngine {
             if (box.health <= 0) {
               const boxIndex = this.loot.indexOf(box)
               if (boxIndex !== -1) {
+                // Award XP to bot if projectile is from bot
+                if (!projectile.isPlayerProjectile && projectile.ownerId) {
+                  this.botAISystem.awardXP(projectile.ownerId, box.value)
+                }
                 this.breakLootBox(boxIndex)
               }
             }
