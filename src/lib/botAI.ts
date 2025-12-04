@@ -498,7 +498,8 @@ export class BotAISystem {
 
       case 'pro':
         // Efficient, smart behavior - farm when safe, fight when advantageous
-        const hasAdvantage = healthPercent > 0.7 && bot.level >= bot.level
+        const enemyLevel = nearestEnemyBot ? nearestEnemyBot.level : (isPlayerEnemy ? 1 : 999)
+        const hasAdvantage = healthPercent > 0.7 && bot.level >= enemyLevel - 5
         const enemyNearby = (isPlayerEnemy && distanceToPlayer < 700) || (nearestEnemyBot && nearestEnemyDist < 700)
         
         if (enemyNearby && hasAdvantage) {

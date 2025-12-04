@@ -844,11 +844,11 @@ export class RenderEngine {
       let shadowBlur = 0
       
       if (isAlly) {
-        // Blue team colors
-        const blue = Math.min(255, Math.floor(0x00 * tierBrightness))
+        // Blue team colors (RGB: 0x00, 0xB2, 0xE1)
+        const red = Math.min(255, Math.floor(0x00 * tierBrightness))
         const green = Math.min(255, Math.floor(0xB2 * tierBrightness))
-        const red = Math.min(255, Math.floor(0xE1 * tierBrightness))
-        fillColor = `rgb(${blue}, ${green}, ${red})`
+        const blue = Math.min(255, Math.floor(0xE1 * tierBrightness))
+        fillColor = `rgb(${red}, ${green}, ${blue})`
         
         if (tier > 0) {
           glowColor = `rgba(0, 178, 225, ${0.15 * tier})`
@@ -888,7 +888,9 @@ export class RenderEngine {
         this.ctx.textAlign = 'center'
         this.ctx.textBaseline = 'bottom'
         
-        const nameY = bot.position.y - finalRadius - (bot.health < bot.maxHealth ? 25 : 20)
+        const NAME_OFFSET_WITH_HEALTHBAR = 25
+        const NAME_OFFSET_WITHOUT_HEALTHBAR = 20
+        const nameY = bot.position.y - finalRadius - (bot.health < bot.maxHealth ? NAME_OFFSET_WITH_HEALTHBAR : NAME_OFFSET_WITHOUT_HEALTHBAR)
         
         // Shadow for readability
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
