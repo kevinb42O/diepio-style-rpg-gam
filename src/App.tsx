@@ -301,7 +301,6 @@ function App() {
     }
     
     engineRef.current.allocateStat(stat)
-    toast.success('Stat upgraded!')
   }
 
   const handleCloseStatUpgrade = () => {
