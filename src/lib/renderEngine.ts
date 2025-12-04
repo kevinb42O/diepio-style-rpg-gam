@@ -33,6 +33,7 @@ export class RenderEngine {
     this.drawWorldBorder(engine)
     this.drawLoot(engine)
     this.drawProjectiles(engine)
+    this.drawDrones(engine)
     this.drawParticles(engine)
     this.drawEnhancedParticles(engine)
     this.drawPlayer(engine)
@@ -443,6 +444,79 @@ export class RenderEngine {
     }
   }
 
+  private drawDrones(engine: GameEngine) {
+    const bounds = this.lastViewBounds
+    const drones = engine.droneSystem.getDrones()
+
+    for (const drone of drones) {
+      if (drone.position.x < bounds.left || drone.position.x > bounds.right ||
+          drone.position.y < bounds.top || drone.position.y > bounds.bottom) {
+        continue
+      }
+
+      this.ctx.save()
+      this.ctx.translate(drone.position.x, drone.position.y)
+
+      // Draw health bar if damaged
+      if (drone.health < drone.maxHealth) {
+        const barWidth = drone.radius * 2.5
+        const barHeight = 3
+        this.drawHealthBar(0, -drone.radius - 8, barWidth, barHeight, drone.health / drone.maxHealth)
+      }
+
+      // Determine drone color and shape based on type
+      let droneColor = '#00B2E1'
+      
+      this.ctx.shadowBlur = 8
+      this.ctx.shadowColor = droneColor
+
+      this.ctx.beginPath()
+      
+      if (drone.droneType === 'triangle') {
+        // Draw triangle
+        const angle = Math.atan2(drone.velocity.y, drone.velocity.x)
+        this.ctx.rotate(angle)
+        for (let i = 0; i < 3; i++) {
+          const a = (Math.PI * 2 * i) / 3 - Math.PI / 2
+          const x = Math.cos(a) * drone.radius
+          const y = Math.sin(a) * drone.radius
+          if (i === 0) {
+            this.ctx.moveTo(x, y)
+          } else {
+            this.ctx.lineTo(x, y)
+          }
+        }
+        this.ctx.closePath()
+      } else if (drone.droneType === 'square') {
+        // Draw square
+        const size = drone.radius * 1.4
+        this.ctx.rect(-size / 2, -size / 2, size, size)
+      } else {
+        // minion - draw as pentagon
+        for (let i = 0; i < 5; i++) {
+          const a = (Math.PI * 2 * i) / 5 - Math.PI / 2
+          const x = Math.cos(a) * drone.radius
+          const y = Math.sin(a) * drone.radius
+          if (i === 0) {
+            this.ctx.moveTo(x, y)
+          } else {
+            this.ctx.lineTo(x, y)
+          }
+        }
+        this.ctx.closePath()
+      }
+
+      this.ctx.fillStyle = droneColor
+      this.ctx.fill()
+      this.ctx.strokeStyle = '#000000'
+      this.ctx.lineWidth = 2
+      this.ctx.stroke()
+
+      this.ctx.shadowBlur = 0
+      this.ctx.restore()
+    }
+  }
+
   private drawParticles(engine: GameEngine) {
     const bounds = this.lastViewBounds
 
@@ -578,57 +652,6 @@ export class RenderEngine {
     
     this.ctx.setLineDash([])
     this.ctx.restore()
-  }
-
-  private drawDrones(engine: GameEngine) {
-    const drones = engine.droneSystem.getDrones()
-    
-    for (const drone of drones) {
-      this.ctx.save()
-      
-      // Draw drone based on type
-      this.ctx.translate(drone.position.x, drone.position.y)
-      
-      this.ctx.beginPath()
-      
-      if (drone.droneType === 'triangle') {
-        // Triangle drone
-        const angle = Math.atan2(drone.velocity.y, drone.velocity.x)
-        this.ctx.rotate(angle)
-        this.ctx.moveTo(drone.radius, 0)
-        this.ctx.lineTo(-drone.radius, -drone.radius)
-        this.ctx.lineTo(-drone.radius, drone.radius)
-        this.ctx.closePath()
-      } else if (drone.droneType === 'square') {
-        // Square drone (Necromancer)
-        this.ctx.rect(-drone.radius, -drone.radius, drone.radius * 2, drone.radius * 2)
-      } else if (drone.droneType === 'minion') {
-        // Minion drone (Factory) - small tank with barrel
-        this.ctx.arc(0, 0, drone.radius, 0, Math.PI * 2)
-      }
-      
-      this.ctx.fillStyle = '#00B2E1'
-      this.ctx.fill()
-      this.ctx.strokeStyle = '#000000'
-      this.ctx.lineWidth = 2
-      this.ctx.stroke()
-      
-      // Draw health bar if damaged
-      if (drone.health < drone.maxHealth) {
-        const barWidth = drone.radius * 2
-        const barHeight = 3
-        const barY = -drone.radius - 8
-        
-        this.ctx.fillStyle = '#333333'
-        this.ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight)
-        
-        const healthPercent = drone.health / drone.maxHealth
-        this.ctx.fillStyle = '#00FF00'
-        this.ctx.fillRect(-barWidth / 2, barY, barWidth * healthPercent, barHeight)
-      }
-      
-      this.ctx.restore()
-    }
   }
 
   resize(width: number, height: number) {

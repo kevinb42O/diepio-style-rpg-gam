@@ -26,7 +26,6 @@ export class DroneSystem {
   }
 
   private updateDrone(drone: Drone, deltaTime: number, mousePosition: Vector2, player: Player, targets: Loot[]) {
-    const dt = deltaTime / 1000
     const tankConfig = TANK_CONFIGS[player.tankClass]
     
     // Sniper evolution classes (Overseer, Overlord, Manager, Factory, Battleship, Hybrid, Overtrapper)
@@ -37,7 +36,7 @@ export class DroneSystem {
     if (isAutoAttackClass) {
       // Auto-attack mode: drones automatically find and attack targets
       if (drone.state !== 'attacking' || !drone.target || (drone.target.health && drone.target.health <= 0)) {
-        const nearestTarget = this.findNearestTarget(drone, player, targets, 400)
+        const nearestTarget = this.findNearestTarget(drone, player, targets, 600)
         if (nearestTarget) {
           drone.state = 'attacking'
           drone.target = nearestTarget
@@ -52,19 +51,19 @@ export class DroneSystem {
       if (drone.state === 'attacking') {
         if (drone.target && drone.target.health && drone.target.health > 0) {
           drone.targetPosition = { ...drone.target.position }
-          this.moveDroneToPosition(drone, drone.targetPosition, dt)
+          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
         } else {
           drone.state = 'returning'
           drone.target = null
         }
       } else {
         // returning or idle - follow player at a distance
-        this.orbitAroundPlayer(drone, player, dt)
+        this.orbitAroundPlayer(drone, player, deltaTime)
       }
       
       // Check if drone is too far from player
       const distToPlayer = this.getDistance(drone.position, player.position)
-      if (distToPlayer > 600) {
+      if (distToPlayer > 800) {
         drone.state = 'returning'
         drone.target = null
       }
@@ -108,19 +107,19 @@ export class DroneSystem {
       // Execute behavior based on state
       if (drone.state === 'controlled') {
         if (drone.targetPosition) {
-          this.moveDroneToPosition(drone, drone.targetPosition, dt)
+          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
         }
       } else if (drone.state === 'attacking') {
         if (drone.target && drone.target.health && drone.target.health > 0) {
           drone.targetPosition = { ...drone.target.position }
-          this.moveDroneToPosition(drone, drone.targetPosition, dt)
+          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
         } else {
           drone.state = 'returning'
           drone.target = null
         }
       } else {
         // returning or idle
-        this.orbitAroundPlayer(drone, player, dt)
+        this.orbitAroundPlayer(drone, player, deltaTime)
       }
       
       // Check if drone is too far from player
@@ -132,7 +131,7 @@ export class DroneSystem {
     }
   }
 
-  private moveDroneToPosition(drone: Drone, target: Vector2, dt: number) {
+  private moveDroneToPosition(drone: Drone, target: Vector2, deltaTime: number) {
     const dx = target.x - drone.position.x
     const dy = target.y - drone.position.y
     const dist = Math.sqrt(dx * dx + dy * dy)
@@ -144,19 +143,19 @@ export class DroneSystem {
       drone.velocity.x = dirX * drone.speed
       drone.velocity.y = dirY * drone.speed
       
-      drone.position.x += drone.velocity.x * dt
-      drone.position.y += drone.velocity.y * dt
+      drone.position.x += drone.velocity.x * deltaTime
+      drone.position.y += drone.velocity.y * deltaTime
     } else {
       drone.velocity.x = 0
       drone.velocity.y = 0
     }
   }
 
-  private orbitAroundPlayer(drone: Drone, player: Player, dt: number) {
+  private orbitAroundPlayer(drone: Drone, player: Player, deltaTime: number) {
     const orbitRadius = 80
-    const orbitSpeed = 2 // radians per second
+    const orbitSpeed = 2
     
-    drone.orbitAngle += orbitSpeed * dt
+    drone.orbitAngle += orbitSpeed * deltaTime
     if (drone.orbitAngle > Math.PI * 2) {
       drone.orbitAngle -= Math.PI * 2
     }
@@ -175,8 +174,8 @@ export class DroneSystem {
       drone.velocity.x = dirX * drone.speed * 0.5
       drone.velocity.y = dirY * drone.speed * 0.5
       
-      drone.position.x += drone.velocity.x * dt
-      drone.position.y += drone.velocity.y * dt
+      drone.position.x += drone.velocity.x * deltaTime
+      drone.position.y += drone.velocity.y * deltaTime
     }
   }
 
@@ -218,7 +217,7 @@ export class DroneSystem {
     const lastSpawn = this.lastSpawnTimes.get(spawnKey) || 0
     
     // Calculate spawn rate from player stats
-    const baseSpawnRate = 2000 // 2 seconds base
+    const baseSpawnRate = 1000
     const spawnRate = baseSpawnRate / (1 + (player.fireRate / 300) * 0.5)
     
     if (now - lastSpawn >= spawnRate) {
