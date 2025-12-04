@@ -8,6 +8,9 @@ import { audioManager } from '@/audio/AudioManager'
 import { ObjectPool } from '@/utils/ObjectPool'
 import { TANK_CONFIGS } from './tankConfigs'
 import { DroneSystem } from './droneSystem'
+import { ParticlePool } from './particlePool'
+import { ZoneSystem } from './zoneSystem'
+import { BotAISystem } from './botAI'
 
 export class GameEngine {
   upgradeManager: UpgradeManager
@@ -23,7 +26,9 @@ export class GameEngine {
   particles: Particle[] = []
   mobileInput: Vector2 = { x: 0, y: 0 }
   mobileShootDirection: Vector2 = { x: 0, y: 0 }
-  worldSize = 4000
+  worldSize = 16000 // Circular world diameter
+  worldRadius = 8000
+  worldCenter: Vector2 = { x: 8000, y: 8000 }
   camera: Vector2 = { x: 0, y: 0 }
   cameraVelocity = { x: 0, y: 0 }
   viewportWidth = 800
@@ -46,6 +51,11 @@ export class GameEngine {
   lastKillTime = 0
   comboMultiplier = 1
   currentBarrelIndex = 0 // For alternating fire pattern
+  
+  // New systems
+  particlePool: ParticlePool
+  zoneSystem: ZoneSystem
+  botAISystem: BotAISystem
 
   constructor() {
     this.upgradeManager = new UpgradeManager()
@@ -72,6 +82,9 @@ export class GameEngine {
       20,
       100
     )
+    this.particlePool = new ParticlePool()
+    this.zoneSystem = new ZoneSystem()
+    this.botAISystem = new BotAISystem()
   }
 
   setRenderCallback(callback: (() => void) | null) {
@@ -81,7 +94,7 @@ export class GameEngine {
   createPlayer(): Player {
     return {
       id: 'player',
-      position: { x: this.worldSize / 2, y: this.worldSize / 2 },
+      position: { x: this.worldCenter.x, y: this.worldCenter.y },
       velocity: { x: 0, y: 0 },
       radius: 15,
       health: 100,
@@ -106,6 +119,7 @@ export class GameEngine {
       invisibility: 0,
       invisibilityTimer: 0,
       bodyShape: 'circle',
+      barrelRecoils: [0],
     }
   }
 
@@ -125,6 +139,8 @@ export class GameEngine {
     this.comboKills = 0
     this.lastKillTime = 0
     this.comboMultiplier = 1
+    this.particlePool.clear()
+    this.botAISystem.clear()
     
     this.generateWorldLoot()
   }
@@ -314,6 +330,14 @@ export class GameEngine {
     this.droneSystem.setViewport(this.camera, this.viewportWidth, this.viewportHeight)
     this.droneSystem.update(deltaTime, this.mousePosition, this.player, this.loot)
     this.checkDroneCollisions()
+    
+    // Update new systems
+    this.particlePool.update(deltaTime)
+    this.zoneSystem.updatePlayerZone(this.player.position, this.gameTime)
+    this.botAISystem.updateSpawning(this.zoneSystem.getZones(), this.gameTime)
+    const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime)
+    this.projectiles.push(...botUpdate.projectiles)
+    this.checkBotCollisions()
 
     if (this.renderCallback) {
       this.renderCallback()
@@ -323,6 +347,15 @@ export class GameEngine {
   updateRecoilAndFlash(deltaTime: number) {
     if (this.barrelRecoil > 0) {
       this.barrelRecoil = Math.max(0, this.barrelRecoil - deltaTime * 30)
+    }
+
+    // Update per-barrel recoils
+    if (this.player.barrelRecoils) {
+      for (let i = 0; i < this.player.barrelRecoils.length; i++) {
+        if (this.player.barrelRecoils[i] > 0) {
+          this.player.barrelRecoils[i] = Math.max(0, this.player.barrelRecoils[i] - deltaTime * 30)
+        }
+      }
     }
 
     for (const flash of this.muzzleFlashes) {
@@ -548,6 +581,15 @@ export class GameEngine {
         spread: Math.PI / 4,
         type: 'muzzle-flash'
       })
+
+      // Particle pool effects
+      this.particlePool.emitMuzzleFlash({ x: barrelTipX, y: barrelTipY }, barrelAngle)
+      this.particlePool.emitSmoke({ x: barrelTipX, y: barrelTipY }, barrelAngle)
+
+      // Set per-barrel recoil
+      if (this.player.barrelRecoils && this.player.barrelRecoils[barrelIdx] !== undefined) {
+        this.player.barrelRecoils[barrelIdx] = 8
+      }
 
       // Add slight spread for multi-barrel shots
       const spread = barrels.length > 1 ? (Math.random() - 0.5) * 0.05 : 0
@@ -819,7 +861,95 @@ export class GameEngine {
     }
   }
 
-
+  checkBotCollisions() {
+    const bots = this.botAISystem.getBots()
+    
+    // Check projectile-bot collisions
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const projectile = this.projectiles[i]
+      
+      // Player projectiles vs bots
+      if (projectile.isPlayerProjectile) {
+        for (const bot of bots) {
+          const dx = projectile.position.x - bot.position.x
+          const dy = projectile.position.y - bot.position.y
+          const distSq = dx * dx + dy * dy
+          const radSum = projectile.radius + bot.radius
+          
+          if (distSq < radSum * radSum) {
+            // Damage bot
+            const killed = this.botAISystem.damageBot(bot.id, projectile.damage)
+            this.projectiles.splice(i, 1)
+            
+            // Particle effects
+            this.particlePool.emitSparkBurst(bot.position, 5)
+            this.particleSystem.createDamageNumber(bot.position, projectile.damage)
+            audioManager.play('hit')
+            
+            if (killed) {
+              // Bot died - give XP
+              this.player.xp += bot.level * 10
+              this.particlePool.emitDebris(bot.position, bot.velocity, '#ff6600')
+              this.screenEffects.startShake(3, 0.2)
+              audioManager.play('polygonDeath')
+              
+              // Check for level up
+              if (this.player.xp >= this.player.xpToNextLevel) {
+                this.levelUp()
+              }
+            }
+            break
+          }
+        }
+      }
+      // Bot projectiles vs player
+      else {
+        const dx = projectile.position.x - this.player.position.x
+        const dy = projectile.position.y - this.player.position.y
+        const distSq = dx * dx + dy * dy
+        const radSum = projectile.radius + this.player.radius
+        
+        if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
+          this.player.health -= projectile.damage
+          this.projectiles.splice(i, 1)
+          
+          // Particle effects
+          this.particlePool.emitSparkBurst(this.player.position, 3)
+          this.screenEffects.startShake(5, 0.3)
+          audioManager.play('playerDamage')
+          
+          if (this.player.health <= 0) {
+            this.player.health = 0
+          }
+        }
+      }
+    }
+    
+    // Check player-bot body collisions
+    for (const bot of bots) {
+      const dx = this.player.position.x - bot.position.x
+      const dy = this.player.position.y - bot.position.y
+      const distSq = dx * dx + dy * dy
+      const radSum = this.player.radius + bot.radius
+      
+      if (distSq < radSum * radSum && this.invincibilityFrames <= 0) {
+        // Deal damage both ways
+        const playerDamage = this.player.bodyDamage
+        const botDamage = bot.bodyDamage
+        
+        this.player.health -= botDamage * 0.016
+        this.botAISystem.damageBot(bot.id, playerDamage * 0.016)
+        
+        // Knockback
+        const dist = Math.sqrt(distSq)
+        if (dist > 0) {
+          const knockbackForce = 15
+          this.player.velocity.x += (dx / dist) * knockbackForce
+          this.player.velocity.y += (dy / dist) * knockbackForce
+        }
+      }
+    }
+  }
 
   breakLootBox(index: number) {
     const box = this.loot[index]
@@ -831,13 +961,16 @@ export class GameEngine {
     
     if (isBoss) {
       this.particleSystem.createExplosion(box.position, explosionSize * 2, '#FF0066')
+      this.particlePool.emitDebris(box.position, { x: 0, y: 0 }, '#FF0066')
       this.screenEffects.startShake(15, 0.8)
       this.screenEffects.startFlash('#FF0066', 0.5)
     } else if (isTreasure) {
       this.particleSystem.createExplosion(box.position, explosionSize * 1.5, '#FFD700')
+      this.particlePool.emitDebris(box.position, { x: 0, y: 0 }, '#FFD700')
       this.screenEffects.startShake(10, 0.5)
     } else {
       this.particleSystem.createExplosion(box.position, explosionSize, '#ff8800')
+      this.particlePool.emitDebris(box.position, { x: 0, y: 0 }, '#ff8800')
       
       // Screen shake on big polygon kills
       if (explosionSize > 30) {
@@ -1020,6 +1153,7 @@ export class GameEngine {
     this.player.xp = this.player.xp - this.player.xpToNextLevel
     this.player.xpToNextLevel = Math.floor(this.player.xpToNextLevel * 1.5)
     this.createLevelUpParticles()
+    this.particlePool.emitLevelUpBurst(this.player.position)
   }
 
   allocateStat(stat: StatType) {
@@ -1056,6 +1190,10 @@ export class GameEngine {
       const tankConfig = TANK_CONFIGS[tankKey]
       if (tankConfig) {
         this.player.bodyShape = tankConfig.bodyShape || 'circle'
+        
+        // Initialize per-barrel recoils
+        const barrelCount = tankConfig.barrels.length
+        this.player.barrelRecoils = new Array(barrelCount).fill(0)
       }
       
       audioManager.play('upgrade')
