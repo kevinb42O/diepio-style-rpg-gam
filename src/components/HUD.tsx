@@ -78,7 +78,7 @@ export function HUD({ player, gameTime, currentXPInLevel = 0, xpRequiredForLevel
             >
               <ChartBar size={isMobile ? 14 : 18} weight="fill" />
               {availableStatPoints > 0 && (
-                <span className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-accent text-accent-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse shadow-lg border-2 border-background">
                   {availableStatPoints}
                 </span>
               )}

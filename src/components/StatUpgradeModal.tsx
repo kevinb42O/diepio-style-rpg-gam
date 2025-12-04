@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress'
 import { motion } from 'framer-motion'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { StatType } from '@/lib/upgradeSystem'
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 
 interface StatUpgradeModalProps {
   level: number
@@ -91,6 +91,10 @@ const StatRow = memo(({
   const isMaxed = points >= MAX_STAT_POINTS
   const canUpgrade = availablePoints > 0 && !isMaxed
   
+  const handleClick = useCallback(() => {
+    onAllocate(stat)
+  }, [stat, onAllocate])
+  
   return (
     <div
       className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'} bg-muted/50 rounded-lg ${isMobile ? 'p-2' : 'p-3'} border border-border ${isMaxed ? 'opacity-75' : ''}`}
@@ -116,7 +120,7 @@ const StatRow = memo(({
       </div>
       
       <Button
-        onClick={() => onAllocate(stat)}
+        onClick={handleClick}
         disabled={!canUpgrade}
         size="sm"
         variant={canUpgrade ? 'default' : 'outline'}
@@ -126,11 +130,17 @@ const StatRow = memo(({
       </Button>
     </div>
   )
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.points === nextProps.points &&
+    prevProps.availablePoints === nextProps.availablePoints &&
+    prevProps.isMobile === nextProps.isMobile
+  )
 })
 
 StatRow.displayName = 'StatRow'
 
-export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocate, onClose }: StatUpgradeModalProps) {
+export const StatUpgradeModal = memo(function StatUpgradeModal({ level, availablePoints, statPoints, onAllocate, onClose }: StatUpgradeModalProps) {
   const isMobile = useIsMobile()
 
   return (
@@ -138,7 +148,7 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', duration: 0.4 }}
+        transition={{ type: 'spring', duration: 0.3 }}
         className="w-full max-w-2xl max-h-[90vh] overflow-hidden"
       >
         <Card className="border-2 border-accent shadow-2xl">
@@ -164,11 +174,11 @@ export function StatUpgradeModal({ level, availablePoints, statPoints, onAllocat
           </CardContent>
           <div className="p-4 border-t border-border">
             <Button onClick={onClose} className="w-full" variant="secondary">
-              Close
+              Close (K)
             </Button>
           </div>
         </Card>
       </motion.div>
     </div>
   )
-}
+})

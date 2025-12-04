@@ -205,9 +205,7 @@ function App() {
       }
       
       if (engine.upgradeManager.getAvailableSkillPoints() > 0) {
-        setGameState('statupgrade')
-        toast.success(`Level ${engine.player.level} reached!`)
-        return
+        toast.success(`Level ${engine.player.level} reached! Press K to upgrade stats!`)
       }
     }
 
