@@ -118,6 +118,8 @@ export class BotAISystem {
 
   /**
    * Generate optimal stat points for bot based on level and class
+   * Points are calculated as level / 2 to match player progression
+   * Points are distributed based on class archetype for optimal builds
    */
   private generateStatPoints(level: number, tankClass: string): Record<string, number> {
     const points = Math.floor(level / 2)

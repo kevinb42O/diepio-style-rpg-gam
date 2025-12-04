@@ -1,4 +1,4 @@
-import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor, DroneControlMode } from './types'
+import type { Player, Projectile, Loot, Vector2, Rarity, Weapon, Armor, DroneControlMode, PointOfInterest } from './types'
 import { UpgradeManager, type StatType } from './upgradeSystem'
 import { ParticleSystem } from '@/systems/ParticleSystem'
 import { QuadTree } from '@/utils/QuadTree'
@@ -229,7 +229,7 @@ export class GameEngine {
     }
   }
 
-  spawnPOILoot(poi: import('./types').PointOfInterest) {
+  spawnPOILoot(poi: PointOfInterest) {
     // Spawn loot at POI center
     const rarityMultiplier = poi.lootRarity === 'legendary' ? 5 : poi.lootRarity === 'epic' ? 3 : 2
     

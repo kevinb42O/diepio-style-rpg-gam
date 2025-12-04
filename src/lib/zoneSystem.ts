@@ -11,6 +11,12 @@ export class ZoneSystem {
   private currentZone: number = 1
   private lastZoneChangeTime: number = 0
 
+  // POI positioning constants
+  private readonly ARENA_ANGLE = Math.PI / 4  // 45 degrees
+  private readonly ARENA_RADIUS = 2750        // Middle of zone 2
+  private readonly NEXUS_ANGLE = -Math.PI / 3 // -60 degrees
+  private readonly NEXUS_RADIUS = 6000        // Middle of zone 3
+
   constructor() {
     this.initializeZones()
   }
@@ -59,8 +65,8 @@ export class ZoneSystem {
         id: 'arena',
         name: 'The Arena',
         position: {
-          x: 8000 + Math.cos(Math.PI / 4) * 2750,
-          y: 8000 + Math.sin(Math.PI / 4) * 2750,
+          x: 8000 + Math.cos(this.ARENA_ANGLE) * this.ARENA_RADIUS,
+          y: 8000 + Math.sin(this.ARENA_ANGLE) * this.ARENA_RADIUS,
         },
         radius: 200,
         type: 'arena',
@@ -88,8 +94,8 @@ export class ZoneSystem {
         id: 'nexus',
         name: 'The Nexus',
         position: {
-          x: 8000 + Math.cos(-Math.PI / 3) * 6000,
-          y: 8000 + Math.sin(-Math.PI / 3) * 6000,
+          x: 8000 + Math.cos(this.NEXUS_ANGLE) * this.NEXUS_RADIUS,
+          y: 8000 + Math.sin(this.NEXUS_ANGLE) * this.NEXUS_RADIUS,
         },
         radius: 250,
         type: 'nexus',
