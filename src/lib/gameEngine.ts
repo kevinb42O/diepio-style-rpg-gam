@@ -155,9 +155,9 @@ export class GameEngine {
   generateWorldLoot() {
     const zones = this.zoneSystem.getZones()
     
-    // Generate loot per zone with significantly increased counts
+    // Generate loot per zone
     for (const zone of zones) {
-      const lootCount = zone.id === 1 ? 400 : zone.id === 2 ? 600 : 800
+      const lootCount = zone.id === 1 ? 120 : zone.id === 2 ? 180 : 240
       
       for (let i = 0; i < lootCount; i++) {
         // Random position in zone (circular)
