@@ -330,7 +330,7 @@ export class UpgradeManager {
         return base * Math.pow(1.15, points)
       
       case 'movementSpeed':
-        return base * Math.pow(1.07, points)
+        return base * Math.pow(1.03, points)
       
       case 'lootRange':
         return base * Math.pow(1.35, points)
