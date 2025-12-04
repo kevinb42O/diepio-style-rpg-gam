@@ -470,6 +470,20 @@ export class GameEngine {
   }
 
   shootProjectile() {
+    // Get tank configuration
+    const tankConfig = TANK_CONFIGS[this.player.tankClass] || TANK_CONFIGS.basic
+    
+    // Drone classes don't shoot regular bullets (except Manager and Hybrid variants)
+    // They control drones instead, which is handled by mouse down/up events
+    const isDronePureClass = tankConfig.isDroneClass && 
+      !['manager', 'hybrid', 'overtrapper', 'gunnertrapper'].includes(this.player.tankClass)
+    
+    if (isDronePureClass && tankConfig.barrels.length === 0) {
+      // Pure drone classes like Overseer, Overlord, Necromancer, Factory, Battleship
+      // don't shoot bullets - they only control drones
+      return
+    }
+    
     let angle: number
 
     if (this.mobileShootDirection.x !== 0 || this.mobileShootDirection.y !== 0) {
@@ -483,8 +497,6 @@ export class GameEngine {
 
     this.barrelRecoil = 5
 
-    // Get tank configuration
-    const tankConfig = TANK_CONFIGS[this.player.tankClass] || TANK_CONFIGS.basic
     const barrels = tankConfig.barrels
 
     // For multi-barrel tanks, implement firing pattern
