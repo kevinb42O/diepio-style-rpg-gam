@@ -837,10 +837,8 @@ export class RenderEngine {
       // Draw bot using same rendering as player
       const tankConfig = TANK_CONFIGS[bot.tankClass] || TANK_CONFIGS.basic
 
-      // Calculate aim angle towards player
-      const dx = engine.player.position.x - bot.position.x
-      const dy = engine.player.position.y - bot.position.y
-      const aimAngle = Math.atan2(dy, dx)
+      // Use bot's actual aim angle (towards their target, not player)
+      const aimAngle = bot.aimAngle
 
       // Calculate size
       const levelScale = 1 + (bot.level - 1) * 0.012

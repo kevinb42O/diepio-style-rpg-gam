@@ -129,6 +129,7 @@ export class BotAISystem {
       reactionTime: this.getReactionTime(personality),
       lastReactionTime: 0,
       currentTarget: null,
+      aimAngle: 0,
     }
 
     // Initialize barrel recoils
@@ -150,6 +151,10 @@ export class BotAISystem {
     // Filter by tier and level requirements
     for (const [className, config] of Object.entries(TANK_CONFIGS)) {
       if (allowedTiers.includes(config.tier) && level >= config.unlocksAt) {
+        // Exclude pure drone classes without barrels (they need special drone AI)
+        if (config.isDroneClass && (!config.barrels || config.barrels.length === 0)) {
+          continue
+        }
         availableClasses.push(className)
       }
     }
@@ -924,6 +929,18 @@ export class BotAISystem {
       // Update behavior (now includes farming and team awareness)
       const behavior = this.updateBehavior(bot, playerPosition, playerRadius, currentTime, loot, playerTeam, this.bots)
       
+      // Calculate and store aim angle based on actual target
+      if (behavior.shootTarget) {
+        const dx = behavior.shootTarget.x - bot.position.x
+        const dy = behavior.shootTarget.y - bot.position.y
+        bot.aimAngle = Math.atan2(dy, dx)
+      } else if (behavior.targetPosition) {
+        // If not shooting but moving, aim towards movement direction
+        const dx = behavior.targetPosition.x - bot.position.x
+        const dy = behavior.targetPosition.y - bot.position.y
+        bot.aimAngle = Math.atan2(dy, dx)
+      }
+      
       // Move bot
       this.moveBot(bot, behavior.targetPosition, deltaTime)
 
@@ -1032,7 +1049,8 @@ export class BotAISystem {
    */
   private tryShoot(bot: BotPlayer, targetPosition: Vector2, currentTime: number): Projectile[] {
     const config = TANK_CONFIGS[bot.tankClass]
-    if (!config || config.isDroneClass || config.bodyShape === 'hexagon' || config.bodyShape === 'spikyHexagon') {
+    // Allow shooting if bot has barrels, even if it's a drone class or smasher
+    if (!config || !config.barrels || config.barrels.length === 0) {
       return []
     }
 
@@ -1063,6 +1081,7 @@ export class BotAISystem {
       const barrelAngle = angle + (barrel.angle * Math.PI) / 180
 
       if (bot.barrelRecoils && bot.barrelRecoils[i] !== undefined) {
+        bot.barrelRecoils[i] = 8
       }
 
       const spawnDist = bot.radius + barrel.length + 5
