@@ -874,6 +874,30 @@ export class GameEngine {
   checkBotCollisions(farmTargets: Map<string, string>) {
     const bots = this.botAISystem.getBots()
     
+    // Check bot-loot (XP gem) collection
+    for (let i = this.loot.length - 1; i >= 0; i--) {
+      const item = this.loot[i]
+      
+      // Only check XP gems for bot collection
+      if (item.type !== 'xp') continue
+      
+      for (const bot of bots) {
+        const dx = item.position.x - bot.position.x
+        const dy = item.position.y - bot.position.y
+        const distSq = dx * dx + dy * dy
+        
+        // Bots collect XP within their loot range
+        const collectRangeSq = bot.lootRange * bot.lootRange
+        
+        if (distSq < collectRangeSq) {
+          // Bot collects the XP gem
+          this.botAISystem.awardXP(bot.id, item.value)
+          this.loot.splice(i, 1)
+          break
+        }
+      }
+    }
+    
     // Check projectile-bot collisions
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const projectile = this.projectiles[i]
