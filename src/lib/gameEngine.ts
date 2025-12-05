@@ -635,17 +635,26 @@ export class GameEngine {
           { damage: this.player.damage }
         )
         
-        // Visual feedback
+        // Visual feedback for trap launch
         this.muzzleFlashes.push({
           position: { x: barrelTipX, y: barrelTipY },
           angle: barrelAngle,
           life: 0.08,
           maxLife: 0.08,
           alpha: 1,
-          size: 8,
+          size: 10, // Slightly larger for trap launchers
         })
         
+        // Trap spawn effects
         this.particlePool.emitMuzzleFlash({ x: barrelTipX, y: barrelTipY }, barrelAngle)
+        this.particlePool.emitSmoke({ x: barrelTipX, y: barrelTipY }, barrelAngle)
+        this.particleSystem.createBurst({ x: barrelTipX, y: barrelTipY }, 3, {
+          color: this.teamSystem.getTeamColor(this.player.team),
+          size: 4,
+          speed: 80,
+          life: 0.15,
+          spread: Math.PI / 3,
+        })
       }
       
       // For hybrid tanks like overtrapper and gunnertrapper, continue to shoot from non-trap barrels
@@ -1343,6 +1352,9 @@ export class GameEngine {
             tankConfig.trapConfig,
             { damage: bot.damage }
           )
+          
+          // Add visual effects for bot trap spawning
+          this.particlePool.emitMuzzleFlash({ x: barrelTipX, y: barrelTipY }, barrelAngle)
         }
       }
     }
@@ -1465,7 +1477,11 @@ export class GameEngine {
           audioManager.play('hit')
           
           if (destroyed) {
-            this.particlePool.emitDebris(trap.position, { x: 0, y: 0 }, this.teamSystem.getTeamColor(trap.team))
+            // Enhanced trap destruction effects
+            const trapColor = this.teamSystem.getTeamColor(trap.team)
+            this.particlePool.emitDebris(trap.position, { x: 0, y: 0 }, trapColor)
+            this.particleSystem.createExplosion(trap.position, trap.size, trapColor)
+            this.particleSystem.createDebris(trap.position, 6, trapColor)
             audioManager.play('polygonDeath')
           }
           break
