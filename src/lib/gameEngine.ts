@@ -12,6 +12,8 @@ import { ParticlePool } from './particlePool'
 import { ZoneSystem } from './zoneSystem'
 import { BotAISystem } from './botAI'
 import { TeamSystem } from './TeamSystem'
+import { AutoTurretSystem } from './autoTurretSystem'
+import { TrapSystem } from './trapSystem'
 
 export class GameEngine {
   upgradeManager: UpgradeManager
@@ -59,6 +61,8 @@ export class GameEngine {
   botAISystem: BotAISystem
   teamSystem: TeamSystem
   botFarmTargets: Map<string, string> = new Map()
+  autoTurretSystem: AutoTurretSystem
+  trapSystem: TrapSystem
 
   constructor() {
     this.teamSystem = new TeamSystem()
@@ -89,6 +93,8 @@ export class GameEngine {
     this.particlePool = new ParticlePool()
     this.zoneSystem = new ZoneSystem()
     this.botAISystem = new BotAISystem(this.teamSystem)
+    this.autoTurretSystem = new AutoTurretSystem()
+    this.trapSystem = new TrapSystem()
   }
 
   setRenderCallback(callback: (() => void) | null) {
@@ -148,6 +154,8 @@ export class GameEngine {
     this.comboMultiplier = 1
     this.particlePool.clear()
     this.botAISystem.clear()
+    this.autoTurretSystem.clear()
+    this.trapSystem.clear()
     
     this.generateWorldLoot()
   }
@@ -289,6 +297,68 @@ export class GameEngine {
     const botUpdate = this.botAISystem.update(deltaTime, this.player.position, this.player.radius, this.gameTime, this.loot, this.player.team)
     this.projectiles.push(...botUpdate.projectiles)
     this.botFarmTargets = botUpdate.farmTargets
+    
+    // Sync bot auto turrets - create turrets for bots that should have them
+    this.syncBotAutoTurrets()
+    
+    // Update auto turrets - collect owner info
+    const ownerInfoMap = new Map()
+    ownerInfoMap.set(this.player.id, {
+      position: this.player.position,
+      team: this.player.team,
+      tankClass: this.player.tankClass,
+      bulletSpeed: this.player.bulletSpeed,
+      damage: this.player.damage,
+      radius: this.player.radius
+    })
+    for (const bot of this.botAISystem.getBots()) {
+      ownerInfoMap.set(bot.id, {
+        position: bot.position,
+        team: bot.team,
+        tankClass: bot.tankClass,
+        bulletSpeed: bot.bulletSpeed,
+        damage: bot.damage,
+        radius: bot.radius
+      })
+    }
+    
+    // Collect enemies for turret targeting (player + bots from opposing teams)
+    const enemiesForTurrets: Array<{ id: string; position: Vector2; team: string; radius: number }> = []
+    
+    // Player as enemy for enemy turrets
+    enemiesForTurrets.push({
+      id: this.player.id,
+      position: this.player.position,
+      team: this.player.team,
+      radius: this.player.radius
+    })
+    
+    // Bots as enemies
+    for (const bot of this.botAISystem.getBots()) {
+      enemiesForTurrets.push({
+        id: bot.id,
+        position: bot.position,
+        team: bot.team,
+        radius: bot.radius
+      })
+    }
+    
+    const turretProjectiles = this.autoTurretSystem.update(
+      deltaTime,
+      ownerInfoMap,
+      enemiesForTurrets,
+      this.loot,
+      this.gameTime
+    )
+    this.projectiles.push(...turretProjectiles)
+    
+    // Update traps
+    this.trapSystem.update(deltaTime, this.gameTime)
+    
+    // Handle bot trap spawning
+    this.spawnBotTraps()
+    
+    this.checkTrapCollisions()
     
     // Update drones with bot information for enemy targeting
     this.droneSystem.setViewport(this.camera, this.viewportWidth, this.viewportHeight)
@@ -540,6 +610,47 @@ export class GameEngine {
     this.barrelRecoil = 5
 
     const barrels = tankConfig.barrels
+    
+    // Check if this is a trapper tank
+    if (tankConfig.isTrapper && tankConfig.trapConfig) {
+      // Spawn traps instead of bullets
+      for (const barrel of barrels) {
+        // Only spawn traps from trapezoid barrels (trap launchers)
+        if (!barrel.isTrapezoid) continue
+        
+        const barrelAngle = angle + (barrel.angle * Math.PI / 180)
+        const barrelTipDistance = this.player.radius + (barrel.length || 35)
+        const barrelTipX = this.player.position.x + Math.cos(barrelAngle) * barrelTipDistance
+        const barrelTipY = this.player.position.y + Math.sin(barrelAngle) * barrelTipDistance
+        
+        this.trapSystem.spawnTrap(
+          this.player.id,
+          this.player.team,
+          { x: barrelTipX, y: barrelTipY },
+          barrelAngle,
+          tankConfig.trapConfig,
+          { damage: this.player.damage }
+        )
+        
+        // Visual feedback
+        this.muzzleFlashes.push({
+          position: { x: barrelTipX, y: barrelTipY },
+          angle: barrelAngle,
+          life: 0.08,
+          maxLife: 0.08,
+          alpha: 1,
+          size: 8,
+        })
+        
+        this.particlePool.emitMuzzleFlash({ x: barrelTipX, y: barrelTipY }, barrelAngle)
+      }
+      
+      // For hybrid tanks like overtrapper and gunnertrapper, continue to shoot from non-trap barrels
+      if (!['overtrapper', 'gunnertrapper'].includes(this.player.tankClass)) {
+        audioManager.play('shoot')
+        return
+      }
+    }
 
     // For multi-barrel tanks, implement firing pattern
     let barrelsToFire: number[] = []
@@ -1133,6 +1244,232 @@ export class GameEngine {
     }
   }
 
+  syncBotAutoTurrets() {
+    const bots = this.botAISystem.getBots()
+    const allTurrets = this.autoTurretSystem.getAllTurrets()
+    
+    // Check each bot
+    for (const bot of bots) {
+      const tankConfig = TANK_CONFIGS[bot.tankClass]
+      const hasTurrets = allTurrets.has(bot.id)
+      
+      // Bot should have turrets but doesn't
+      if (tankConfig?.autoTurrets && !hasTurrets) {
+        this.autoTurretSystem.createTurretsForTank(bot.id, bot.tankClass, bot.position)
+      }
+      
+      // Bot has turrets but shouldn't
+      if (!tankConfig?.autoTurrets && hasTurrets) {
+        this.autoTurretSystem.removeTurretsForOwner(bot.id)
+      }
+    }
+    
+    // Remove turrets for dead bots
+    const botIds = new Set(bots.map(b => b.id))
+    for (const ownerId of allTurrets.keys()) {
+      if (ownerId !== this.player.id && !botIds.has(ownerId)) {
+        this.autoTurretSystem.removeTurretsForOwner(ownerId)
+      }
+    }
+  }
+
+  spawnBotTraps() {
+    const bots = this.botAISystem.getBots()
+    
+    for (const bot of bots) {
+      const tankConfig = TANK_CONFIGS[bot.tankClass]
+      if (!tankConfig || !tankConfig.isTrapper || !tankConfig.trapConfig) {
+        continue
+      }
+      
+      // Check if bot should fire (already checked in shootAtTarget)
+      const fireRate = bot.fireRate
+      if (this.gameTime - bot.lastShotTime < fireRate) {
+        continue
+      }
+      
+      // Find target to aim at
+      let targetPos: Vector2 | null = null
+      
+      // Aim at player if enemy
+      if (!this.teamSystem.areAllies(bot.team, this.player.team)) {
+        const dx = this.player.position.x - bot.position.x
+        const dy = this.player.position.y - bot.position.y
+        const distSq = dx * dx + dy * dy
+        if (distSq < 400 * 400) {
+          targetPos = this.player.position
+        }
+      }
+      
+      // Or aim at nearest enemy bot
+      if (!targetPos) {
+        const otherBots = bots.filter(b => 
+          b.id !== bot.id && !this.teamSystem.areAllies(bot.team, b.team)
+        )
+        
+        let nearestDist = 400 * 400
+        for (const enemy of otherBots) {
+          const dx = enemy.position.x - bot.position.x
+          const dy = enemy.position.y - bot.position.y
+          const distSq = dx * dx + dy * dy
+          if (distSq < nearestDist) {
+            nearestDist = distSq
+            targetPos = enemy.position
+          }
+        }
+      }
+      
+      // Spawn trap if we have a target
+      if (targetPos) {
+        const angle = Math.atan2(targetPos.y - bot.position.y, targetPos.x - bot.position.x)
+        
+        for (const barrel of tankConfig.barrels) {
+          if (!barrel.isTrapezoid) continue
+          
+          const barrelAngle = angle + (barrel.angle * Math.PI / 180)
+          const barrelTipDistance = bot.radius + (barrel.length || 35)
+          const barrelTipX = bot.position.x + Math.cos(barrelAngle) * barrelTipDistance
+          const barrelTipY = bot.position.y + Math.sin(barrelAngle) * barrelTipDistance
+          
+          this.trapSystem.spawnTrap(
+            bot.id,
+            bot.team,
+            { x: barrelTipX, y: barrelTipY },
+            barrelAngle,
+            tankConfig.trapConfig,
+            { damage: bot.damage }
+          )
+        }
+      }
+    }
+  }
+
+  checkTrapCollisions() {
+    const bots = this.botAISystem.getBots()
+    const entities: Array<{ id: string; position: Vector2; team: Team; radius: number }> = []
+    
+    // Add player as potential target
+    entities.push({
+      id: this.player.id,
+      position: this.player.position,
+      team: this.player.team,
+      radius: this.player.radius
+    })
+    
+    // Add bots as potential targets
+    for (const bot of bots) {
+      entities.push({
+        id: bot.id,
+        position: bot.position,
+        team: bot.team,
+        radius: bot.radius
+      })
+    }
+    
+    // Check trap collisions with entities
+    const trapCollisions = this.trapSystem.checkCollisions(entities)
+    
+    for (const collision of trapCollisions) {
+      // Damage the entity that was hit
+      if (collision.enemyId === this.player.id && this.invincibilityFrames <= 0) {
+        this.player.health -= collision.damage
+        this.player.lastRegenTime = this.gameTime
+        
+        this.particlePool.emitSparkBurst(this.player.position, 3)
+        this.screenEffects.startShake(5, 0.3)
+        audioManager.play('playerDamage')
+        
+        if (this.player.health <= 0) {
+          this.player.health = 0
+        }
+      } else {
+        // Check if it's a bot
+        const bot = bots.find(b => b.id === collision.enemyId)
+        if (bot) {
+          const killed = this.botAISystem.damageBot(bot.id, collision.damage)
+          
+          this.particlePool.emitSparkBurst(bot.position, 3)
+          audioManager.play('hit')
+          
+          if (killed) {
+            // Find trap owner to award XP
+            const traps = this.trapSystem.getTraps()
+            const trap = traps.find(t => t.id === collision.trapId)
+            
+            if (trap && trap.ownerId === this.player.id) {
+              const xpGained = bot.level * 10
+              this.player.kills++
+              
+              const botColor = this.teamSystem.getTeamColor(bot.team)
+              this.particlePool.emitDebris(bot.position, bot.velocity, botColor)
+              this.screenEffects.startShake(3, 0.2)
+              audioManager.play('polygonDeath')
+              
+              const didLevelUp = this.upgradeManager.addXP(xpGained)
+              this.player.xp = this.upgradeManager.getTotalXP()
+              
+              if (didLevelUp) {
+                this.player.level = this.upgradeManager.getLevel()
+                this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
+                this.invincibilityFrames = 2.0
+                this.particleSystem.createLevelUpEffect(this.player.position)
+                this.screenEffects.startShake(8, 0.4)
+                this.screenEffects.startFlash('#bb88ff', 0.3)
+                audioManager.play('levelUp')
+                
+                if (this.onLevelUp) {
+                  this.onLevelUp()
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Damage the trap (traps take damage when they hit)
+      this.trapSystem.damageTrap(collision.trapId, collision.damage * 0.5)
+    }
+    
+    // Check projectile-trap collisions
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const projectile = this.projectiles[i]
+      const traps = this.trapSystem.getTraps()
+      
+      for (const trap of traps) {
+        // Skip friendly traps
+        if (projectile.team && projectile.team === trap.team) {
+          continue
+        }
+        
+        const dx = projectile.position.x - trap.position.x
+        const dy = projectile.position.y - trap.position.y
+        const distSq = dx * dx + dy * dy
+        const radSum = projectile.radius + trap.size
+        
+        if (distSq < radSum * radSum) {
+          // Projectile hit trap - damage the trap
+          const destroyed = this.trapSystem.damageTrap(trap.id, projectile.damage)
+          this.projectiles.splice(i, 1)
+          
+          this.particleSystem.createBurst(trap.position, 3, {
+            color: this.teamSystem.getTeamColor(trap.team),
+            size: 2,
+            speed: 60,
+            life: 0.2,
+          })
+          
+          audioManager.play('hit')
+          
+          if (destroyed) {
+            this.particlePool.emitDebris(trap.position, { x: 0, y: 0 }, this.teamSystem.getTeamColor(trap.team))
+            audioManager.play('polygonDeath')
+          }
+          break
+        }
+      }
+    }
+  }
+
   breakLootBox(index: number) {
     const box = this.loot[index]
     
@@ -1382,6 +1719,18 @@ export class GameEngine {
         // Initialize per-barrel recoils
         const barrelCount = tankConfig.barrels.length
         this.player.barrelRecoils = new Array(barrelCount).fill(0)
+        
+        // Create auto turrets if tank has them
+        if (tankConfig.autoTurrets) {
+          this.autoTurretSystem.createTurretsForTank(
+            this.player.id,
+            tankKey,
+            this.player.position
+          )
+        } else {
+          // Remove turrets if switching away from auto turret tank
+          this.autoTurretSystem.removeTurretsForOwner(this.player.id)
+        }
       }
       
       audioManager.play('upgrade')
