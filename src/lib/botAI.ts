@@ -1076,6 +1076,15 @@ export class BotAISystem {
     if (!config || !config.barrels || config.barrels.length === 0) {
       return []
     }
+    
+    // Trapper tanks return empty - traps handled via callback in gameEngine
+    if (config.isTrapper) {
+      const fireRate = bot.fireRate * (1 - bot.statPoints.reloadSpeed * 0.02)
+      if (currentTime - bot.lastShotTime >= fireRate) {
+        bot.lastShotTime = currentTime
+      }
+      return []
+    }
 
     const distance = this.getDistance(bot.position, targetPosition)
     

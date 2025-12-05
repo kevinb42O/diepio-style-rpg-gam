@@ -43,6 +43,7 @@ export class RenderEngine {
     this.drawGrid(engine)
     this.drawWorldBorder(engine)
     this.drawLoot(engine)
+    this.drawTraps(engine)
     this.drawProjectiles(engine)
     this.drawBots(engine)
     this.drawDrones(engine)
@@ -154,6 +155,11 @@ export class RenderEngine {
       colors.glow,
       player.barrelRecoils
     )
+    
+    // Draw auto turrets if player has them
+    if (tankConfig.autoTurrets) {
+      this.drawAutoTurrets(engine, player.id, player.position.x, player.position.y, colors.fill, finalRadius)
+    }
 
     // Draw drones
     this.drawDrones(engine)
@@ -280,6 +286,58 @@ export class RenderEngine {
       this.ctx.lineTo(x3, y3)
     }
     this.ctx.closePath()
+  }
+
+  private drawAutoTurrets(
+    engine: GameEngine,
+    ownerId: string,
+    x: number,
+    y: number,
+    color: string,
+    bodyRadius: number
+  ) {
+    const turrets = engine.autoTurretSystem.getTurretsForOwner(ownerId)
+    if (!turrets || turrets.length === 0) return
+
+    for (const turret of turrets) {
+      this.ctx.save()
+      this.ctx.translate(x, y)
+
+      // Draw turret base (circular platform on top of tank)
+      const baseRadius = bodyRadius * 0.35
+      this.ctx.beginPath()
+      this.ctx.arc(0, 0, baseRadius, 0, Math.PI * 2)
+      
+      // Make base slightly darker than body
+      const darkerColor = this.darkenColor(color, 0.15)
+      this.ctx.fillStyle = darkerColor
+      this.ctx.fill()
+      this.ctx.strokeStyle = '#000000'
+      this.ctx.lineWidth = 2
+      this.ctx.stroke()
+
+      // Draw turret barrel
+      this.ctx.rotate(turret.rotation)
+      
+      const barrelLength = 25
+      const barrelWidth = 10
+      const recoilOffset = turret.barrelRecoil || 0
+
+      this.ctx.beginPath()
+      this.ctx.rect(
+        -recoilOffset,
+        -barrelWidth / 2,
+        barrelLength,
+        barrelWidth
+      )
+      this.ctx.fillStyle = color
+      this.ctx.fill()
+      this.ctx.strokeStyle = '#000000'
+      this.ctx.lineWidth = 2
+      this.ctx.stroke()
+
+      this.ctx.restore()
+    }
   }
 
   private drawBarrel(barrel: BarrelConfig, color: string, recoilOffset: number = 0) {
@@ -542,6 +600,57 @@ export class RenderEngine {
       this.ctx.fill()
       this.ctx.strokeStyle = '#000000'
       this.ctx.lineWidth = 2
+      this.ctx.stroke()
+
+      this.ctx.shadowBlur = 0
+      this.ctx.restore()
+    }
+  }
+
+  private drawTraps(engine: GameEngine) {
+    const bounds = this.lastViewBounds
+    const traps = engine.trapSystem.getTraps()
+
+    for (const trap of traps) {
+      if (trap.position.x < bounds.left || trap.position.x > bounds.right ||
+          trap.position.y < bounds.top || trap.position.y > bounds.bottom) {
+        continue
+      }
+
+      this.ctx.save()
+      this.ctx.translate(trap.position.x, trap.position.y)
+      this.ctx.rotate(trap.rotation)
+
+      // Draw health bar if damaged
+      if (trap.health < trap.maxHealth) {
+        const barWidth = trap.size * 2.5
+        const barHeight = 3
+        this.drawHealthBar(0, -trap.size - 8, barWidth, barHeight, trap.health / trap.maxHealth)
+      }
+
+      // Draw triangle shape
+      const trapColor = engine.teamSystem.getTeamColor(trap.team)
+      
+      this.ctx.shadowBlur = 5
+      this.ctx.shadowColor = trapColor
+
+      this.ctx.beginPath()
+      for (let i = 0; i < 3; i++) {
+        const angle = (Math.PI * 2 * i) / 3 - Math.PI / 2
+        const x = Math.cos(angle) * trap.size
+        const y = Math.sin(angle) * trap.size
+        if (i === 0) {
+          this.ctx.moveTo(x, y)
+        } else {
+          this.ctx.lineTo(x, y)
+        }
+      }
+      this.ctx.closePath()
+
+      this.ctx.fillStyle = trapColor
+      this.ctx.fill()
+      this.ctx.strokeStyle = '#000000'
+      this.ctx.lineWidth = 3
       this.ctx.stroke()
 
       this.ctx.shadowBlur = 0
@@ -896,6 +1005,11 @@ export class RenderEngine {
         glowColor,
         bot.barrelRecoils
       )
+      
+      // Draw auto turrets for bot if they have them
+      if (tankConfig.autoTurrets) {
+        this.drawAutoTurrets(engine, bot.id, bot.position.x, bot.position.y, fillColor, finalRadius)
+      }
 
       // Draw bot name above tank
       if (bot.name) {
