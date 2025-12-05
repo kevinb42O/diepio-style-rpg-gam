@@ -12,6 +12,9 @@ import { BotNameGenerator } from './BotNameGenerator'
 const TEAM_BATTLE_RANGE = 500 // Range for prioritizing team battles over farming
 const CLOSE_ATTACK_RANGE = 400 // Range for triggering attack mode in non-passive bots
 const PASSIVE_ATTACK_RANGE = 300 // Range for passive bots to attack
+const LOOT_SEARCH_RANGE = 800 // Range to search for loot boxes
+const BEHAVIOR_UPDATE_INTERVAL = 500 // How often to reconsider behavior (ms)
+const MIN_MOVEMENT_THRESHOLD = 5 // Minimum distance to move before updating target
 
 export class BotAISystem {
   private bots: BotPlayer[] = []
@@ -417,7 +420,8 @@ export class BotAISystem {
     distanceToPlayer: number,
     isPlayerEnemy: boolean,
     healthPercent: number,
-    allBots: BotPlayer[]
+    allBots: BotPlayer[],
+    hasLootNearby: boolean = false
   ) {
     // Find nearest enemy bot
     let nearestEnemyBot: BotPlayer | null = null
@@ -440,11 +444,23 @@ export class BotAISystem {
       return
     }
 
-    // Prioritize team battles: if enemy is within range and bot health > 50%, attack
-    const enemyInRange = (isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE) || (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE)
-    if (enemyInRange && healthPercent > 0.5 && bot.personality !== 'passive') {
+    // PRIORITY 1: Attack enemy player if in range (strongest priority)
+    if (isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE && healthPercent > 0.4) {
       bot.behaviorState = 'attacking'
-      bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+      bot.currentTarget = 'player'
+      return
+    }
+
+    // PRIORITY 2: Attack enemy bots if in range
+    if (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE && healthPercent > 0.5) {
+      bot.behaviorState = 'attacking'
+      bot.currentTarget = nearestEnemyBot.id
+      return
+    }
+    
+    // PRIORITY 3: Farm loot boxes if available
+    if (hasLootNearby) {
+      bot.behaviorState = 'farming'
       return
     }
 
@@ -453,20 +469,26 @@ export class BotAISystem {
       const closeEnemy = (isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || (nearestEnemyBot && nearestEnemyDist < CLOSE_ATTACK_RANGE)
       if (closeEnemy) {
         bot.behaviorState = 'attacking'
-        bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+        // Prioritize player over bots when equally close
+        if (isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) {
+          bot.currentTarget = 'player'
+        } else if (nearestEnemyBot) {
+          bot.currentTarget = nearestEnemyBot.id
+        }
         return
       }
     }
 
-    // Personality-based decision making
+    // Personality-based decision making (fallback when no clear priority)
     switch (bot.personality) {
       case 'aggressive':
-        // Always seek combat if enemy is nearby
+        // Always seek combat if enemy is nearby, otherwise farm
         if ((isPlayerEnemy && distanceToPlayer < 800) || nearestEnemyBot) {
           bot.behaviorState = 'attacking'
-          bot.currentTarget = nearestEnemyBot ? nearestEnemyBot.id : 'player'
+          bot.currentTarget = isPlayerEnemy && distanceToPlayer < (nearestEnemyDist || Infinity) ? 'player' : (nearestEnemyBot?.id || 'player')
         } else {
-          bot.behaviorState = 'patrolling'
+          // Even aggressive bots should farm when no enemies around
+          bot.behaviorState = 'farming'
         }
         break
 
@@ -474,7 +496,7 @@ export class BotAISystem {
         // Prioritize farming, only fight if attacked or very close
         if ((isPlayerEnemy && distanceToPlayer < PASSIVE_ATTACK_RANGE) || (nearestEnemyBot && nearestEnemyDist < PASSIVE_ATTACK_RANGE)) {
           bot.behaviorState = 'attacking'
-          bot.currentTarget = nearestEnemyDist < distanceToPlayer ? nearestEnemyBot!.id : 'player'
+          bot.currentTarget = (nearestEnemyBot && nearestEnemyDist < distanceToPlayer) ? nearestEnemyBot.id : 'player'
         } else {
           bot.behaviorState = 'farming'
         }
@@ -490,7 +512,8 @@ export class BotAISystem {
           bot.behaviorState = 'attacking'
           bot.currentTarget = shouldAttackBot && nearestEnemyBot ? nearestEnemyBot.id : 'player'
         } else {
-          bot.behaviorState = Math.random() < bot.farmingPriority ? 'farming' : 'patrolling'
+          // Default to farming, not random patrolling
+          bot.behaviorState = 'farming'
         }
         break
 
@@ -503,24 +526,23 @@ export class BotAISystem {
         
         if ((isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE) || (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE)) {
           bot.behaviorState = 'attacking'
-          bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
+          bot.currentTarget = (nearestEnemyBot && nearestEnemyDist < distanceToPlayer) ? nearestEnemyBot.id : 'player'
         } else if (distFromSpawn > 600) {
-          bot.behaviorState = 'patrolling' // Return to territory
+          // Return to territory but move towards center, don't patrol randomly
+          bot.behaviorState = 'farming'
         } else {
           bot.behaviorState = 'farming'
         }
         break
 
       case 'noob':
-        // Random, inefficient behavior
-        const rand = Math.random()
-        if (rand < 0.4) {
-          bot.behaviorState = 'farming'
-        } else if (rand < 0.7 && ((isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || nearestEnemyBot)) {
+        // Noobs are inefficient but still farm - just slower at making decisions
+        if ((isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || (nearestEnemyBot && nearestEnemyDist < CLOSE_ATTACK_RANGE)) {
           bot.behaviorState = 'attacking'
           bot.currentTarget = nearestEnemyBot ? nearestEnemyBot.id : 'player'
         } else {
-          bot.behaviorState = 'patrolling'
+          // Noobs mostly farm, they don't patrol aimlessly
+          bot.behaviorState = 'farming'
         }
         break
 
@@ -532,11 +554,12 @@ export class BotAISystem {
         
         if (enemyNearby && hasAdvantage) {
           bot.behaviorState = 'attacking'
-          bot.currentTarget = nearestEnemyDist < distanceToPlayer && nearestEnemyBot ? nearestEnemyBot.id : 'player'
-        } else if (enemyNearby && !hasAdvantage) {
-          bot.behaviorState = healthPercent < 0.5 ? 'fleeing' : 'patrolling'
+          bot.currentTarget = (nearestEnemyBot && nearestEnemyDist < distanceToPlayer) ? nearestEnemyBot.id : 'player'
+        } else if (enemyNearby && !hasAdvantage && healthPercent < 0.5) {
+          bot.behaviorState = 'fleeing'
         } else {
-          bot.behaviorState = Math.random() < bot.farmingPriority ? 'farming' : 'patrolling'
+          // Pro bots are efficient farmers
+          bot.behaviorState = 'farming'
         }
         break
 
@@ -572,28 +595,79 @@ export class BotAISystem {
       }
       
       // For shooters, keep distance and shoot
-      const optimalDist = 250
+      const optimalDist = 200
       let targetPosition = nearestLoot.position
       
-      if (distToLoot < optimalDist * 0.7) {
-        // Too close, back up
+      if (distToLoot < optimalDist * 0.5) {
+        // Too close, back up slightly while still aiming at target
         const angle = Math.atan2(bot.position.y - nearestLoot.position.y, bot.position.x - nearestLoot.position.x)
         targetPosition = {
-          x: bot.position.x + Math.cos(angle) * 50,
-          y: bot.position.y + Math.sin(angle) * 50
+          x: bot.position.x + Math.cos(angle) * 30,
+          y: bot.position.y + Math.sin(angle) * 30
+        }
+      } else if (distToLoot > optimalDist) {
+        // Move closer to the loot
+        targetPosition = nearestLoot.position
+      } else {
+        // At good distance, stay relatively still (slight strafe)
+        const perpAngle = Math.atan2(nearestLoot.position.y - bot.position.y, nearestLoot.position.x - bot.position.x) + Math.PI / 2
+        targetPosition = {
+          x: bot.position.x + Math.cos(perpAngle) * 10,
+          y: bot.position.y + Math.sin(perpAngle) * 10
         }
       }
       
       return {
         targetPosition,
-        shouldShoot: distToLoot < 350,
+        shouldShoot: distToLoot < 400,
         shootTarget: nearestLoot.position,
         farmTargetId: nearestLoot.id
       }
     }
     
-    // No loot nearby, patrol
-    return this.patrollingBehavior(bot, Date.now())
+    // No loot nearby - move towards a consistent direction to find loot, not random patrol
+    // Move towards world center area where there's usually more activity
+    return this.seekLootBehavior(bot)
+  }
+
+  /**
+   * Seek loot behavior - move towards areas likely to have loot
+   */
+  private seekLootBehavior(
+    bot: BotPlayer
+  ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
+    const distFromCenter = this.getDistance(bot.position, this.worldCenter)
+    
+    // If too far from center, move back towards it
+    if (distFromCenter > 3000) {
+      const angleToCenter = Math.atan2(this.worldCenter.y - bot.position.y, this.worldCenter.x - bot.position.x)
+      return {
+        targetPosition: {
+          x: bot.position.x + Math.cos(angleToCenter) * 200,
+          y: bot.position.y + Math.sin(angleToCenter) * 200
+        },
+        shouldShoot: false,
+        shootTarget: null,
+        farmTargetId: null
+      }
+    }
+    
+    // Otherwise, move in a consistent spiral pattern to cover ground
+    // Use bot ID to create consistent movement pattern per bot
+    const botSeed = parseInt(bot.id.replace(/\D/g, '')) || 1
+    const time = Date.now() / 5000 // Slow movement
+    const spiralAngle = (botSeed + time) % (Math.PI * 2)
+    const spiralRadius = 100 + (botSeed % 100)
+    
+    return {
+      targetPosition: {
+        x: bot.position.x + Math.cos(spiralAngle) * spiralRadius,
+        y: bot.position.y + Math.sin(spiralAngle) * spiralRadius
+      },
+      shouldShoot: false,
+      shootTarget: null,
+      farmTargetId: null
+    }
   }
 
   /**
@@ -679,29 +753,55 @@ export class BotAISystem {
   }
 
   /**
-   * Patrolling behavior - wander around
+   * Patrolling behavior - wander around with consistent direction
    */
   private patrollingBehavior(
     bot: BotPlayer,
     currentTime: number
   ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
-    // Random patrol direction
-    if (currentTime - bot.lastBehaviorChange > 2000 || !bot.velocity.x && !bot.velocity.y) {
-      const angle = Math.random() * Math.PI * 2
-      const patrolDist = 150 + Math.random() * 150
-      
-      return {
-        targetPosition: {
-          x: bot.position.x + Math.cos(angle) * patrolDist,
-          y: bot.position.y + Math.sin(angle) * patrolDist
-        },
-        shouldShoot: false,
-        shootTarget: null,
-        farmTargetId: null
+    // Use a consistent patrol direction based on bot ID and time
+    const botSeed = parseInt(bot.id.replace(/\D/g, '')) || 1
+    const patrolPhase = Math.floor(currentTime / 3000) // Change direction every 3 seconds
+    const angle = ((botSeed + patrolPhase) * 137.5) % 360 * (Math.PI / 180) // Golden angle for variety
+    const patrolDist = 150
+    
+    // Check if we need to return towards center
+    const distFromCenter = this.getDistance(bot.position, this.worldCenter)
+    let targetPosition: Vector2
+    
+    if (distFromCenter > 3000) {
+      // Too far from center, head back
+      const angleToCenter = Math.atan2(this.worldCenter.y - bot.position.y, this.worldCenter.x - bot.position.x)
+      targetPosition = {
+        x: bot.position.x + Math.cos(angleToCenter) * patrolDist,
+        y: bot.position.y + Math.sin(angleToCenter) * patrolDist
+      }
+    } else {
+      targetPosition = {
+        x: bot.position.x + Math.cos(angle) * patrolDist,
+        y: bot.position.y + Math.sin(angle) * patrolDist
       }
     }
     
-    return { targetPosition: null, shouldShoot: false, shootTarget: null, farmTargetId: null }
+    return {
+      targetPosition,
+      shouldShoot: false,
+      shootTarget: null,
+      farmTargetId: null
+    }
+  }
+
+  /**
+   * Find best farm target based on bot level and value
+   */
+  private hasLootInRange(bot: BotPlayer, loot: Loot[]): boolean {
+    for (const item of loot) {
+      if (item.type !== 'box' && item.type !== 'treasure' && item.type !== 'boss') continue
+      if (!item.health || item.health <= 0) continue
+      const dist = this.getDistance(bot.position, item.position)
+      if (dist < LOOT_SEARCH_RANGE) return true
+    }
+    return false
   }
 
   /**
@@ -710,7 +810,7 @@ export class BotAISystem {
   private findBestFarmTarget(bot: BotPlayer, loot: Loot[]): Loot | null {
     let bestTarget: Loot | null = null
     let bestScore = -1
-    const maxDistance = 500
+    const maxDistance = LOOT_SEARCH_RANGE
     
     for (const item of loot) {
       if (item.type !== 'box' && item.type !== 'treasure' && item.type !== 'boss') continue
@@ -1000,9 +1100,9 @@ export class BotAISystem {
     allBots: BotPlayer[]
   ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
     const distanceToPlayer = this.getDistance(bot.position, playerPosition)
-    const config = TANK_CONFIGS[bot.tankClass]
     const isPlayerAlly = this.teamSystem.areAllies(bot.team, playerTeam)
     const isPlayerEnemy = this.teamSystem.areEnemies(bot.team, playerTeam)
+    const hasLootNearby = this.hasLootInRange(bot, loot)
 
     // Health-based retreat logic
     const healthPercent = bot.health / bot.maxHealth
@@ -1019,15 +1119,17 @@ export class BotAISystem {
 
     bot.lastReactionTime = currentTime
 
-    // Change behavior periodically based on personality
-    const behaviorChangeInterval = bot.personality === 'pro' ? 2000 : 
-                                   bot.personality === 'noob' ? 5000 : 3000
+    // Change behavior more frequently to be more responsive
+    // Pro bots react fastest, noobs slowest
+    const behaviorChangeInterval = bot.personality === 'pro' ? BEHAVIOR_UPDATE_INTERVAL : 
+                                   bot.personality === 'noob' ? BEHAVIOR_UPDATE_INTERVAL * 3 : 
+                                   BEHAVIOR_UPDATE_INTERVAL * 2
     
     if (currentTime - bot.lastBehaviorChange > behaviorChangeInterval) {
       bot.lastBehaviorChange = currentTime
       
       // Decide behavior based on personality and situation
-      this.decideBehavior(bot, distanceToPlayer, isPlayerEnemy, healthPercent, allBots)
+      this.decideBehavior(bot, distanceToPlayer, isPlayerEnemy, healthPercent, allBots, hasLootNearby)
     }
 
     // Execute the behavior

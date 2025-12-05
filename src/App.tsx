@@ -515,6 +515,11 @@ function App() {
           onRestart={handleRestart}
         />
       )}
+      
+      {/* Version display */}
+      <div className="fixed bottom-1 right-2 text-[10px] text-white/30 pointer-events-none select-none z-50">
+        v4.2.0
+      </div>
       </div>
     </>
   )

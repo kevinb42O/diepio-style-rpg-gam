@@ -77,7 +77,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     barrels: [{ offsetX: 0, offsetY: 0, angle: 0, width: 10, length: 28 }],
     description: 'Long range precision'
   },
-  machineGun: {
+  machinegun: {
     name: 'Machine Gun',
     tier: 1,
     requiredLevel: 15,
@@ -85,7 +85,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     barrels: [{ offsetX: 0, offsetY: 0, angle: 0, width: 14, length: 18 }],
     description: 'Rapid fire at the cost of accuracy'
   },
-  flankGuard: {
+  flankguard: {
     name: 'Flank Guard',
     tier: 1,
     requiredLevel: 15,
@@ -96,7 +96,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     ],
     description: 'Front and back firepower'
   },
-  tripleShot: {
+  tripleshot: {
     name: 'Triple Shot',
     tier: 2,
     requiredLevel: 30,
@@ -108,7 +108,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     ],
     description: 'Triple the firepower'
   },
-  quadTank: {
+  quadtank: {
     name: 'Quad Tank',
     tier: 2,
     requiredLevel: 30,
@@ -146,15 +146,15 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Destroyer',
     tier: 2,
     requiredLevel: 30,
-    parent: 'machineGun',
+    parent: 'machinegun',
     barrels: [{ offsetX: 0, offsetY: 0, angle: 0, width: 20, length: 20 }],
     description: 'Massive bullets with huge recoil'
   },
-  triAngle: {
+  triangle: {
     name: 'Tri-Angle',
     tier: 2,
     requiredLevel: 30,
-    parent: 'flankGuard',
+    parent: 'flankguard',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: 0, width: 12, length: 22 },
       { offsetX: 0, offsetY: 0, angle: Math.PI * 5 / 6, width: 10, length: 16 },
@@ -162,11 +162,11 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     ],
     description: 'Speed through recoil'
   },
-  pentaShot: {
+  pentashot: {
     name: 'Penta Shot',
     tier: 3,
     requiredLevel: 45,
-    parent: 'tripleShot',
+    parent: 'tripleshot',
     barrels: [
       { offsetX: 0, offsetY: -12, angle: 0, width: 10, length: 20 },
       { offsetX: 0, offsetY: -6, angle: 0, width: 10, length: 20 },
@@ -176,11 +176,11 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     ],
     description: 'Five barrels of devastation'
   },
-  octoTank: {
+  octotank: {
     name: 'Octo Tank',
     tier: 3,
     requiredLevel: 45,
-    parent: 'quadTank',
+    parent: 'quadtank',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: 0, width: 10, length: 20 },
       { offsetX: 0, offsetY: 0, angle: Math.PI / 4, width: 10, length: 20 },
@@ -226,7 +226,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Booster',
     tier: 3,
     requiredLevel: 45,
-    parent: 'triAngle',
+    parent: 'triangle',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: 0, width: 12, length: 22 },
       { offsetX: 0, offsetY: 4, angle: Math.PI * 5 / 6, width: 8, length: 14 },
@@ -262,7 +262,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     description: 'Dual stacked barrels for heavy hits'
   },
   
-  twinFlank: {
+  twinflank: {
     name: 'Twin Flank',
     tier: 2,
     requiredLevel: 30,
@@ -280,7 +280,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Gunner',
     tier: 2,
     requiredLevel: 30,
-    parent: 'machineGun',
+    parent: 'machinegun',
     barrels: [
       { offsetX: 0, offsetY: -9, angle: 0, width: 8, length: 19 },
       { offsetX: 0, offsetY: -3, angle: 0, width: 8, length: 19 },
@@ -305,7 +305,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Auto 3',
     tier: 2,
     requiredLevel: 30,
-    parent: 'flankGuard',
+    parent: 'flankguard',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 15 },
       { offsetX: 0, offsetY: 0, angle: Math.PI * 2 / 3, width: 11, length: 15 },
@@ -320,7 +320,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Triplet',
     tier: 3,
     requiredLevel: 45,
-    parent: 'tripleShot',
+    parent: 'tripleshot',
     barrels: [
       { offsetX: 0, offsetY: -8, angle: 0, width: 11, length: 25 },
       { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 26 },
@@ -329,11 +329,11 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     description: 'Focused triple firepower'
   },
   
-  spreadShot: {
+  spreadshot: {
     name: 'Spread Shot',
     tier: 3,
     requiredLevel: 45,
-    parent: 'tripleShot',
+    parent: 'tripleshot',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: -Math.PI / 4, width: 10, length: 17 },
       { offsetX: 0, offsetY: 0, angle: -Math.PI / 6, width: 10, length: 18 },
@@ -424,7 +424,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Battleship',
     tier: 3,
     requiredLevel: 45,
-    parent: 'twinFlank',
+    parent: 'twinflank',
     barrels: [
       { offsetX: -8, offsetY: -8, angle: Math.PI / 4, width: 16, length: 6 },
       { offsetX: -8, offsetY: 8, angle: Math.PI * 3 / 4, width: 16, length: 6 },
@@ -438,7 +438,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Fighter',
     tier: 3,
     requiredLevel: 45,
-    parent: 'triAngle',
+    parent: 'triangle',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: 0, width: 12, length: 22 },
       { offsetX: 0, offsetY: 0, angle: Math.PI / 2, width: 11, length: 16 },
@@ -502,7 +502,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     description: 'Full invisibility when still'
   },
   
-  autoSmasher: {
+  autosmasher: {
     name: 'Auto Smasher',
     tier: 3,
     requiredLevel: 45,
@@ -528,7 +528,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     description: 'Five auto-turrets'
   },
   
-  autoGunner: {
+  autogunner: {
     name: 'Auto Gunner',
     tier: 3,
     requiredLevel: 45,
@@ -547,18 +547,18 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Sprayer',
     tier: 3,
     requiredLevel: 45,
-    parent: 'machineGun',
+    parent: 'machinegun',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: 0, width: 18, length: 19 }
     ],
     description: 'Chaotic bullet spread'
   },
   
-  tripleTwin: {
+  tripletwin: {
     name: 'Triple Twin',
     tier: 3,
     requiredLevel: 45,
-    parent: 'twinFlank',
+    parent: 'twinflank',
     barrels: [
       { offsetX: 0, offsetY: -5, angle: 0, width: 11, length: 20 },
       { offsetX: 0, offsetY: 5, angle: 0, width: 11, length: 20 },
@@ -570,7 +570,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     description: 'Six barrels in three directions'
   },
   
-  megaTrapper: {
+  megatrapper: {
     name: 'Mega Trapper',
     tier: 3,
     requiredLevel: 45,
@@ -594,7 +594,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     description: 'Traps plus drones'
   },
   
-  gunnerTrapper: {
+  gunnertrapper: {
     name: 'Gunner Trapper',
     tier: 3,
     requiredLevel: 45,
