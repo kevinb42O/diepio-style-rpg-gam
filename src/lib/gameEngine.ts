@@ -15,6 +15,9 @@ import { TeamSystem } from './TeamSystem'
 import { AutoTurretSystem } from './autoTurretSystem'
 import { TrapSystem } from './trapSystem'
 
+// Game constants
+const TRAP_SELF_DAMAGE_MULTIPLIER = 0.5 // Traps take 50% damage when they hit enemies
+
 export class GameEngine {
   upgradeManager: UpgradeManager
   player: Player
@@ -1282,7 +1285,8 @@ export class GameEngine {
         continue
       }
       
-      // Check if bot should fire (already checked in shootAtTarget)
+      // The bot AI system sets bot.lastShotTime when it would normally fire
+      // We check here again to ensure trap spawning follows the same timing
       const fireRate = bot.fireRate
       if (this.gameTime - bot.lastShotTime < fireRate) {
         continue
@@ -1427,7 +1431,7 @@ export class GameEngine {
       }
       
       // Damage the trap (traps take damage when they hit)
-      this.trapSystem.damageTrap(collision.trapId, collision.damage * 0.5)
+      this.trapSystem.damageTrap(collision.trapId, collision.damage * TRAP_SELF_DAMAGE_MULTIPLIER)
     }
     
     // Check projectile-trap collisions

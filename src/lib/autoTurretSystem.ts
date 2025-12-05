@@ -258,8 +258,8 @@ export class AutoTurretSystem {
       },
       damage: owner.damage * this.BULLET_DAMAGE_MULTIPLIER,
       radius: 4,
-      isPlayerProjectile: owner.team === 'blue', // Adjust based on your team system
-      ownerId: owner.tankClass,
+      isPlayerProjectile: false, // Auto turrets are not direct player projectiles
+      ownerId: turret.ownerId,
       team: owner.team,
     }
 
