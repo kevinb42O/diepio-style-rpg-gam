@@ -187,7 +187,8 @@ function App() {
     const engine = engineRef.current
 
     engine.onLevelUp = () => {
-      engine.levelUp()
+      // Note: engine.player.level is already updated in collectLoot() before this callback
+      // Do NOT call engine.levelUp() here as it would double-increment the level
       
       // Add to kill feed
       setKillFeedItems(prev => [...prev, {

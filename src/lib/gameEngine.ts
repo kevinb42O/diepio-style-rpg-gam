@@ -105,7 +105,7 @@ export class GameEngine {
       maxHealth: 100,
       level: 1,
       xp: 0,
-      xpToNextLevel: 100,
+      xpToNextLevel: this.upgradeManager.getXPToNextLevel(),
       damage: 10,
       fireRate: 300,
       speed: 200,
@@ -423,7 +423,8 @@ export class GameEngine {
         // Find the bot for XP calculation
         const bot = this.botAISystem.getBots().find(b => b.id === collision.botId)
         if (bot) {
-          this.player.xp += bot.level * 10
+          const xpGained = bot.level * 10
+          this.player.xp += xpGained
           this.player.kills++
           
           // Particle effects
@@ -432,9 +433,24 @@ export class GameEngine {
           this.screenEffects.startShake(3, 0.2)
           audioManager.play('polygonDeath')
           
-          // Check for level up
-          if (this.player.xp >= this.player.xpToNextLevel) {
-            this.levelUp()
+          // Check for level up using UpgradeManager
+          const didLevelUp = this.upgradeManager.addXP(xpGained)
+          if (didLevelUp) {
+            this.player.level = this.upgradeManager.getLevel()
+            this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
+            
+            // Add invincibility during level up
+            this.invincibilityFrames = 2.0
+            
+            // Enhanced level up effect
+            this.particleSystem.createLevelUpEffect(this.player.position)
+            this.screenEffects.startShake(8, 0.4)
+            this.screenEffects.startFlash('#bb88ff', 0.3)
+            audioManager.play('levelUp')
+            
+            if (this.onLevelUp) {
+              this.onLevelUp()
+            }
           }
         }
       }
@@ -904,15 +920,31 @@ export class GameEngine {
             
             if (killed) {
               // Bot died - give XP
-              this.player.xp += bot.level * 10
+              const xpGained = bot.level * 10
+              this.player.xp += xpGained
               this.player.kills++
               this.particlePool.emitDebris(bot.position, bot.velocity, botColor)
               this.screenEffects.startShake(3, 0.2)
               audioManager.play('polygonDeath')
               
-              // Check for level up
-              if (this.player.xp >= this.player.xpToNextLevel) {
-                this.levelUp()
+              // Check for level up using UpgradeManager
+              const didLevelUp = this.upgradeManager.addXP(xpGained)
+              if (didLevelUp) {
+                this.player.level = this.upgradeManager.getLevel()
+                this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
+                
+                // Add invincibility during level up
+                this.invincibilityFrames = 2.0
+                
+                // Enhanced level up effect
+                this.particleSystem.createLevelUpEffect(this.player.position)
+                this.screenEffects.startShake(8, 0.4)
+                this.screenEffects.startFlash('#bb88ff', 0.3)
+                audioManager.play('levelUp')
+                
+                if (this.onLevelUp) {
+                  this.onLevelUp()
+                }
               }
             }
             break
@@ -1216,6 +1248,7 @@ export class GameEngine {
       
       if (didLevelUp) {
         this.player.level = this.upgradeManager.getLevel()
+        this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
         
         // Add invincibility during level up
         this.invincibilityFrames = 2.0
@@ -1229,10 +1262,6 @@ export class GameEngine {
         if (this.onLevelUp) {
           this.onLevelUp()
         }
-        return 'levelup'
-      }
-      
-      if (this.player.xp >= this.player.xpToNextLevel) {
         return 'levelup'
       }
     } else if (item.type === 'weapon' && item.item) {
@@ -1302,6 +1331,9 @@ export class GameEngine {
     this.player.lootRange = Math.floor(stats.lootRange)
     
     this.player.health = Math.max(1, Math.floor(healthPercentage * this.player.maxHealth))
+    
+    // Sync XP display values from UpgradeManager
+    this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
   }
 
   upgradeTank(tankKey: string): boolean {
