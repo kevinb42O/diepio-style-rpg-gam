@@ -104,7 +104,7 @@ export class GameEngine {
       health: 100,
       maxHealth: 100,
       level: 1,
-      xp: 0,
+      xp: this.upgradeManager.getTotalXP(), // Sync from UpgradeManager
       xpToNextLevel: this.upgradeManager.getXPToNextLevel(),
       damage: 10,
       fireRate: 300,
@@ -424,7 +424,6 @@ export class GameEngine {
         const bot = this.botAISystem.getBots().find(b => b.id === collision.botId)
         if (bot) {
           const xpGained = bot.level * 10
-          this.player.xp += xpGained
           this.player.kills++
           
           // Particle effects
@@ -433,8 +432,12 @@ export class GameEngine {
           this.screenEffects.startShake(3, 0.2)
           audioManager.play('polygonDeath')
           
-          // Check for level up using UpgradeManager
+          // Check for level up using UpgradeManager (single source of truth for XP)
           const didLevelUp = this.upgradeManager.addXP(xpGained)
+          
+          // Sync player.xp from UpgradeManager for display
+          this.player.xp = this.upgradeManager.getTotalXP()
+          
           if (didLevelUp) {
             this.player.level = this.upgradeManager.getLevel()
             this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
@@ -921,14 +924,17 @@ export class GameEngine {
             if (killed) {
               // Bot died - give XP
               const xpGained = bot.level * 10
-              this.player.xp += xpGained
               this.player.kills++
               this.particlePool.emitDebris(bot.position, bot.velocity, botColor)
               this.screenEffects.startShake(3, 0.2)
               audioManager.play('polygonDeath')
               
-              // Check for level up using UpgradeManager
+              // Check for level up using UpgradeManager (single source of truth for XP)
               const didLevelUp = this.upgradeManager.addXP(xpGained)
+              
+              // Sync player.xp from UpgradeManager for display
+              this.player.xp = this.upgradeManager.getTotalXP()
+              
               if (didLevelUp) {
                 this.player.level = this.upgradeManager.getLevel()
                 this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
@@ -1240,8 +1246,11 @@ export class GameEngine {
 
   collectLoot(item: Loot) {
     if (item.type === 'xp') {
-      this.player.xp += item.value
+      // UpgradeManager is the single source of truth for XP
       const didLevelUp = this.upgradeManager.addXP(item.value)
+      
+      // Sync player.xp from UpgradeManager for display
+      this.player.xp = this.upgradeManager.getTotalXP()
       
       // Audio
       audioManager.play('xpCollect')
