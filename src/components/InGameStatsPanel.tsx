@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useDeviceInfo } from '@/hooks/use-mobile'
 import type { StatType } from '@/lib/upgradeSystem'
 import { getSynergyDescription, getSynergyStatsForClass } from '@/lib/synergyMeta'
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState, useEffect } from 'react'
 
 interface InGameStatsPanelProps {
   availablePoints: number
@@ -238,7 +238,7 @@ export const InGameStatsPanel = memo(function InGameStatsPanel({ availablePoints
   }, [currentClass])
 
   // Update expanded state when orientation changes
-  useMemo(() => {
+  useEffect(() => {
     if (!isMobile || !isPortrait) {
       setIsExpanded(true)
     }

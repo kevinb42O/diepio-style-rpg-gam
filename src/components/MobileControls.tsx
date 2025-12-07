@@ -135,6 +135,8 @@ export function MobileControls({ onMove, onShootDirection }: MobileControlsProps
   // Calculate responsive joystick sizes and positions
   const joystickSize = isPortrait ? 'w-28 h-28' : 'w-24 h-24'
   const joystickInnerSize = isPortrait ? 'w-11 h-11' : 'w-9 h-9'
+  // Calculate proper centering offset based on size (w-11 = 44px, w-9 = 36px)
+  const innerOffset = isPortrait ? '-ml-5.5 -mt-5.5' : '-ml-4.5 -mt-4.5'
   
   // Position joysticks based on orientation
   // Portrait: bottom corners with safe area insets
@@ -159,7 +161,7 @@ export function MobileControls({ onMove, onShootDirection }: MobileControlsProps
       >
         <div className="absolute inset-0 bg-primary/20 rounded-full border-2 border-primary/40" />
         <div 
-          className={`absolute top-1/2 left-1/2 ${joystickInnerSize} -ml-5.5 -mt-5.5 bg-primary/80 rounded-full border-2 border-primary`}
+          className={`absolute top-1/2 left-1/2 ${joystickInnerSize} ${innerOffset} bg-primary/80 rounded-full border-2 border-primary`}
           style={{
             transform: `translate(${moveStickPosition.x}px, ${moveStickPosition.y}px)`,
             transition: moveStickPosition.x === 0 && moveStickPosition.y === 0 ? 'transform 0.1s ease-out' : 'none'
@@ -183,7 +185,7 @@ export function MobileControls({ onMove, onShootDirection }: MobileControlsProps
       >
         <div className="absolute inset-0 bg-secondary/20 rounded-full border-2 border-secondary/40" />
         <div 
-          className={`absolute top-1/2 left-1/2 ${joystickInnerSize} -ml-5.5 -mt-5.5 bg-secondary/80 rounded-full border-2 border-secondary`}
+          className={`absolute top-1/2 left-1/2 ${joystickInnerSize} ${innerOffset} bg-secondary/80 rounded-full border-2 border-secondary`}
           style={{
             transform: `translate(${shootStickPosition.x}px, ${shootStickPosition.y}px)`,
             transition: shootStickPosition.x === 0 && shootStickPosition.y === 0 ? 'transform 0.1s ease-out' : 'none'
