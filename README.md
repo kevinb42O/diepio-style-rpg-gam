@@ -1,7 +1,15 @@
-# ✨ Welcome to Your Spark Template!
-You've just launched your brand-new Spark Template Codespace — everything’s fired up and ready for you to explore, build, and create with Spark!
+# 🎮 AZEROTH SURVIVORS - Ultimate Diepio-Style RPG
+**The definitive Gen X gaming experience with Epic Death Screen!**
 
-This template is your blank canvas. It comes with a minimal setup to help you get started quickly with Spark development.
+🚀 **Latest Version: 7f68b46 - ULTIMATE OVERHAUL** 🚀
+- Epic Gen X nostalgic death screen with randomized messages
+- Complete tank upgrade system with synergies 
+- Advanced bot AI with smart formations
+- Tank Wiki, Build Planner, Admin Panel
+- Auto-turrets, drones, pylons, particle effects
+- Mobile-responsive retro aesthetics
+
+**🎯 Ready for Epic Battles! Deploy: `$(date)`**
 
 🚀 What's Inside?
 - A clean, minimal Spark environment
