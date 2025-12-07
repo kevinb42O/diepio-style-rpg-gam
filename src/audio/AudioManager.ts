@@ -107,7 +107,7 @@ export class AudioManager {
     // }
 
     // For debugging, can log when sounds would play
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       // console.log(`[Audio] ${event} - volume: ${config.volume * volumeMultiplier * this.masterVolume}`)
     }
   }

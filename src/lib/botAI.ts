@@ -3,18 +3,23 @@
  * Manages bot spawning, behavior, and combat with team support
  */
 
-import type { BotPlayer, Vector2, Projectile, Loot, Drone, Zone, Team, BotPersonality } from './types'
+import type { BotPlayer, Vector2, Projectile, Loot, Drone, Zone, Team, BotPersonality, DecoyState } from './types'
+import { createDefaultSynergyState } from './types'
 import { TANK_CONFIGS } from './tankConfigs'
 import { TeamSystem } from './TeamSystem'
 import { BotNameGenerator } from './BotNameGenerator'
 
 // AI behavior constants
-const TEAM_BATTLE_RANGE = 500 // Range for prioritizing team battles over farming
-const CLOSE_ATTACK_RANGE = 400 // Range for triggering attack mode in non-passive bots
-const PASSIVE_ATTACK_RANGE = 300 // Range for passive bots to attack
+const TEAM_BATTLE_RANGE = 700 // Range for prioritizing team battles over farming
+const CLOSE_ATTACK_RANGE = 500 // Range for triggering attack mode in non-passive bots
+const PASSIVE_ATTACK_RANGE = 350 // Range for passive bots to attack
 const LOOT_SEARCH_RANGE = 800 // Range to search for loot boxes
-const BEHAVIOR_UPDATE_INTERVAL = 500 // How often to reconsider behavior (ms)
+const BEHAVIOR_UPDATE_INTERVAL = 300 // How often to reconsider behavior (ms) - faster reactions
 const MIN_MOVEMENT_THRESHOLD = 5 // Minimum distance to move before updating target
+const ENEMY_SCAN_RANGE = 900 // Range to scan for enemy bots/players
+const SIEGE_LINE_CLASSES = new Set(['siegebreaker', 'cataclysmengine', 'doomsdayharbinger'])
+const TEMPEST_LINE_CLASSES = new Set(['tempest', 'maelstromsovereign'])
+const PYLON_SUMMONERS = new Set(['obelisk', 'prismarchon'])
 
 export class BotAISystem {
   private bots: BotPlayer[] = []
@@ -34,6 +39,13 @@ export class BotAISystem {
    */
   getBots(): BotPlayer[] {
     return this.bots
+  }
+
+  /**
+   * Get a bot by its ID
+   */
+  getBotById(id: string): BotPlayer | undefined {
+    return this.bots.find(b => b.id === id)
   }
 
   /**
@@ -64,15 +76,31 @@ export class BotAISystem {
   }
 
   /**
-   * Spawn a bot in a zone
+   * Spawn a bot in a zone - now uses lane-based spawning for new battlefield
    */
   private spawnBot(zone: Zone) {
-    // Random position in zone
-    const angle = Math.random() * Math.PI * 2
-    const distance = zone.radiusMin + Math.random() * (zone.radiusMax - zone.radiusMin)
-    const position = {
-      x: this.worldCenter.x + Math.cos(angle) * distance,
-      y: this.worldCenter.y + Math.sin(angle) * distance,
+    // For the new battlefield, spawn bots along lanes or in the wilderness
+    let position: Vector2
+    
+    if (zone.id === 2) {
+      // Lane zone - spawn along one of the lanes
+      const laneY = [2000, 6000, 10000][Math.floor(Math.random() * 3)]
+      const laneX = 3000 + Math.random() * 10000 // Middle of the map, not in bases
+      position = { x: laneX, y: laneY + (Math.random() - 0.5) * 800 }
+    } else if (zone.id === 3) {
+      // Nexus zone - spawn near the center
+      const angle = Math.random() * Math.PI * 2
+      const distance = 500 + Math.random() * 1000
+      position = {
+        x: 8000 + Math.cos(angle) * distance,
+        y: 6000 + Math.sin(angle) * distance
+      }
+    } else {
+      // Fallback - random position in world (avoiding bases)
+      position = {
+        x: 3000 + Math.random() * 10000,
+        y: 1500 + Math.random() * 9000
+      }
     }
 
     // Random level in zone range
@@ -106,7 +134,7 @@ export class BotAISystem {
       level,
       xp: 0,
       xpToNextLevel: this.getXPForLevel(level + 1),
-      damage: 10 + level * 2,
+      damage: 8 + Math.floor(level * 0.8), // Balanced: level 10 = 16 damage (was 30!)
       fireRate: 300,
       speed: 150 + Math.random() * 50,
       lastShotTime: 0,
@@ -115,11 +143,11 @@ export class BotAISystem {
       kills: 0,
       bulletSpeed: 400,
       bulletPenetration: 5 + level,
-      bodyDamage: 10 + level * 2,
+      bodyDamage: 8 + Math.floor(level * 0.8), // Balanced body damage too
       healthRegen: 1,
       lastRegenTime: 0,
       tankClass,
-      lootRange: 50,
+      lootRange: 200,
       invisibility: 0,
       invisibilityTimer: 0,
       bodyShape: TANK_CONFIGS[tankClass]?.bodyShape || 'circle',
@@ -138,6 +166,16 @@ export class BotAISystem {
       lastReactionTime: 0,
       currentTarget: null,
       aimAngle: 0,
+      decoy: {
+        active: false,
+        visible: false,
+        position: { x: position.x, y: position.y },
+        target: { x: position.x, y: position.y },
+        velocity: { x: 0, y: 0 },
+        wanderPhase: 0,
+        hitFlash: 0,
+      },
+      synergy: createDefaultSynergyState(),
     }
 
     // Initialize barrel recoils
@@ -370,8 +408,9 @@ export class BotAISystem {
     // Apply the new stat
     this.applyStatPointsToBot(bot)
     
-    // Check for tank upgrades at levels 15, 30, 45
-    if (bot.level === 15 || bot.level === 30 || bot.level === 45) {
+    // Check for tank upgrades at milestone levels
+    const upgradeMilestones = [15, 30, 45, 60, 75, 90]
+    if (upgradeMilestones.includes(bot.level)) {
       this.tryUpgradeBotTank(bot)
     }
   }
@@ -388,7 +427,7 @@ export class BotAISystem {
     for (const [className, config] of Object.entries(TANK_CONFIGS)) {
       if (config.upgradesFrom?.includes(bot.tankClass) && 
           config.unlocksAt === bot.level &&
-          config.tier === currentConfig.tier + 1) {
+          config.tier >= currentConfig.tier + 1) {
         availableUpgrades.push(className)
       }
     }
@@ -423,44 +462,55 @@ export class BotAISystem {
     allBots: BotPlayer[],
     hasLootNearby: boolean = false
   ) {
-    // Find nearest enemy bot
+    // Find nearest enemy bot (scan a wider range for enemies)
     let nearestEnemyBot: BotPlayer | null = null
     let nearestEnemyDist = Infinity
     
     for (const otherBot of allBots) {
       if (otherBot.id === bot.id) continue
       if (this.teamSystem.areAllies(bot.team, otherBot.team)) continue
+      if (otherBot.health <= 0) continue // Skip dead bots
       
       const dist = this.getDistance(bot.position, otherBot.position)
-      if (dist < nearestEnemyDist && dist < 800) {
+      if (dist < nearestEnemyDist && dist < ENEMY_SCAN_RANGE) {
         nearestEnemyBot = otherBot
         nearestEnemyDist = dist
       }
     }
 
-    // Low health - retreat regardless of personality
-    if (healthPercent < 0.3 && bot.personality !== 'aggressive') {
+    // Low health - retreat regardless of personality (only below 20%)
+    if (healthPercent < 0.2 && bot.personality !== 'aggressive') {
       bot.behaviorState = 'fleeing'
       return
     }
 
-    // PRIORITY 1: Attack enemy player if in range (strongest priority)
-    if (isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE && healthPercent > 0.4) {
-      bot.behaviorState = 'attacking'
-      bot.currentTarget = 'player'
-      return
-    }
+    // Determine which enemy is closer - player or bot
+    const playerIsCloserEnemy = isPlayerEnemy && (distanceToPlayer < nearestEnemyDist || !nearestEnemyBot)
+    const closestEnemyDist = playerIsCloserEnemy ? distanceToPlayer : nearestEnemyDist
+    const hasEnemyInRange = (isPlayerEnemy && distanceToPlayer < TEAM_BATTLE_RANGE) || (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE)
 
-    // PRIORITY 2: Attack enemy bots if in range
-    if (nearestEnemyBot && nearestEnemyDist < TEAM_BATTLE_RANGE && healthPercent > 0.5) {
+    // PRIORITY 1: Attack closest enemy (player or bot) if in range - very low health threshold
+    if (hasEnemyInRange && healthPercent > 0.2) {
       bot.behaviorState = 'attacking'
-      bot.currentTarget = nearestEnemyBot.id
+      if (playerIsCloserEnemy) {
+        bot.currentTarget = 'player'
+      } else if (nearestEnemyBot) {
+        bot.currentTarget = nearestEnemyBot.id
+      }
       return
     }
     
-    // PRIORITY 3: Farm loot boxes if available
-    if (hasLootNearby) {
+    // PRIORITY 2: Farm loot boxes ONLY if no enemies nearby at all
+    if (hasLootNearby && !hasEnemyInRange && closestEnemyDist > TEAM_BATTLE_RANGE) {
       bot.behaviorState = 'farming'
+      return
+    }
+    
+    // PRIORITY 3: Engage enemies even at medium range if aggressive or territorial
+    if ((bot.personality === 'aggressive' || bot.personality === 'territorial') && 
+        hasEnemyInRange && healthPercent > 0.5) {
+      bot.behaviorState = 'attacking'
+      bot.currentTarget = playerIsCloserEnemy ? 'player' : (nearestEnemyBot?.id || 'player')
       return
     }
 
@@ -678,30 +728,63 @@ export class BotAISystem {
     playerPosition: Vector2,
     isPlayerEnemy: boolean,
     allBots: BotPlayer[],
-    currentTime: number
+    currentTime: number,
+    playerDecoy?: DecoyState
   ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
     const config = TANK_CONFIGS[bot.tankClass]
     
     // Find target (player or enemy bot)
     let targetPos = playerPosition
     let targetId = 'player'
+    let hasValidTarget = false
     
+    // Check if current target is still valid
     if (bot.currentTarget && bot.currentTarget !== 'player') {
-      const targetBot = allBots.find(b => b.id === bot.currentTarget)
+      const targetBot = allBots.find(b => b.id === bot.currentTarget && b.health > 0)
       if (targetBot && this.teamSystem.areEnemies(bot.team, targetBot.team)) {
-        targetPos = targetBot.position
-        targetId = targetBot.id
+        const dist = this.getDistance(bot.position, targetBot.position)
+        if (dist < ENEMY_SCAN_RANGE) {
+          targetPos = targetBot.position
+          targetId = targetBot.id
+          hasValidTarget = true
+        }
       }
-    } else if (!isPlayerEnemy) {
-      // Player is not enemy, find an enemy bot
+    }
+    
+    // If current target is player
+    if (!hasValidTarget && bot.currentTarget === 'player' && isPlayerEnemy) {
+      targetPos = playerPosition
+      targetId = 'player'
+      hasValidTarget = true
+    }
+    
+    // If no valid target, find the closest enemy (bot or player)
+    if (!hasValidTarget) {
+      let closestDist = Infinity
+      
+      // Check player first if enemy
+      if (isPlayerEnemy) {
+        const playerDist = this.getDistance(bot.position, playerPosition)
+        if (playerDist < ENEMY_SCAN_RANGE) {
+          closestDist = playerDist
+          targetPos = playerPosition
+          targetId = 'player'
+          hasValidTarget = true
+        }
+      }
+      
+      // Check all enemy bots
       for (const otherBot of allBots) {
-        if (this.teamSystem.areEnemies(bot.team, otherBot.team)) {
-          const dist = this.getDistance(bot.position, otherBot.position)
-          if (dist < 600) {
-            targetPos = otherBot.position
-            targetId = otherBot.id
-            break
-          }
+        if (otherBot.id === bot.id) continue
+        if (otherBot.health <= 0) continue
+        if (!this.teamSystem.areEnemies(bot.team, otherBot.team)) continue
+        
+        const dist = this.getDistance(bot.position, otherBot.position)
+        if (dist < closestDist && dist < ENEMY_SCAN_RANGE) {
+          closestDist = dist
+          targetPos = otherBot.position
+          targetId = otherBot.id
+          hasValidTarget = true
         }
       }
     }
@@ -709,7 +792,8 @@ export class BotAISystem {
     const distance = this.getDistance(bot.position, targetPos)
     
     // Apply aim inaccuracy
-    const aimOffset = this.applyAimError(bot, targetPos)
+    const primaryAim = targetId === 'player' && playerDecoy?.visible ? playerDecoy.position : targetPos
+    const aimOffset = this.applyAimError(bot, primaryAim)
     
     // Class-specific behavior
     return this.getClassSpecificAttackBehavior(bot, targetPos, aimOffset, distance)
@@ -898,7 +982,7 @@ export class BotAISystem {
       
       return {
         targetPosition,
-        shouldShoot: distance < 700,
+        shouldShoot: distance < 800,
         shootTarget: aimTarget,
         farmTargetId: null
       }
@@ -914,7 +998,7 @@ export class BotAISystem {
           x: targetPos.x + Math.cos(angle) * orbitDistance,
           y: targetPos.y + Math.sin(angle) * orbitDistance
         },
-        shouldShoot: distance < 500,
+        shouldShoot: distance < 600,
         shootTarget: aimTarget,
         farmTargetId: null
       }
@@ -938,7 +1022,7 @@ export class BotAISystem {
         // Aggressively rush in
         return {
           targetPosition: targetPos,
-          shouldShoot: distance < 450,
+          shouldShoot: distance < 550,
           shootTarget: aimTarget,
           farmTargetId: null
         }
@@ -971,7 +1055,7 @@ export class BotAISystem {
     
     return {
       targetPosition,
-      shouldShoot: distance < 500,
+      shouldShoot: distance < 600,
       shootTarget: aimTarget,
       farmTargetId: null
     }
@@ -986,7 +1070,8 @@ export class BotAISystem {
     currentTime: number,
     loot: Loot[],
     isPlayerEnemy: boolean,
-    allBots: BotPlayer[]
+    allBots: BotPlayer[],
+    playerDecoy?: DecoyState
   ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
     const config = TANK_CONFIGS[bot.tankClass]
 
@@ -995,7 +1080,7 @@ export class BotAISystem {
         return this.farmingBehavior(bot, loot)
       
       case 'attacking':
-        return this.attackingBehavior(bot, playerPosition, isPlayerEnemy, allBots, currentTime)
+        return this.attackingBehavior(bot, playerPosition, isPlayerEnemy, allBots, currentTime, playerDecoy)
       
       case 'fleeing':
         return this.fleeingBehavior(bot, playerPosition, allBots)
@@ -1017,7 +1102,8 @@ export class BotAISystem {
     playerRadius: number,
     currentTime: number,
     loot: Loot[],
-    playerTeam: Team
+    playerTeam: Team,
+    playerDecoy?: DecoyState
   ): { projectiles: Projectile[]; targetPositions: Map<string, Vector2>; farmTargets: Map<string, string> } {
     const projectiles: Projectile[] = []
     const targetPositions = new Map<string, Vector2>()
@@ -1050,7 +1136,7 @@ export class BotAISystem {
       }
 
       // Update behavior (now includes farming and team awareness)
-      const behavior = this.updateBehavior(bot, playerPosition, playerRadius, currentTime, loot, playerTeam, this.bots)
+      const behavior = this.updateBehavior(bot, playerPosition, playerRadius, currentTime, loot, playerTeam, this.bots, playerDecoy)
       
       // Calculate and store aim angle based on actual target
       if (behavior.shootTarget) {
@@ -1097,33 +1183,67 @@ export class BotAISystem {
     currentTime: number,
     loot: Loot[],
     playerTeam: Team,
-    allBots: BotPlayer[]
+    allBots: BotPlayer[],
+    playerDecoy?: DecoyState
   ): { targetPosition: Vector2 | null; shouldShoot: boolean; shootTarget: Vector2 | null; farmTargetId: string | null } {
     const distanceToPlayer = this.getDistance(bot.position, playerPosition)
     const isPlayerAlly = this.teamSystem.areAllies(bot.team, playerTeam)
     const isPlayerEnemy = this.teamSystem.areEnemies(bot.team, playerTeam)
     const hasLootNearby = this.hasLootInRange(bot, loot)
 
-    // Health-based retreat logic
+    // Health-based retreat logic (only at 20% or below)
     const healthPercent = bot.health / bot.maxHealth
-    if (healthPercent < 0.3 && bot.personality !== 'aggressive') {
+    if (healthPercent < 0.2 && bot.personality !== 'aggressive') {
       bot.behaviorState = 'fleeing'
     }
 
-    // Reaction time - don't instantly react to everything
+    // Check if there's an immediate threat (enemy very close)
+    const hasImmediateThreat = (isPlayerEnemy && distanceToPlayer < CLOSE_ATTACK_RANGE) || 
+      allBots.some(b => b.id !== bot.id && b.health > 0 && 
+        this.teamSystem.areEnemies(bot.team, b.team) && 
+        this.getDistance(bot.position, b.position) < CLOSE_ATTACK_RANGE)
+
+    // FORCE attack mode when there's an immediate threat and health is not critical
+    if (hasImmediateThreat && healthPercent > 0.2) {
+      // Find the closest enemy to target
+      let closestEnemy: string = 'player'
+      let closestDist = isPlayerEnemy ? distanceToPlayer : Infinity
+      
+      for (const otherBot of allBots) {
+        if (otherBot.id === bot.id || otherBot.health <= 0) continue
+        if (!this.teamSystem.areEnemies(bot.team, otherBot.team)) continue
+        const dist = this.getDistance(bot.position, otherBot.position)
+        if (dist < closestDist) {
+          closestDist = dist
+          closestEnemy = otherBot.id
+        }
+      }
+      
+      bot.behaviorState = 'attacking'
+      bot.currentTarget = closestEnemy
+      bot.lastBehaviorChange = currentTime
+      return this.executeBehavior(bot, playerPosition, currentTime, loot, isPlayerEnemy, allBots, playerDecoy)
+    }
+
+    // Reaction time - don't instantly react to everything UNLESS there's an immediate threat
     const timeSinceLastReaction = currentTime - bot.lastReactionTime
-    if (timeSinceLastReaction < bot.reactionTime) {
+    if (!hasImmediateThreat && timeSinceLastReaction < bot.reactionTime) {
       // Still in reaction delay, use previous behavior
       return this.executeBehavior(bot, playerPosition, currentTime, loot, isPlayerEnemy, allBots)
     }
 
     bot.lastReactionTime = currentTime
 
-    // Change behavior more frequently to be more responsive
+    // Change behavior more frequently when threat is nearby
     // Pro bots react fastest, noobs slowest
-    const behaviorChangeInterval = bot.personality === 'pro' ? BEHAVIOR_UPDATE_INTERVAL : 
-                                   bot.personality === 'noob' ? BEHAVIOR_UPDATE_INTERVAL * 3 : 
-                                   BEHAVIOR_UPDATE_INTERVAL * 2
+    let behaviorChangeInterval = bot.personality === 'pro' ? BEHAVIOR_UPDATE_INTERVAL : 
+                                 bot.personality === 'noob' ? BEHAVIOR_UPDATE_INTERVAL * 3 : 
+                                 BEHAVIOR_UPDATE_INTERVAL * 2
+    
+    // React faster when there's an enemy nearby
+    if (hasImmediateThreat) {
+      behaviorChangeInterval = Math.floor(behaviorChangeInterval / 3)
+    }
     
     if (currentTime - bot.lastBehaviorChange > behaviorChangeInterval) {
       bot.lastBehaviorChange = currentTime
@@ -1133,7 +1253,7 @@ export class BotAISystem {
     }
 
     // Execute the behavior
-    return this.executeBehavior(bot, playerPosition, currentTime, loot, isPlayerEnemy, allBots)
+    return this.executeBehavior(bot, playerPosition, currentTime, loot, isPlayerEnemy, allBots, playerDecoy)
   }
 
   /**
@@ -1179,20 +1299,25 @@ export class BotAISystem {
       return []
     }
     
-    // Trapper tanks return empty - traps handled via callback in gameEngine
+    // Pylon/trapper tanks handled via placement logic
     if (config.isTrapper) {
-      const fireRate = bot.fireRate * (1 - bot.statPoints.reloadSpeed * 0.02)
-      if (currentTime - bot.lastShotTime >= fireRate) {
-        bot.lastShotTime = currentTime
-      }
       return []
+    }
+
+    if (SIEGE_LINE_CLASSES.has(bot.tankClass)) {
+      return this.fireSiegeShell(bot, targetPosition, currentTime)
+    }
+
+    if (TEMPEST_LINE_CLASSES.has(bot.tankClass)) {
+      return this.fireTempestVolley(bot, targetPosition, currentTime)
     }
 
     const distance = this.getDistance(bot.position, targetPosition)
     
+    // Increased shooting range to match attack detection ranges
     const maxRange = bot.tankClass.includes('sniper') || bot.tankClass.includes('ranger') || bot.tankClass.includes('assassin')
-      ? 600
-      : 400
+      ? 800
+      : 600
 
     if (distance > maxRange) {
       return []
@@ -1208,7 +1333,7 @@ export class BotAISystem {
     const projectiles: Projectile[] = []
     const angle = Math.atan2(targetPosition.y - bot.position.y, targetPosition.x - bot.position.x)
 
-    const damage = bot.damage * (1 + bot.statPoints.bulletDamage * 0.1)
+    const damage = bot.damage * (1 + Math.min(bot.statPoints.bulletDamage, 3) * 0.05) // Cap damage boost at 15%
 
     for (let i = 0; i < config.barrels.length; i++) {
       const barrel = config.barrels[i]
@@ -1240,6 +1365,121 @@ export class BotAISystem {
     }
 
     return projectiles
+  }
+
+  private fireSiegeShell(bot: BotPlayer, targetPosition: Vector2, currentTime: number): Projectile[] {
+    const fireRate = bot.fireRate * 2
+    if (currentTime - bot.lastShotTime < fireRate) return []
+    bot.lastShotTime = currentTime
+
+    const config = this.getSiegeConfig(bot.tankClass)
+    const angle = Math.atan2(targetPosition.y - bot.position.y, targetPosition.x - bot.position.x)
+    const chargeRatio = 0.75 + Math.random() * 0.25
+    const damageMultiplier = 1 + (bot.statPoints.bulletDamage ?? 0) * 0.05
+    const baseDamage = (350 + bot.damage * 2.2) * (config.damageScale ?? 1) * damageMultiplier
+    const splashRadius = (130 + 90 * chargeRatio) * (config.splashScale ?? 1)
+
+    const projectile: Projectile = {
+      id: `siege_bot_${bot.id}_${Date.now()}`,
+      position: {
+        x: bot.position.x + Math.cos(angle) * (bot.radius + 45),
+        y: bot.position.y + Math.sin(angle) * (bot.radius + 45)
+      },
+      velocity: {
+        x: Math.cos(angle) * (bot.bulletSpeed * 0.55),
+        y: Math.sin(angle) * (bot.bulletSpeed * 0.55)
+      },
+      damage: baseDamage * chargeRatio,
+      radius: 20 + 8 * chargeRatio,
+      isPlayerProjectile: false,
+      ownerId: bot.id,
+      team: bot.team,
+      splashRadius,
+      splashDamage: baseDamage * 0.65 * chargeRatio,
+      slowAmount: 0.35,
+      slowDuration: 1.1,
+      specialTag: 'siege',
+      meta: config.aftershock
+        ? {
+            siegeClass: bot.tankClass,
+            aftershock: {
+              radius: config.aftershock.radius,
+              duration: config.aftershock.duration,
+              dps: baseDamage * config.aftershock.dps,
+              chains: config.aftershock.chains,
+            }
+          }
+        : { siegeClass: bot.tankClass }
+    }
+
+    return [projectile]
+  }
+
+  private fireTempestVolley(bot: BotPlayer, targetPosition: Vector2, currentTime: number): Projectile[] {
+    const fireRate = bot.fireRate * 1.2
+    if (currentTime - bot.lastShotTime < fireRate) return []
+    bot.lastShotTime = currentTime
+
+    const baseAngle = Math.atan2(targetPosition.y - bot.position.y, targetPosition.x - bot.position.x)
+    const isMaelstrom = bot.tankClass === 'maelstromsovereign'
+    const streams = isMaelstrom ? 4 : 3
+    const spin = (currentTime % 2000) / 2000 * Math.PI * 2
+    const arcSpread = 0.4 + (isMaelstrom ? 0.15 : 0.1)
+    const projectileSpeed = bot.bulletSpeed * (isMaelstrom ? 1.1 : 1.0)
+    const damageScale = isMaelstrom ? 1.05 : 0.85
+    const projectiles: Projectile[] = []
+
+    for (let i = 0; i < streams; i++) {
+      const streamPhase = spin + (i / streams) * Math.PI * 2
+      for (const polarity of [-1, 1]) {
+        const firingAngle = baseAngle + streamPhase * polarity + arcSpread * polarity * 0.5
+        const spawnDistance = bot.radius + 18
+        const spawnX = bot.position.x + Math.cos(firingAngle) * spawnDistance
+        const spawnY = bot.position.y + Math.sin(firingAngle) * spawnDistance
+
+        projectiles.push({
+          id: `tempest_bot_${bot.id}_${Date.now()}_${i}_${polarity}`,
+          position: { x: spawnX, y: spawnY },
+          velocity: {
+            x: Math.cos(firingAngle) * projectileSpeed,
+            y: Math.sin(firingAngle) * projectileSpeed,
+          },
+          damage: bot.damage * damageScale,
+          radius: isMaelstrom ? 5 : 4,
+          isPlayerProjectile: false,
+          ownerId: bot.id,
+          team: bot.team,
+        })
+      }
+    }
+
+    return projectiles
+  }
+
+  private getSiegeConfig(tankClass: string) {
+    switch (tankClass) {
+      case 'cataclysmengine':
+        return {
+          damageScale: 1.12,
+          splashScale: 1.2,
+          aftershock: { radius: 170, duration: 3.5, dps: 0.32, chains: 1 }
+        }
+      case 'doomsdayharbinger':
+        return {
+          damageScale: 1.25,
+          splashScale: 1.35,
+          aftershock: { radius: 210, duration: 4.8, dps: 0.4, chains: 2 }
+        }
+      default:
+        return {
+          damageScale: 1,
+          splashScale: 1
+        }
+    }
+  }
+
+  private isPylonSummoner(tankClass: string): boolean {
+    return PYLON_SUMMONERS.has(tankClass)
   }
 
   /**
@@ -1290,5 +1530,6 @@ export class BotAISystem {
   clear() {
     this.bots = []
     this.botIdCounter = 0
+    this.lastSpawnTime = 0
   }
 }

@@ -4,6 +4,20 @@ import { Button } from '@/components/ui/button'
 import { X } from '@phosphor-icons/react'
 import { TANK_CONFIGS, type TankConfig } from '@/lib/tankConfigs'
 import type { BarrelConfig } from '@/lib/tankConfigs'
+import type { StatType } from '@/lib/upgradeSystem'
+import { getSynergyDescription, getSynergyStatsForClass } from '@/lib/synergyMeta'
+
+const STAT_LABELS: Record<StatType, string> = {
+  healthRegen: 'Health Regen',
+  maxHealth: 'Max Health',
+  bodyDamage: 'Body Damage',
+  bulletSpeed: 'Bullet Speed',
+  bulletPenetration: 'Penetration',
+  bulletDamage: 'Bullet Damage',
+  reload: 'Reload',
+  movementSpeed: 'Movement Speed',
+  lootRange: 'Loot Range',
+}
 
 interface ClassUpgradeModalProps {
   availableClasses: TankConfig[]
@@ -13,6 +27,15 @@ interface ClassUpgradeModalProps {
 
 export function ClassUpgradeModal({ availableClasses, onSelect, onClose }: ClassUpgradeModalProps) {
   const canvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map())
+  const sortedClasses = [...availableClasses].sort((a, b) => {
+    if (a.tier === b.tier) {
+      if (a.unlocksAt === b.unlocksAt) {
+        return a.name.localeCompare(b.name)
+      }
+      return a.unlocksAt - b.unlocksAt
+    }
+    return a.tier - b.tier
+  })
 
   useEffect(() => {
     canvasRefs.current.forEach((canvas, className) => {
@@ -171,10 +194,15 @@ export function ClassUpgradeModal({ availableClasses, onSelect, onClose }: Class
         </div>
 
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {availableClasses.map((config) => {
-            const className = Object.keys(TANK_CONFIGS).find(
-              (key) => TANK_CONFIGS[key] === config
+          {sortedClasses.map((config) => {
+            const className = config.key || Object.keys(TANK_CONFIGS).find(
+              (key) => TANK_CONFIGS[key].name === config.name
             ) || 'basic'
+            const tierLabel = config.tier >= 6 ? 'Ascended' : config.tier === 5 ? 'Mythic' : config.tier === 4 ? 'Evolution' : null
+            const parentNames = (config.upgradesFrom ?? [])
+              .map((parentKey) => TANK_CONFIGS[parentKey]?.name ?? parentKey)
+            const synergy = config.synergyNote
+            const synergyStats = getSynergyStatsForClass(className)
 
             return (
               <Card
@@ -194,8 +222,47 @@ export function ClassUpgradeModal({ availableClasses, onSelect, onClose }: Class
                   <div className="text-center">
                     <h3 className="text-lg font-bold text-foreground">{config.name}</h3>
                     <p className="text-xs text-muted-foreground">
-                      Tier {config.tier} • Level {config.unlocksAt}
+                      Tier {config.tier} / Lv {config.unlocksAt}
                     </p>
+                    {tierLabel && (
+                      <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase tracking-wide">
+                        {tierLabel}
+                      </span>
+                    )}
+                    {parentNames.length > 0 && (
+                      <p className="text-[11px] text-primary mt-2">
+                        Evolves from <span className="font-semibold">{parentNames.join(', ')}</span>
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {config.synergyNote || `${config.name} tank configuration`}
+                    </p>
+                    {synergy && (
+                      <div className="mt-2 text-[11px] bg-emerald-400/10 border border-emerald-400/30 text-emerald-100 px-2 py-1 rounded">
+                        <span className="uppercase tracking-wide text-[10px] font-semibold text-emerald-200 mr-1">
+                          Synergy
+                        </span>
+                        {synergy}
+                      </div>
+                    )}
+                    {synergyStats.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-[10px] text-emerald-300 font-semibold uppercase tracking-wide mb-1 text-center">
+                          Enhanced Stats
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-1">
+                          {synergyStats.map((stat) => (
+                            <span
+                              key={`${className}-${stat}`}
+                              className="text-[9px] uppercase tracking-wide px-2 py-0.5 rounded-full border border-emerald-300/60 bg-emerald-400/20 text-emerald-200 shadow-sm"
+                              title={getSynergyDescription(className, stat) || undefined}
+                            >
+                              {STAT_LABELS[stat] || stat}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <Button
                     size="sm"

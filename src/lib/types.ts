@@ -14,6 +14,36 @@ export interface Entity {
   maxHealth: number
 }
 
+export interface DecoyState {
+  active: boolean
+  visible: boolean
+  position: Vector2
+  target: Vector2
+  velocity: Vector2
+  wanderPhase: number
+  hitFlash?: number
+}
+
+export interface PlayerSynergyState {
+  barrelSyncBonus: number
+  rangeMultiplier: number
+  heatDissipation: number
+  rotationResponsiveness: number
+  collisionForceMultiplier: number
+  droneSpeedBonus: number
+  modifiers: Record<string, number>
+}
+
+export const createDefaultSynergyState = (): PlayerSynergyState => ({
+  barrelSyncBonus: 0,
+  rangeMultiplier: 1,
+  heatDissipation: 0,
+  rotationResponsiveness: 1,
+  collisionForceMultiplier: 1,
+  droneSpeedBonus: 1,
+  modifiers: {},
+})
+
 export interface Player extends Entity {
   level: number
   xp: number
@@ -38,6 +68,8 @@ export interface Player extends Entity {
   barrelRecoils?: number[] // Per-barrel recoil tracking
   team: Team
   name?: string
+  decoy: DecoyState
+  synergy: PlayerSynergyState
 }
 
 export interface Enemy extends Entity {
@@ -56,6 +88,23 @@ export interface Projectile {
   isPlayerProjectile: boolean
   ownerId?: string
   team?: Team
+  splashRadius?: number
+  splashDamage?: number
+  slowAmount?: number
+  slowDuration?: number
+  specialTag?: 'siege' | 'rift' | 'skimmer' | 'rocketeer' | 'destroyer' | 'autoturret' | 'streamliner'
+  meta?: Record<string, unknown>
+  maxTravelDistance?: number
+  distanceTraveled?: number
+  // Skimmer: spawns mini-bullets while flying
+  skimmerTimer?: number
+  skimmerSpawnInterval?: number
+  // Rocketeer: homes towards enemies
+  homingStrength?: number
+  targetId?: string
+  // Visual enhancements for Destroyer-line
+  isHeavyProjectile?: boolean
+  trailColor?: string
 }
 
 export interface Loot {
@@ -75,6 +124,7 @@ export interface Loot {
   rotationAngle?: number
   isBoss?: boolean
   isTreasure?: boolean
+  convertedToHusk?: boolean
 }
 
 export interface Weapon {
@@ -107,6 +157,16 @@ export interface HighScore {
   date: number
 }
 
+// Drone visual styles for different tank classes
+export type DroneStyle = 
+  | 'overseer'      // Classic triangle - sleek hunter
+  | 'necromancer'   // Square - corrupted/dark
+  | 'gravemind'     // Husk thralls with ritual glow
+  | 'manager'       // Triangle - stealthy/ghostly
+  | 'factory'       // Minion - mini tank with barrel
+  | 'battleship'    // Tiny triangle - swarm
+  | 'hybrid'        // Triangle - fiery/aggressive
+
 export interface Drone {
   id: string
   position: Vector2
@@ -119,9 +179,13 @@ export interface Drone {
   radius: number
   ownerId: string
   droneType: 'triangle' | 'square' | 'minion'
+  droneStyle: DroneStyle
   state: 'idle' | 'attacking' | 'returning' | 'controlled'
   orbitAngle: number
   target: Loot | null
+  team: Team
+  pulsePhase?: number  // For visual effects
+  aimAngle?: number
 }
 
 export type DroneControlMode = 'idle' | 'attract' | 'repel'

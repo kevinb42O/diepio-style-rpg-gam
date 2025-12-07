@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Gear, X } from '@phosphor-icons/react'
+import { Settings, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface AdminPanelProps {
@@ -26,7 +26,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
 
   const handleSetLevel = () => {
     const level = parseInt(levelInput)
-    if (!isNaN(level) && level >= 1 && level <= 45) {
+    if (!isNaN(level) && level >= 1 && level <= 100) {
       onSetLevel(level)
     }
   }
@@ -46,7 +46,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
         variant="secondary"
         className="fixed top-2 right-2 md:top-4 md:right-4 z-50 w-8 h-8 md:w-10 md:h-10 rounded-full shadow-lg"
       >
-        <Gear weight="fill" className="w-4 h-4 md:w-5 md:h-5" />
+        <Settings className="w-4 h-4 md:w-5 md:h-5" />
       </Button>
 
       <AnimatePresence>
@@ -80,7 +80,7 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
                       id="level-input"
                       type="number"
                       min="1"
-                      max="45"
+                      max="100"
                       value={levelInput}
                       onChange={(e) => setLevelInput(e.target.value)}
                       className="flex-1 text-sm"
@@ -111,6 +111,25 @@ export function AdminPanel({ onSetLevel, onAddStatPoints, currentLevel, isOwner 
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Increases level to grant stat points
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm">Fast Tier Jump</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[15, 30, 45, 60, 75, 90, 100].map(val => (
+                      <Button
+                        key={val}
+                        size="xs"
+                        variant="outline"
+                        onClick={() => onSetLevel(val)}
+                      >
+                        Lv {val}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Teleport to class breakpoints for quick testing.
                   </p>
                 </div>
 

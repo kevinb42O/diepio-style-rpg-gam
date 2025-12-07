@@ -1,6 +1,37 @@
-import type { Drone, DroneControlMode, Vector2, Player, Loot, BotPlayer, Team } from './types'
+import type { Drone, DroneControlMode, DroneStyle, Vector2, Player, Loot, BotPlayer, Team } from './types'
 import { TANK_CONFIGS } from './tankConfigs'
 import type { TeamSystem } from './TeamSystem'
+
+// Drone style configurations for each class
+const DRONE_STYLE_CONFIG: Record<DroneStyle, {
+  speedMultiplier: number
+  damageMultiplier: number
+  healthMultiplier: number
+  radiusMultiplier: number
+  aggressiveness: number // 0-1, how aggressively they pursue targets
+}> = {
+  overseer: { speedMultiplier: 1.0, damageMultiplier: 1.0, healthMultiplier: 1.0, radiusMultiplier: 1.0, aggressiveness: 0.7 },
+  necromancer: { speedMultiplier: 0.85, damageMultiplier: 0.7, healthMultiplier: 1.5, radiusMultiplier: 1.1, aggressiveness: 0.6 },
+  gravemind: { speedMultiplier: 0.95, damageMultiplier: 1.3, healthMultiplier: 1.8, radiusMultiplier: 1.15, aggressiveness: 0.75 },
+  manager: { speedMultiplier: 1.1, damageMultiplier: 1.1, healthMultiplier: 0.9, radiusMultiplier: 0.9, aggressiveness: 0.8 },
+  factory: { speedMultiplier: 0.7, damageMultiplier: 1.4, healthMultiplier: 2.0, radiusMultiplier: 1.4, aggressiveness: 0.9 },
+  battleship: { speedMultiplier: 1.3, damageMultiplier: 0.4, healthMultiplier: 0.5, radiusMultiplier: 0.6, aggressiveness: 0.5 },
+  hybrid: { speedMultiplier: 1.15, damageMultiplier: 1.2, healthMultiplier: 1.1, radiusMultiplier: 1.0, aggressiveness: 0.85 }
+}
+
+// Get drone style based on tank class
+function getDroneStyleForClass(tankClass: string): DroneStyle {
+  switch (tankClass) {
+    case 'overseer': return 'overseer'
+    case 'necromancer': return 'necromancer'
+    case 'gravemindregent': return 'gravemind'
+    case 'manager': return 'manager'
+    case 'factory': return 'factory'
+    case 'battleship': return 'battleship'
+    case 'hybrid': return 'hybrid'
+    default: return 'overseer'
+  }
+}
 
 // Union type for drone targets (can be loot or enemy bots)
 interface DroneTarget {
@@ -54,6 +85,7 @@ export class DroneSystem {
 
   private updateDrone(drone: Drone, deltaTime: number, mousePosition: Vector2, player: Player, targets: Loot[], bots: BotPlayer[]) {
     const tankConfig = TANK_CONFIGS[player.tankClass]
+    const speedOverride = this.getEffectiveDroneSpeed(drone, player)
     
     // Create bot lookup map for O(1) access
     const botMap = new Map<string, BotPlayer>()
@@ -76,7 +108,7 @@ export class DroneSystem {
       if (distToPlayer > maxFollowDistance) {
         drone.state = 'returning'
         drone.target = null
-        this.orbitAroundPlayer(drone, player, deltaTime)
+        this.orbitAroundPlayer(drone, player, deltaTime, speedOverride)
         return
       }
       
@@ -129,7 +161,7 @@ export class DroneSystem {
             const targetDistToPlayer = this.getDistance(targetBot.position, player.position)
             if (targetDistToPlayer < maxAttackRange) {
               drone.targetPosition = { ...targetBot.position }
-              this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
+              this.moveDroneToPosition(drone, drone.targetPosition, deltaTime, speedOverride)
             } else {
               // Target too far from player
               drone.state = 'returning'
@@ -149,7 +181,7 @@ export class DroneSystem {
           // Only continue attacking if target is within range and in view
           if (targetDistToPlayer < maxAttackRange && this.isInScreenView(drone.target.position, player)) {
             drone.targetPosition = { ...drone.target.position }
-            this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
+            this.moveDroneToPosition(drone, drone.targetPosition, deltaTime, speedOverride)
           } else {
             // Target too far or out of view, return to player
             drone.state = 'returning'
@@ -161,7 +193,7 @@ export class DroneSystem {
         }
       } else {
         // returning or idle - follow player at a distance
-        this.orbitAroundPlayer(drone, player, deltaTime)
+        this.orbitAroundPlayer(drone, player, deltaTime, speedOverride)
       }
     } else {
       // Original mouse-controlled behavior for Necromancer
@@ -203,19 +235,19 @@ export class DroneSystem {
       // Execute behavior based on state
       if (drone.state === 'controlled') {
         if (drone.targetPosition) {
-          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
+          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime, speedOverride)
         }
       } else if (drone.state === 'attacking') {
         if (drone.target && drone.target.health && drone.target.health > 0) {
           drone.targetPosition = { ...drone.target.position }
-          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime)
+          this.moveDroneToPosition(drone, drone.targetPosition, deltaTime, speedOverride)
         } else {
           drone.state = 'returning'
           drone.target = null
         }
       } else {
         // returning or idle
-        this.orbitAroundPlayer(drone, player, deltaTime)
+        this.orbitAroundPlayer(drone, player, deltaTime, speedOverride)
       }
       
       // Check if drone is too far from player
@@ -227,7 +259,7 @@ export class DroneSystem {
     }
   }
 
-  private moveDroneToPosition(drone: Drone, target: Vector2, deltaTime: number) {
+  private moveDroneToPosition(drone: Drone, target: Vector2, deltaTime: number, speedOverride?: number) {
     const dx = target.x - drone.position.x
     const dy = target.y - drone.position.y
     const dist = Math.sqrt(dx * dx + dy * dy)
@@ -235,9 +267,11 @@ export class DroneSystem {
     if (dist > 5) {
       const dirX = dx / dist
       const dirY = dy / dist
+      const speed = speedOverride ?? drone.speed
+      drone.aimAngle = Math.atan2(dirY, dirX)
       
-      drone.velocity.x = dirX * drone.speed
-      drone.velocity.y = dirY * drone.speed
+      drone.velocity.x = dirX * speed
+      drone.velocity.y = dirY * speed
       
       drone.position.x += drone.velocity.x * deltaTime
       drone.position.y += drone.velocity.y * deltaTime
@@ -247,8 +281,8 @@ export class DroneSystem {
     }
   }
 
-  private orbitAroundPlayer(drone: Drone, player: Player, deltaTime: number) {
-    const orbitRadius = 80
+  private orbitAroundPlayer(drone: Drone, player: Player, deltaTime: number, speedOverride?: number) {
+    const orbitRadius = this.getOrbitRadius(player)
     const orbitSpeed = 2
     
     drone.orbitAngle += orbitSpeed * deltaTime
@@ -267,11 +301,16 @@ export class DroneSystem {
       const dirX = dx / dist
       const dirY = dy / dist
       
-      drone.velocity.x = dirX * drone.speed * 0.5
-      drone.velocity.y = dirY * drone.speed * 0.5
+      const speed = speedOverride ?? drone.speed
+      drone.velocity.x = dirX * speed * 0.5
+      drone.velocity.y = dirY * speed * 0.5
       
       drone.position.x += drone.velocity.x * deltaTime
       drone.position.y += drone.velocity.y * deltaTime
+      
+      if (Math.abs(drone.velocity.x) > 0.01 || Math.abs(drone.velocity.y) > 0.01) {
+        drone.aimAngle = Math.atan2(drone.velocity.y, drone.velocity.x)
+      }
     }
   }
 
@@ -375,6 +414,21 @@ export class DroneSystem {
     return Math.sqrt(dx * dx + dy * dy)
   }
 
+  private getOrbitRadius(player: Player): number {
+    const baseRadius = 80
+    if (player.tankClass === 'armadacolossus') {
+      return baseRadius + (player.synergy?.modifiers?.['armadaPatrolRadius'] ?? 0)
+    }
+    return baseRadius
+  }
+
+  private getEffectiveDroneSpeed(drone: Drone, player: Player): number {
+    if (drone.ownerId !== player.id) {
+      return drone.speed
+    }
+    return drone.speed * (player.synergy?.droneSpeedBonus ?? 1)
+  }
+
   private trySpawnDrones(player: Player) {
     const tankConfig = TANK_CONFIGS[player.tankClass]
     if (!tankConfig || !tankConfig.isDroneClass) return
@@ -382,7 +436,11 @@ export class DroneSystem {
     const maxDrones = tankConfig.droneCount || 0
     const spawnerCount = tankConfig.spawnerCount || 0
     
-    if (this.drones.length >= maxDrones || spawnerCount === 0) return
+    if (spawnerCount === 0) return
+    
+    const playerDrones = this.getPlayerDrones(player.id)
+    let currentCount = playerDrones.length
+    if (currentCount >= maxDrones) return
     
     const now = Date.now()
     const spawnKey = `${player.id}_spawn`
@@ -391,47 +449,116 @@ export class DroneSystem {
     // Calculate spawn rate from player stats - faster spawning with better reload
     const baseSpawnRate = 2000
     const reloadBonus = Math.max(0, 1 - (player.fireRate / 500))
-    const spawnRate = baseSpawnRate * (0.5 + reloadBonus * 0.5)
+    let spawnRate = baseSpawnRate * (0.5 + reloadBonus * 0.5)
+    
+    if (player.tankClass === 'battleship') {
+      spawnRate *= 0.45
+    } else if (player.tankClass === 'factory') {
+      spawnRate *= 0.85
+    }
     
     if (now - lastSpawn >= spawnRate) {
-      this.spawnDrone(player, tankConfig.droneType || 'triangle')
+      const spawnPositions = this.getSpawnerPositions(player, spawnerCount)
+      for (const spawnPos of spawnPositions) {
+        if (currentCount >= maxDrones) break
+        const drone = this.spawnDrone(
+          player,
+          tankConfig.droneType || 'triangle',
+          spawnPos ?? undefined
+        )
+        if (drone) {
+          currentCount++
+        }
+      }
       this.lastSpawnTimes.set(spawnKey, now)
     }
   }
 
-  spawnDrone(player: Player, droneType: 'triangle' | 'square' | 'minion'): Drone | null {
+  private getSpawnerPositions(player: Player, spawnerCount: number): Array<Vector2 | null> {
+    if (player.tankClass === 'battleship') {
+      const diagAngles = [45, 135, 225, 315]
+      const radius = player.radius + 25
+      const count = Math.min(spawnerCount, diagAngles.length)
+      const positions: Vector2[] = []
+      for (let i = 0; i < count; i++) {
+        const rad = (diagAngles[i] * Math.PI) / 180
+        positions.push({
+          x: player.position.x + Math.cos(rad) * radius,
+          y: player.position.y + Math.sin(rad) * radius
+        })
+      }
+      return positions
+    }
+    
+    return Array.from({ length: spawnerCount }, () => null)
+  }
+
+  spawnDrone(player: Player, droneType: 'triangle' | 'square' | 'minion', spawnPosition?: Vector2): Drone | null {
     const tankConfig = TANK_CONFIGS[player.tankClass]
     if (!tankConfig || !tankConfig.isDroneClass) return null
     
     const maxDrones = tankConfig.droneCount || 0
     if (this.drones.filter(d => d.ownerId === player.id).length >= maxDrones) return null
     
-    // Calculate drone stats from player stats
-    const droneSpeed = 150 + (player.speed * 0.5)
-    const droneDamage = 5 + (player.damage * 0.3)
-    const droneHealth = 10 + (player.bulletPenetration * 2)
+    // Get drone style configuration for this tank class
+    const droneStyle = getDroneStyleForClass(player.tankClass)
+    const styleConfig = DRONE_STYLE_CONFIG[droneStyle]
+    
+    // Calculate base drone stats from player's ACTUAL stats (affected by stat points)
+    const baseSpeed = 120 + (player.bulletSpeed * 0.4)
+    const baseDamage = player.damage * 0.8
+    const baseHealth = 15 + (player.bulletPenetration * 3)
+    const baseRadius = droneType === 'minion' ? 14 : droneType === 'square' ? 10 : 8
+    
+    // Apply style multipliers
+    let droneSpeed = baseSpeed * styleConfig.speedMultiplier * (player.synergy?.droneSpeedBonus ?? 1)
+    let droneDamage = baseDamage * styleConfig.damageMultiplier
+    let droneHealth = baseHealth * styleConfig.healthMultiplier
+    const droneRadius = baseRadius * styleConfig.radiusMultiplier
+
+    if (player.tankClass === 'gravemindregent') {
+      const bonus = player.synergy?.modifiers?.['gravemindThrallBonus'] ?? 1
+      droneDamage *= bonus
+      droneHealth *= bonus
+    }
+    if (player.tankClass === 'astralregent') {
+      const redeploy = player.synergy?.modifiers?.['astralRedeploySpeed'] ?? 1
+      droneSpeed *= redeploy
+    }
+    if (player.tankClass === 'riftwalker') {
+      const drift = player.synergy?.modifiers?.['riftDroneSpeed'] ?? 1
+      droneSpeed *= drift
+    }
     
     const angle = Math.random() * Math.PI * 2
     const spawnDist = 30
-    
+    const spawnPos = spawnPosition ?? {
+      x: player.position.x + Math.cos(angle) * spawnDist,
+      y: player.position.y + Math.sin(angle) * spawnDist
+    }
+    const facingAngle = spawnPosition
+      ? Math.atan2(spawnPos.y - player.position.y, spawnPos.x - player.position.x)
+      : angle
+
     const drone: Drone = {
       id: `drone_${this.droneIdCounter++}`,
-      position: {
-        x: player.position.x + Math.cos(angle) * spawnDist,
-        y: player.position.y + Math.sin(angle) * spawnDist
-      },
+      position: { ...spawnPos },
       velocity: { x: 0, y: 0 },
       targetPosition: null,
       health: droneHealth,
       maxHealth: droneHealth,
       damage: droneDamage,
       speed: droneSpeed,
-      radius: droneType === 'minion' ? 12 : droneType === 'square' ? 8 : 10,
+      radius: droneRadius,
       ownerId: player.id,
       droneType,
+      droneStyle,
       state: 'idle',
       orbitAngle: angle,
-      target: null
+      target: null,
+      team: player.team,
+      pulsePhase: Math.random() * Math.PI * 2,  // Random starting phase for visual effects
+      aimAngle: facingAngle
     }
     
     this.drones.push(drone)
@@ -456,22 +583,33 @@ export class DroneSystem {
     return this.controlMode
   }
 
-  convertShapeToDrone(shape: Loot, player: Player): boolean {
+  convertShapeToDrone(shape: Loot, player: Player, styleOverride?: DroneStyle): boolean {
     const tankConfig = TANK_CONFIGS[player.tankClass]
     
-    // Only Necromancer can convert shapes
-    if (player.tankClass !== 'necromancer') return false
-    if (!tankConfig || !tankConfig.isDroneClass) return false
+    const canConvert = player.tankClass === 'necromancer' || player.tankClass === 'gravemindregent'
+    if (!canConvert || !tankConfig || !tankConfig.isDroneClass) return false
     
     const maxDrones = tankConfig.droneCount || 34
     const currentDrones = this.drones.filter(d => d.ownerId === player.id).length
     
     if (currentDrones >= maxDrones) return false
     
-    // Create square drone at shape position
-    const droneSpeed = 150 + (player.speed * 0.5)
-    const droneDamage = 5 + (player.damage * 0.3)
-    const droneHealth = 10 + (player.bulletPenetration * 2)
+    const droneStyle: DroneStyle = styleOverride
+      ? styleOverride
+      : player.tankClass === 'gravemindregent'
+        ? 'gravemind'
+        : 'necromancer'
+    const styleConfig = DRONE_STYLE_CONFIG[droneStyle]
+    
+    // Create square drone at shape position using player's bullet stats with necromancer modifiers
+    const baseSpeed = 120 + (player.bulletSpeed * 0.4)
+    const baseDamage = player.damage * 0.8
+    const baseHealth = 15 + (player.bulletPenetration * 3)
+    
+    const droneSpeed = baseSpeed * styleConfig.speedMultiplier * (player.synergy?.droneSpeedBonus ?? 1)
+    const droneDamage = baseDamage * styleConfig.damageMultiplier
+    const droneHealth = baseHealth * styleConfig.healthMultiplier
+    const droneRadius = 10 * styleConfig.radiusMultiplier
     
     const drone: Drone = {
       id: `drone_necro_${this.droneIdCounter++}`,
@@ -482,15 +620,20 @@ export class DroneSystem {
       maxHealth: droneHealth,
       damage: droneDamage,
       speed: droneSpeed,
-      radius: 8,
+      radius: droneRadius,
       ownerId: player.id,
       droneType: 'square',
+      droneStyle,
       state: 'idle',
       orbitAngle: Math.random() * Math.PI * 2,
-      target: null
+      target: null,
+      team: player.team,
+      pulsePhase: Math.random() * Math.PI * 2,
+      aimAngle: Math.random() * Math.PI * 2
     }
     
     this.drones.push(drone)
+    shape.convertedToHusk = true
     return true
   }
 
@@ -569,6 +712,34 @@ export class DroneSystem {
     this.drones = []
     this.lastSpawnTimes.clear()
     this.botTargets.clear()
+  }
+
+  /**
+   * Update all player drones with current player stats
+   * Called when player upgrades bulletSpeed, bulletDamage, or bulletPenetration
+   */
+  updateDroneStats(player: Player) {
+    const playerDrones = this.drones.filter(d => d.ownerId === player.id)
+    
+    // Calculate base drone stats from player's bullet stats
+    const baseSpeed = 120 + (player.bulletSpeed * 0.4)
+    const baseDamage = player.damage * 0.8
+    const baseMaxHealth = 15 + (player.bulletPenetration * 3)
+    const speedBonus = player.synergy?.droneSpeedBonus ?? 1
+    
+    for (const drone of playerDrones) {
+      // Apply style multipliers
+      const styleConfig = DRONE_STYLE_CONFIG[drone.droneStyle]
+      
+      drone.speed = baseSpeed * styleConfig.speedMultiplier * speedBonus
+      drone.damage = baseDamage * styleConfig.damageMultiplier
+      
+      // Update max health and scale current health proportionally
+      const newMaxHealth = baseMaxHealth * styleConfig.healthMultiplier
+      const healthPercent = drone.health / drone.maxHealth
+      drone.maxHealth = newMaxHealth
+      drone.health = Math.min(newMaxHealth, drone.health + (newMaxHealth - drone.maxHealth) * healthPercent)
+    }
   }
 
   removeDrone(droneId: string) {

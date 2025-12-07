@@ -71,26 +71,8 @@ export function GameCanvas({ engine, showStatUI = false, onStatClick }: GameCanv
     engine.setRenderCallback(() => {
       renderEngine.render(engine)
       
-      if (showStatUI) {
-        const availablePoints = engine.upgradeManager.getAvailableSkillPoints()
-        const statPoints = engine.upgradeManager.getStatPoints()
-        const statPointsStr = JSON.stringify(statPoints)
-        
-        if (availablePoints > 0 && (statPointsStr !== lastStatPoints || availablePoints !== lastAvailablePoints)) {
-          uiManager.clear()
-          uiManager.drawStatUpgradeUI(statPoints, availablePoints, onStatClick)
-          lastStatPoints = statPointsStr
-          lastAvailablePoints = availablePoints
-        } else if (availablePoints === 0 && lastAvailablePoints > 0) {
-          uiManager.clear()
-          lastStatPoints = ''
-          lastAvailablePoints = 0
-        }
-      } else if (lastAvailablePoints > 0) {
-        uiManager.clear()
-        lastStatPoints = ''
-        lastAvailablePoints = 0
-      }
+      // Stats UI now handled by the premium StatUpgradeModal component
+      // No more ugly canvas-drawn stats panel
     })
 
     return () => {
@@ -188,8 +170,18 @@ function drawPlayer(ctx: CanvasRenderingContext2D, engine: GameEngine) {
 
 function drawProjectiles(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   for (const projectile of engine.projectiles) {
-    ctx.fillStyle = projectile.isPlayerProjectile ? '#ffdd44' : '#ff4444'
-    ctx.strokeStyle = projectile.isPlayerProjectile ? '#ffff88' : '#ff8888'
+    // Use team color for projectiles
+    let fillColor: string
+    let strokeColor: string
+    if (projectile.team) {
+      fillColor = engine.teamSystem.getTeamColor(projectile.team)
+      strokeColor = projectile.team === 'blue' ? '#88ddff' : '#ff8888'
+    } else {
+      fillColor = projectile.isPlayerProjectile ? '#ffdd44' : '#ff4444'
+      strokeColor = projectile.isPlayerProjectile ? '#ffff88' : '#ff8888'
+    }
+    ctx.fillStyle = fillColor
+    ctx.strokeStyle = strokeColor
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(projectile.position.x, projectile.position.y, projectile.radius, 0, Math.PI * 2)

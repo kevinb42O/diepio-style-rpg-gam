@@ -11,10 +11,22 @@ export interface AutoTurret {
   rotation: number
   targetRotation: number
   baseAngle: number
+  orbitAngle: number
   reloadTimer: number
   lastShotTime: number
   isTracking: boolean
   barrelRecoil: number
+}
+
+export interface AutoTurretProfile {
+  detectionRange?: number
+  fireRate?: number
+  trackingRotationSpeed?: number
+  idleRotationSpeed?: number
+  bulletDamageMultiplier?: number
+  bulletSpeedMultiplier?: number
+  orbitRadius?: number
+  orbitSpin?: number
 }
 
 interface OwnerInfo {
@@ -24,6 +36,7 @@ interface OwnerInfo {
   bulletSpeed: number
   damage: number
   radius: number
+  turretProfile?: AutoTurretProfile
 }
 
 /**
@@ -73,6 +86,7 @@ export class AutoTurretSystem {
         rotation: baseAngle,
         targetRotation: baseAngle,
         baseAngle,
+        orbitAngle: baseAngle,
         reloadTimer: 0,
         lastShotTime: 0,
         isTracking: false,
@@ -99,14 +113,24 @@ export class AutoTurretSystem {
     for (const [ownerId, ownerTurrets] of this.turrets.entries()) {
       const owner = owners.get(ownerId)
       if (!owner) {
-        // Owner no longer exists, will be cleaned up
         continue
       }
 
+      const profile = owner.turretProfile
+      const detectionRange = profile?.detectionRange ?? this.DETECTION_RANGE
+      const trackingRotationSpeed = profile?.trackingRotationSpeed ?? this.ROTATION_SPEED
+      const idleRotationSpeed = profile?.idleRotationSpeed ?? this.IDLE_ROTATION_SPEED
+      const fireRate = profile?.fireRate ?? this.FIRE_RATE
+      const bulletDamageMultiplier = profile?.bulletDamageMultiplier ?? this.BULLET_DAMAGE_MULTIPLIER
+      const bulletSpeedMultiplier = profile?.bulletSpeedMultiplier ?? this.BULLET_SPEED_MULTIPLIER
+      const orbitRadius = profile?.orbitRadius ?? Math.max(owner.radius * 0.9, owner.radius - 4)
+      const orbitSpin = profile?.orbitSpin ?? 0
+
       for (const turret of ownerTurrets) {
-        // Update turret position to follow owner
-        turret.position.x = owner.position.x
-        turret.position.y = owner.position.y
+        turret.orbitAngle = this.normalizeAngle((turret.orbitAngle ?? turret.baseAngle) + orbitSpin * deltaTime)
+        const offsetAngle = turret.orbitAngle ?? turret.baseAngle
+        turret.position.x = owner.position.x + Math.cos(offsetAngle) * orbitRadius
+        turret.position.y = owner.position.y + Math.sin(offsetAngle) * orbitRadius
 
         // Update barrel recoil
         if (turret.barrelRecoil > 0) {
@@ -116,17 +140,24 @@ export class AutoTurretSystem {
         // Find target
         const target = this.findNearestTarget(
           turret,
-          owner.position,
           owner.team,
           enemies,
-          loot
+          loot,
+          detectionRange
         )
 
         // Update aim
-        this.updateTurretAim(turret, target, deltaTime)
+        this.updateTurretAim(turret, target, deltaTime, trackingRotationSpeed, idleRotationSpeed)
 
         // Try to shoot
-        const projectile = this.tryShoot(turret, owner, currentTime)
+        const projectile = this.tryShoot(
+          turret,
+          owner,
+          currentTime,
+          fireRate,
+          bulletSpeedMultiplier,
+          bulletDamageMultiplier
+        )
         if (projectile) {
           projectiles.push(projectile)
         }
@@ -146,21 +177,21 @@ export class AutoTurretSystem {
    */
   private findNearestTarget(
     turret: AutoTurret,
-    ownerPos: Vector2,
     ownerTeam: Team,
     enemies: Array<{ id: string; position: Vector2; team: Team; radius: number }>,
-    loot: Loot[]
+    loot: Loot[],
+    detectionRange: number
   ): Vector2 | null {
     let nearestTarget: Vector2 | null = null
-    let nearestDistSq = this.DETECTION_RANGE * this.DETECTION_RANGE
+    let nearestDistSq = detectionRange * detectionRange
 
     // Priority 1: Enemy players/bots
     for (const enemy of enemies) {
       // Skip allies
       if (enemy.team === ownerTeam) continue
 
-      const dx = enemy.position.x - ownerPos.x
-      const dy = enemy.position.y - ownerPos.y
+      const dx = enemy.position.x - turret.position.x
+      const dy = enemy.position.y - turret.position.y
       const distSq = dx * dx + dy * dy
 
       if (distSq < nearestDistSq) {
@@ -176,8 +207,8 @@ export class AutoTurretSystem {
           continue
         }
 
-        const dx = item.position.x - ownerPos.x
-        const dy = item.position.y - ownerPos.y
+        const dx = item.position.x - turret.position.x
+        const dy = item.position.y - turret.position.y
         const distSq = dx * dx + dy * dy
 
         if (distSq < nearestDistSq) {
@@ -196,7 +227,9 @@ export class AutoTurretSystem {
   private updateTurretAim(
     turret: AutoTurret,
     targetPos: Vector2 | null,
-    deltaTime: number
+    deltaTime: number,
+    trackingSpeed: number,
+    idleSpeed: number
   ): void {
     if (targetPos) {
       // Calculate angle to target
@@ -206,12 +239,12 @@ export class AutoTurretSystem {
       turret.isTracking = true
     } else {
       // No target - slowly rotate in idle pattern
-      turret.targetRotation = turret.rotation + this.IDLE_ROTATION_SPEED * deltaTime
+      turret.targetRotation = turret.rotation + idleSpeed * deltaTime
       turret.isTracking = false
     }
 
     // Smoothly rotate towards target
-    const rotationSpeed = turret.isTracking ? this.ROTATION_SPEED : this.IDLE_ROTATION_SPEED
+    const rotationSpeed = turret.isTracking ? trackingSpeed : idleSpeed
     const angleDiff = this.normalizeAngle(turret.targetRotation - turret.rotation)
     const rotationAmount = rotationSpeed * deltaTime
 
@@ -231,14 +264,17 @@ export class AutoTurretSystem {
   private tryShoot(
     turret: AutoTurret,
     owner: OwnerInfo,
-    currentTime: number
+    currentTime: number,
+    fireRate: number,
+    bulletSpeedMultiplier: number,
+    bulletDamageMultiplier: number
   ): Projectile | null {
     // Only shoot if tracking a target and reload is ready
     if (!turret.isTracking) {
       return null
     }
 
-    if (currentTime - turret.lastShotTime < this.FIRE_RATE) {
+    if (currentTime - turret.lastShotTime < fireRate) {
       return null
     }
 
@@ -248,7 +284,7 @@ export class AutoTurretSystem {
     const barrelTipY = turret.position.y + Math.sin(turret.rotation) * barrelLength
 
     // Create projectile
-    const bulletSpeed = owner.bulletSpeed * this.BULLET_SPEED_MULTIPLIER
+    const bulletSpeed = owner.bulletSpeed * bulletSpeedMultiplier
     const projectile: Projectile = {
       id: `turret_proj_${Date.now()}_${Math.random()}`,
       position: { x: barrelTipX, y: barrelTipY },
@@ -256,11 +292,13 @@ export class AutoTurretSystem {
         x: Math.cos(turret.rotation) * bulletSpeed,
         y: Math.sin(turret.rotation) * bulletSpeed,
       },
-      damage: owner.damage * this.BULLET_DAMAGE_MULTIPLIER,
+      damage: owner.damage * bulletDamageMultiplier,
       radius: 4,
       isPlayerProjectile: false, // Auto turrets are not direct player projectiles
       ownerId: turret.ownerId,
       team: owner.team,
+      specialTag: 'autoturret',
+      trailColor: owner.team === 'blue' ? '#8cf1ff' : '#ffb38c'
     }
 
     // Update turret state

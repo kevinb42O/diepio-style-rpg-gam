@@ -1,3 +1,5 @@
+import { TANK_CONFIGS, getUpgradesForClassAtLevel } from './tankConfigs'
+
 export type StatType = 'healthRegen' | 'maxHealth' | 'bodyDamage' | 'bulletSpeed' | 'bulletPenetration' | 'bulletDamage' | 'reload' | 'movementSpeed' | 'lootRange'
 
 export interface PlayerStats {
@@ -48,6 +50,12 @@ const XP_CURVE: { [key: number]: number } = {
   31: 216000, 32: 245000, 33: 277000, 34: 313000, 35: 353000, 36: 398000, 37: 448000, 38: 504000, 39: 566000, 40: 635000,
   41: 712000, 42: 797000, 43: 891000, 44: 995000, 45: 1110000
 }
+
+const LOOT_RANGE_GROWTH = 1.35
+const LOOT_RANGE_CAP_POINTS = 8
+const SOFT_STAT_CAP = 30
+const HARD_STAT_CAP = 40
+const MAX_STAT_POINTS = 40
 
 export const TANK_CLASSES: { [key: string]: TankClass } = {
   basic: {
@@ -247,6 +255,15 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     barrels: [],
     description: 'Pure body damage, hexagon body'
   },
+
+  crusher: {
+    name: 'Crusher',
+    tier: 2,
+    requiredLevel: 30,
+    parent: 'smasher',
+    barrels: [],
+    description: 'Armored ram chassis with reinforced spin'
+  },
   
   // === TIER 2: NEW TANKS ===
   
@@ -306,11 +323,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     tier: 2,
     requiredLevel: 30,
     parent: 'flankguard',
-    barrels: [
-      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 15 },
-      { offsetX: 0, offsetY: 0, angle: Math.PI * 2 / 3, width: 11, length: 15 },
-      { offsetX: 0, offsetY: 0, angle: Math.PI * 4 / 3, width: 11, length: 15 }
-    ],
+    barrels: [], // No player-controlled barrels - only auto turrets
     description: 'Three auto-turrets'
   },
   
@@ -488,7 +501,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Spike',
     tier: 3,
     requiredLevel: 45,
-    parent: 'smasher',
+    parent: 'crusher',
     barrels: [],
     description: 'Spiky hexagon, max body damage'
   },
@@ -497,7 +510,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Landmine',
     tier: 3,
     requiredLevel: 45,
-    parent: 'smasher',
+    parent: 'crusher',
     barrels: [],
     description: 'Full invisibility when still'
   },
@@ -506,11 +519,107 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     name: 'Auto Smasher',
     tier: 3,
     requiredLevel: 45,
-    parent: 'smasher',
+    parent: 'crusher',
     barrels: [
       { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 15 }
     ],
     description: 'Hexagon with auto-turret'
+  },
+
+  // === TIER 4: EVOLUTION ===
+
+  siegebreaker: {
+    name: 'Siegebreaker',
+    tier: 4,
+    requiredLevel: 60,
+    parent: 'annihilator',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 18, length: 38 }
+    ],
+    description: 'Charge a single siege shell that obliterates targets'
+  },
+
+  aegisvanguard: {
+    name: 'Aegis Vanguard',
+    tier: 4,
+    requiredLevel: 60,
+    parent: 'spike',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 10, length: 20 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 5 / 6, width: 8, length: 16 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI * 5 / 6, width: 8, length: 16 }
+    ],
+    description: 'Deploy rotating shields and empowered collisions'
+  },
+
+  mirage: {
+    name: 'Mirage',
+    tier: 4,
+    requiredLevel: 60,
+    parent: 'stalker',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 8, length: 30 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 12, width: 7, length: 24 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 12, width: 7, length: 24 }
+    ],
+    description: 'Invisible assassin projecting a controllable decoy'
+  },
+
+  // === TIER 5: MYTHIC ===
+
+  obelisk: {
+    name: 'Obelisk',
+    tier: 5,
+    requiredLevel: 75,
+    parent: 'ranger',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 8, length: 32 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI / 4, width: 6, length: 14 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI / 4, width: 6, length: 14 }
+    ],
+    description: 'Laser pylons form death grids at range'
+  },
+
+  tempest: {
+    name: 'Tempest',
+    tier: 5,
+    requiredLevel: 75,
+    parent: 'autogunner',
+    barrels: [
+      { offsetX: 0, offsetY: -6, angle: 0, width: 8, length: 22 },
+      { offsetX: 0, offsetY: 6, angle: 0, width: 8, length: 22 },
+      { offsetX: 0, offsetY: -6, angle: Math.PI * 2 / 3, width: 8, length: 22 },
+      { offsetX: 0, offsetY: 6, angle: Math.PI * 2 / 3, width: 8, length: 22 },
+      { offsetX: 0, offsetY: -6, angle: Math.PI * 4 / 3, width: 8, length: 22 },
+      { offsetX: 0, offsetY: 6, angle: Math.PI * 4 / 3, width: 8, length: 22 }
+    ],
+    description: 'Cyclone barrages swap arcs every salvo'
+  },
+
+  // === TIER 6: ASCENDED ===
+
+  riftwalker: {
+    name: 'Riftwalker',
+    tier: 6,
+    requiredLevel: 90,
+    parent: 'overlord',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 10, length: 16 }
+    ],
+    description: 'Teleporting drone commander that folds space'
+  },
+
+  catalyst: {
+    name: 'Catalyst',
+    tier: 6,
+    requiredLevel: 90,
+    parent: 'fighter',
+    barrels: [
+      { offsetX: 0, offsetY: 0, angle: 0, width: 10, length: 24 },
+      { offsetX: 0, offsetY: 0, angle: Math.PI * 5 / 6, width: 8, length: 18 },
+      { offsetX: 0, offsetY: 0, angle: -Math.PI * 5 / 6, width: 8, length: 18 }
+    ],
+    description: 'Builds momentum stacks to unleash shockwaves'
   },
   
   auto5: {
@@ -518,13 +627,7 @@ export const TANK_CLASSES: { [key: string]: TankClass } = {
     tier: 3,
     requiredLevel: 45,
     parent: 'auto3',
-    barrels: [
-      { offsetX: 0, offsetY: 0, angle: 0, width: 11, length: 15 },
-      { offsetX: 0, offsetY: 0, angle: Math.PI * 2 / 5, width: 11, length: 15 },
-      { offsetX: 0, offsetY: 0, angle: Math.PI * 4 / 5, width: 11, length: 15 },
-      { offsetX: 0, offsetY: 0, angle: Math.PI * 6 / 5, width: 11, length: 15 },
-      { offsetX: 0, offsetY: 0, angle: Math.PI * 8 / 5, width: 11, length: 15 }
-    ],
+    barrels: [], // No player-controlled barrels - only auto turrets
     description: 'Five auto-turrets'
   },
   
@@ -650,7 +753,6 @@ export class UpgradeManager {
   }
 
   canAllocateStat(stat: StatType): boolean {
-    const MAX_STAT_POINTS = 30
     return this.getAvailableSkillPoints() > 0 && this.statPoints[stat] < MAX_STAT_POINTS
   }
 
@@ -676,34 +778,40 @@ export class UpgradeManager {
     }
 
     const base = baseValues[stat]
+    const effectivePoints = this.applyStatPointCaps(points)
 
     switch (stat) {
       case 'reload':
-        return base * Math.pow(0.93, points)
+        return base * Math.pow(0.93, effectivePoints)
       
       case 'healthRegen':
-        return base * Math.pow(1.35, points)
+        return base * Math.pow(1.35, effectivePoints)
       
       case 'maxHealth':
-        return base + (points * 25)
+        return base + (effectivePoints * 25)
       
       case 'bodyDamage':
-        return base * Math.pow(1.15, points)
+        return base * Math.pow(1.15, effectivePoints)
       
       case 'bulletSpeed':
-        return base * Math.pow(1.04, points)
+        return base * Math.pow(1.04, effectivePoints)
       
       case 'bulletPenetration':
-        return base * Math.pow(1.2, points)
+        return base * Math.pow(1.2, effectivePoints)
       
       case 'bulletDamage':
-        return base * Math.pow(1.15, points)
+        return base * Math.pow(1.15, effectivePoints)
       
       case 'movementSpeed':
-        return base * Math.pow(1.03, points)
+        return base * Math.pow(1.03, effectivePoints)
       
-      case 'lootRange':
-        return base * Math.pow(1.35, points)
+      case 'lootRange': {
+        const maxRange = base * Math.pow(LOOT_RANGE_GROWTH, LOOT_RANGE_CAP_POINTS)
+        if (effectivePoints >= LOOT_RANGE_CAP_POINTS) {
+          return maxRange
+        }
+        return base * Math.pow(LOOT_RANGE_GROWTH, effectivePoints)
+      }
       
       default:
         return base
@@ -716,7 +824,7 @@ export class UpgradeManager {
     }
     const baseXP = XP_CURVE[45] || 1110000
     const levelsAbove45 = level - 45
-    return baseXP + (levelsAbove45 * 150000)
+    return baseXP + (levelsAbove45 * 125000)
   }
 
   addXP(amount: number): boolean {
@@ -731,23 +839,18 @@ export class UpgradeManager {
   }
 
   getAvailableUpgrades(): TankClass[] {
-    const available: TankClass[] = []
-    
-    for (const key in TANK_CLASSES) {
-      const tank = TANK_CLASSES[key]
-      if (tank.parent === this.currentClass && this.level >= tank.requiredLevel) {
-        available.push(tank)
-      }
-    }
-    
-    return available
+    return getUpgradesForClassAtLevel(this.currentClass, this.level).map((config) =>
+      this.resolveTankClass(config.key || '')
+    )
   }
 
   upgradeTank(tankKey: string): boolean {
-    const tank = TANK_CLASSES[tankKey]
-    if (!tank) return false
+    // Use TANK_CONFIGS for consistency with tankConfigs.ts
+    const config = TANK_CONFIGS[tankKey]
+    if (!config) return false
     
-    if (tank.parent === this.currentClass && this.level >= tank.requiredLevel) {
+    // Check if this tank can be upgraded from current class
+    if (config.upgradesFrom?.includes(this.currentClass) && this.level >= config.unlocksAt) {
       this.currentClass = tankKey
       return true
     }
@@ -755,7 +858,7 @@ export class UpgradeManager {
   }
 
   getCurrentTank(): TankClass {
-    return TANK_CLASSES[this.currentClass]
+    return this.resolveTankClass(this.currentClass)
   }
 
   getStats(): PlayerStats {
@@ -810,6 +913,25 @@ export class UpgradeManager {
     return nextLevelXP - currentLevelXP
   }
 
+  addStatPoints(amount: number): void {
+    // Add the equivalent amount of levels to gain stat points
+    const currentLevel = this.level
+    const targetLevel = currentLevel + amount
+    const targetXP = this.getXPForLevel(targetLevel)
+    this.totalXP = targetXP
+    this.level = targetLevel
+  }
+
+  private applyStatPointCaps(points: number): number {
+    if (points <= SOFT_STAT_CAP) {
+      return points
+    }
+    if (points <= HARD_STAT_CAP) {
+      return SOFT_STAT_CAP + (points - SOFT_STAT_CAP) * 0.5
+    }
+    return SOFT_STAT_CAP + (HARD_STAT_CAP - SOFT_STAT_CAP) * 0.5
+  }
+
   reset() {
     this.stats = {
       healthRegen: 0,
@@ -836,5 +958,31 @@ export class UpgradeManager {
     this.level = 1
     this.currentClass = 'basic'
     this.totalXP = 0
+  }
+
+  private resolveTankClass(key: string): TankClass {
+    const legacy = TANK_CLASSES[key]
+    if (legacy) return legacy
+
+    const config = TANK_CONFIGS[key]
+    if (config) {
+      return {
+        name: config.name,
+        tier: config.tier,
+        requiredLevel: config.unlocksAt,
+        parent: config.upgradesFrom?.[0] ?? null,
+        barrels: config.barrels ?? [],
+        description: config.synergyNote || `${config.name} configuration`
+      }
+    }
+
+    return {
+      name: 'Unknown',
+      tier: 0,
+      requiredLevel: 0,
+      parent: null,
+      barrels: [],
+      description: 'Unknown tank'
+    }
   }
 }

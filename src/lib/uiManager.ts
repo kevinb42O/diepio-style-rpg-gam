@@ -47,7 +47,7 @@ export class UIManager {
     const barHeight = 25
     const barSpacing = 8
     const barWidth = 220
-    const MAX_STAT_POINTS = 30
+const MAX_STAT_POINTS = 40
 
     this.statBarBounds.clear()
 
@@ -104,7 +104,9 @@ export class UIManager {
       this.ctx.font = '12px Inter, sans-serif'
       this.ctx.shadowColor = '#000000'
       this.ctx.shadowBlur = 3
-      const label = isMaxed ? `[${stat.hotkey}] ${stat.label} (${points}/30 ⭐)` : `[${stat.hotkey}] ${stat.label} (${points}/30)`
+      const label = isMaxed
+        ? `[${stat.hotkey}] ${stat.label} (${points}/${MAX_STAT_POINTS} MAX)`
+        : `[${stat.hotkey}] ${stat.label} (${points}/${MAX_STAT_POINTS})`
       this.ctx.fillText(label, x + 5, y + 17)
       this.ctx.shadowBlur = 0
 
