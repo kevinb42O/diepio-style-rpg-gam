@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useDeviceInfo } from '@/hooks/use-mobile'
 
 interface MobileControlsProps {
   onMove: (x: number, y: number) => void
@@ -7,7 +7,7 @@ interface MobileControlsProps {
 }
 
 export function MobileControls({ onMove, onShootDirection }: MobileControlsProps) {
-  const isMobile = useIsMobile()
+  const { isMobile, isPortrait } = useDeviceInfo()
   const [moveStickPosition, setMoveStickPosition] = useState({ x: 0, y: 0 })
   const [shootStickPosition, setShootStickPosition] = useState({ x: 0, y: 0 })
   const moveJoystickRef = useRef<HTMLDivElement>(null)
@@ -132,16 +132,34 @@ export function MobileControls({ onMove, onShootDirection }: MobileControlsProps
 
   if (!isMobile) return null
 
+  // Calculate responsive joystick sizes and positions
+  const joystickSize = isPortrait ? 'w-28 h-28' : 'w-24 h-24'
+  const joystickInnerSize = isPortrait ? 'w-11 h-11' : 'w-9 h-9'
+  
+  // Position joysticks based on orientation
+  // Portrait: bottom corners with safe area insets
+  // Landscape: more vertically centered with safe area insets
+  const moveJoystickPosition = isPortrait
+    ? 'bottom-20 left-4'
+    : 'bottom-[15vh] left-4'
+  const shootJoystickPosition = isPortrait
+    ? 'bottom-20 right-4'
+    : 'bottom-[15vh] right-4'
+
   return (
     <div className="fixed inset-0 pointer-events-none z-50">
       <div
         ref={moveJoystickRef}
-        className="absolute bottom-20 left-4 w-28 h-28 pointer-events-auto touch-none"
-        style={{ touchAction: 'none' }}
+        className={`absolute ${moveJoystickPosition} ${joystickSize} pointer-events-auto touch-none`}
+        style={{ 
+          touchAction: 'none',
+          bottom: `calc(${isPortrait ? '5rem' : '15vh'} + var(--safe-area-inset-bottom))`,
+          left: `calc(1rem + var(--safe-area-inset-left))`
+        }}
       >
         <div className="absolute inset-0 bg-primary/20 rounded-full border-2 border-primary/40" />
         <div 
-          className="absolute top-1/2 left-1/2 w-11 h-11 -ml-5.5 -mt-5.5 bg-primary/80 rounded-full border-2 border-primary"
+          className={`absolute top-1/2 left-1/2 ${joystickInnerSize} -ml-5.5 -mt-5.5 bg-primary/80 rounded-full border-2 border-primary`}
           style={{
             transform: `translate(${moveStickPosition.x}px, ${moveStickPosition.y}px)`,
             transition: moveStickPosition.x === 0 && moveStickPosition.y === 0 ? 'transform 0.1s ease-out' : 'none'
@@ -156,12 +174,16 @@ export function MobileControls({ onMove, onShootDirection }: MobileControlsProps
 
       <div
         ref={shootJoystickRef}
-        className="absolute bottom-20 right-4 w-28 h-28 pointer-events-auto touch-none"
-        style={{ touchAction: 'none' }}
+        className={`absolute ${shootJoystickPosition} ${joystickSize} pointer-events-auto touch-none`}
+        style={{ 
+          touchAction: 'none',
+          bottom: `calc(${isPortrait ? '5rem' : '15vh'} + var(--safe-area-inset-bottom))`,
+          right: `calc(1rem + var(--safe-area-inset-right))`
+        }}
       >
         <div className="absolute inset-0 bg-secondary/20 rounded-full border-2 border-secondary/40" />
         <div 
-          className="absolute top-1/2 left-1/2 w-11 h-11 -ml-5.5 -mt-5.5 bg-secondary/80 rounded-full border-2 border-secondary"
+          className={`absolute top-1/2 left-1/2 ${joystickInnerSize} -ml-5.5 -mt-5.5 bg-secondary/80 rounded-full border-2 border-secondary`}
           style={{
             transform: `translate(${shootStickPosition.x}px, ${shootStickPosition.y}px)`,
             transition: shootStickPosition.x === 0 && shootStickPosition.y === 0 ? 'transform 0.1s ease-out' : 'none'
