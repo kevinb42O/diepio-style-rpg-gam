@@ -1823,9 +1823,9 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar - Tank List */}
-          <div className="w-96 border-r border-cyan-500/20 backdrop-blur-xl bg-black/30 flex flex-col">
+          <div className="w-full sm:w-80 md:w-96 lg:w-96 border-r border-cyan-500/20 backdrop-blur-xl bg-black/30 flex flex-col">
             {/* Search and Filters */}
-            <div className="p-4 space-y-3 border-b border-cyan-500/20 bg-gradient-to-b from-blue-500/5 to-transparent">
+            <div className="p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3 border-b border-cyan-500/20 bg-gradient-to-b from-blue-500/5 to-transparent">
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400/70 group-focus-within:text-cyan-400 transition-colors" />
                 <Input
@@ -1838,12 +1838,12 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
               </div>
 
               {/* Tier Filter */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1 sm:gap-2">
                 <Button
                   size="sm"
                   variant={selectedTier === null ? 'default' : 'outline'}
                   onClick={() => setSelectedTier(null)}
-                  className={`text-xs transition-all ${selectedTier === null ? 'bg-gradient-to-r from-cyan-500 to-blue-500 shadow-lg shadow-cyan-500/30' : 'hover:bg-white/5'}`}
+                  className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 h-7 sm:h-8 transition-all ${selectedTier === null ? 'bg-gradient-to-r from-cyan-500 to-blue-500 shadow-lg shadow-cyan-500/30' : 'hover:bg-white/5'}`}
                 >
                   All
                 </Button>
@@ -1853,7 +1853,7 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                     size="sm"
                     variant={selectedTier === tier ? 'default' : 'outline'}
                     onClick={() => setSelectedTier(tier)}
-                    className={`text-xs transition-all ${selectedTier === tier ? `bg-gradient-to-r ${TIER_COLORS[tier as keyof typeof TIER_COLORS]} shadow-lg border-0` : 'hover:bg-white/5 border-gray-600'}`}
+                    className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 h-7 sm:h-8 transition-all ${selectedTier === tier ? `bg-gradient-to-r ${TIER_COLORS[tier as keyof typeof TIER_COLORS]} shadow-lg border-0` : 'hover:bg-white/5 border-gray-600'}`}
                   >
                     T{tier}
                   </Button>
@@ -1861,7 +1861,7 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
               </div>
 
               {/* Type Filter */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2">
                 {[
                   { value: 'all', label: 'All', icon: Filter, color: 'cyan' },
                   { value: 'barrel', label: 'Barrel', icon: Swords, color: 'blue' },
@@ -1875,14 +1875,15 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                     size="sm"
                     variant={filterType === value ? 'default' : 'outline'}
                     onClick={() => setFilterType(value as FilterType)}
-                    className={`text-xs transition-all ${
+                    className={`text-[10px] sm:text-xs px-2 py-1 h-7 sm:h-8 transition-all whitespace-nowrap ${
                       filterType === value 
                         ? `bg-${color}-500/20 border-${color}-500/50 text-${color}-300 shadow-lg shadow-${color}-500/20` 
                         : 'hover:bg-white/5 border-gray-600'
                     }`}
                   >
-                    <Icon className="w-3 h-3 mr-1" />
-                    {label}
+                    <Icon className="w-3 h-3 mr-0.5 sm:mr-1" />
+                    <span className="hidden xs:inline">{label}</span>
+                    <span className="inline xs:hidden">{label.slice(0, 3)}</span>
                   </Button>
                 ))}
               </div>
@@ -1962,7 +1963,7 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                     />
                     
                     <div className="relative flex-shrink-0">
-                      <TankPreview tankKey={tank.key} size={40} animated={false} />
+                      <TankPreview tankKey={tank.key} size={32} animated={false} />
                       {selectedTank === tank.key && (
                         <motion.div
                           layoutId="activeTank"
@@ -1972,28 +1973,28 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                     </div>
                     
                     <div className="relative flex-1 text-left min-w-0">
-                      <div className="font-bold text-white truncate group-hover:text-cyan-300 transition-colors">{tank.name}</div>
-                      <div className="flex items-center gap-1.5 text-xs mt-1">
+                      <div className="font-bold text-sm sm:text-base text-white truncate group-hover:text-cyan-300 transition-colors">{tank.name}</div>
+                      <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs mt-0.5 sm:mt-1">
                         <Badge
                           variant="outline"
-                          className={`bg-gradient-to-r ${TIER_COLORS[tank.tier as keyof typeof TIER_COLORS]} border-0 text-white text-[10px] px-1.5 py-0`}
+                          className={`bg-gradient-to-r ${TIER_COLORS[tank.tier as keyof typeof TIER_COLORS]} border-0 text-white text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0`}
                         >
                           T{tank.tier}
                         </Badge>
                         {tank.isDroneClass && (
-                          <Badge variant="outline" className="text-purple-300 border-purple-400/50 bg-purple-500/10 text-[10px] px-1.5 py-0">
+                          <Badge variant="outline" className="text-purple-300 border-purple-400/50 bg-purple-500/10 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0">
                             Drone
                           </Badge>
                         )}
                         {tank.isTrapper && (
-                          <Badge variant="outline" className="text-yellow-300 border-yellow-400/50 bg-yellow-500/10 text-[10px] px-1.5 py-0">
+                          <Badge variant="outline" className="text-yellow-300 border-yellow-400/50 bg-yellow-500/10 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0">
                             Trap
                           </Badge>
                         )}
                       </div>
                     </div>
                     
-                    <ArrowRight className={`w-4 h-4 flex-shrink-0 transition-all ${selectedTank === tank.key ? 'text-cyan-400' : 'text-gray-500 group-hover:text-cyan-400 group-hover:translate-x-1'}`} />
+                    <ArrowRight className={`w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 transition-all ${selectedTank === tank.key ? 'text-cyan-400' : 'text-gray-500 group-hover:text-cyan-400 group-hover:translate-x-1'}`} />
                     </motion.button>
                   );
 
@@ -2012,67 +2013,67 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="max-w-4xl mx-auto p-8 space-y-6"
+                  className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8 space-y-3 sm:space-y-4 md:space-y-6"
                 >
                   {/* Tank Header */}
                   <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                    <Card className="relative overflow-hidden bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-purple-500/10 border border-cyan-500/20 backdrop-blur-xl p-6">
+                    <Card className="relative overflow-hidden bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-purple-500/10 border border-cyan-500/20 backdrop-blur-xl p-3 sm:p-4 md:p-6">
                       <motion.div
                         className="absolute inset-0 opacity-20 bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"
                         animate={{ x: ['-120%', '220%'] }}
                         transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
                       />
-                      <div className="relative grid gap-8 lg:grid-cols-[minmax(240px,320px)_1fr] items-center">
-                        <div className="relative bg-black/30 border border-cyan-500/20 rounded-2xl p-6 pb-16 overflow-hidden">
+                      <div className="relative grid gap-4 sm:gap-6 md:gap-8 lg:grid-cols-[minmax(200px,280px)_1fr] items-center">
+                        <div className="relative bg-black/30 border border-cyan-500/20 rounded-2xl p-4 sm:p-5 md:p-6 pb-12 sm:pb-14 md:pb-16 overflow-hidden">
                           <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
                             className="flex items-center justify-center"
                           >
-                            <TankPreview tankKey={selectedTank} size={170} animated />
+                            <TankPreview tankKey={selectedTank} size={150} animated />
                           </motion.div>
                           {previewMetrics.length > 0 && (
-                            <div className="absolute bottom-4 inset-x-4 grid grid-cols-2 gap-3">
+                            <div className="absolute bottom-2 sm:bottom-3 md:bottom-4 inset-x-2 sm:inset-x-3 md:inset-x-4 grid grid-cols-2 gap-2 sm:gap-2.5 md:gap-3">
                               {previewMetrics.map(metric => (
-                                <div key={`${metric.label}-${metric.value}`} className="bg-black/60 border border-white/10 rounded-xl px-3 py-2">
-                                  <div className="text-[10px] uppercase tracking-wide text-cyan-200/70 font-mono">
+                                <div key={`${metric.label}-${metric.value}`} className="bg-black/60 border border-white/10 rounded-lg sm:rounded-xl px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2">
+                                  <div className="text-[8px] sm:text-[9px] md:text-[10px] uppercase tracking-wide text-cyan-200/70 font-mono">
                                     {metric.label}
                                   </div>
-                                  <div className="text-white font-semibold text-lg">{metric.value}</div>
+                                  <div className="text-white font-semibold text-sm sm:text-base md:text-lg">{metric.value}</div>
                                 </div>
                               ))}
                             </div>
                           )}
                         </div>
-                        <div className="space-y-4 text-left">
-                          <div className="flex flex-wrap gap-3">
+                        <div className="space-y-3 sm:space-y-4 text-left">
+                          <div className="flex flex-wrap gap-2 sm:gap-3">
                             <Badge
-                              className={`bg-gradient-to-r ${TIER_COLORS[selectedTankData.tier as keyof typeof TIER_COLORS]} text-white border-0 text-base px-4 py-2 shadow-lg`}
+                              className={`bg-gradient-to-r ${TIER_COLORS[selectedTankData.tier as keyof typeof TIER_COLORS]} text-white border-0 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 shadow-lg`}
                             >
-                              <TrendingUp className="w-4 h-4 mr-2" />
+                              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                               Tier {selectedTankData.tier} · {TIER_NAMES[selectedTankData.tier as keyof typeof TIER_NAMES]}
                             </Badge>
-                            <Badge variant="outline" className="text-cyan-200 border-cyan-400/40 bg-cyan-500/10 text-base px-4 py-2">
-                              <Sparkles className="w-4 h-4 mr-2" />
+                            <Badge variant="outline" className="text-cyan-200 border-cyan-400/40 bg-cyan-500/10 text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2">
+                              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                               Unlocks at Level {selectedTankData.unlocksAt}
                             </Badge>
                           </div>
-                          <h2 className="text-4xl font-black bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent">
+                          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black bg-gradient-to-r from-cyan-300 via-blue-300 to-purple-300 bg-clip-text text-transparent">
                             {selectedTankData.name}
                           </h2>
                           {tankSummary && (
-                            <p className="text-gray-200 leading-relaxed">{tankSummary}</p>
+                            <p className="text-sm sm:text-base text-gray-200 leading-relaxed">{tankSummary}</p>
                           )}
                           {selectedTankTags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
                               {selectedTankTags.map(tag => (
-                                <Badge key={tag} variant="outline" className="border-cyan-400/30 text-cyan-100 bg-cyan-500/5">
+                                <Badge key={tag} variant="outline" className="border-cyan-400/30 text-cyan-100 bg-cyan-500/5 text-[10px] sm:text-xs px-2 py-0.5">
                                   {tag}
                                 </Badge>
                               ))}
                             </div>
                           )}
-                          <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-2">
                             {[
                               { label: 'Role', value: selectedTankTags[0] ?? 'Generalist' },
                               { label: 'Tier', value: `T${selectedTankData.tier}` },
@@ -2082,9 +2083,9 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                                 value: selectedTankData.isDroneClass ? 'Drone' : selectedTankData.isTrapper ? 'Trapper' : 'Barrel',
                               },
                             ].map(item => (
-                              <div key={item.label} className="p-4 rounded-xl border border-white/10 bg-white/5">
-                                <div className="text-xs uppercase tracking-wide text-gray-400">{item.label}</div>
-                                <div className="text-white font-semibold text-lg">{item.value}</div>
+                              <div key={item.label} className="p-2 sm:p-3 md:p-4 rounded-lg sm:rounded-xl border border-white/10 bg-white/5">
+                                <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-400">{item.label}</div>
+                                <div className="text-white font-semibold text-sm sm:text-base md:text-lg truncate">{item.value}</div>
                               </div>
                             ))}
                           </div>
@@ -2338,9 +2339,9 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                           <ArrowRight className="w-4 h-4 ml-2" />
                         </TabsTrigger>
                       </TabsList>
-                      <TabsContent value="from" className="space-y-4 mt-6">
+                      <TabsContent value="from" className="space-y-4 mt-4 sm:mt-6">
                         {selectedTankData.upgradesFrom && selectedTankData.upgradesFrom.length > 0 ? (
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
                             {selectedTankData.upgradesFrom.map((parentKey, idx) => {
                               const parentConfig = TANK_CONFIGS[parentKey]
                               return (
@@ -2352,25 +2353,25 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                                   whileHover={{ scale: 1.08, y: -4 }}
                                   whileTap={{ scale: 0.95 }}
                                   onClick={() => setSelectedTank(parentKey)}
-                                  className="relative p-5 bg-gradient-to-br from-black/70 via-cyan-900/10 to-black/70 border border-cyan-500/30 rounded-xl hover:border-cyan-400/70 transition-all backdrop-blur-xl group shadow-xl overflow-hidden"
+                                  className="relative p-3 sm:p-4 md:p-5 bg-gradient-to-br from-black/70 via-cyan-900/10 to-black/70 border border-cyan-500/30 rounded-xl hover:border-cyan-400/70 transition-all backdrop-blur-xl group shadow-xl overflow-hidden"
                                 >
                                   <motion.div
                                     className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent"
                                     animate={{ x: ['-100%', '200%'] }}
                                     transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
                                   />
-                                  <div className="relative z-10 flex flex-col items-center space-y-3">
+                                  <div className="relative z-10 flex flex-col items-center space-y-2 sm:space-y-3">
                                     <div className="relative">
-                                      <TankPreview tankKey={parentKey} size={64} animated={false} />
+                                      <TankPreview tankKey={parentKey} size={48} animated={false} />
                                       <motion.div
                                         className="absolute inset-0 rounded-full bg-cyan-400/20 blur-xl"
                                         animate={{ scale: [1, 1.4, 1] }}
                                         transition={{ duration: 2, repeat: Infinity }}
                                       />
                                     </div>
-                                    <div className="text-white text-sm font-bold group-hover:text-cyan-300 transition-colors">{parentConfig.name}</div>
+                                    <div className="text-white text-xs sm:text-sm font-bold group-hover:text-cyan-300 transition-colors text-center">{parentConfig.name}</div>
                                     <Badge
-                                      className={`bg-gradient-to-r ${TIER_COLORS[parentConfig.tier as keyof typeof TIER_COLORS]} border-0 text-white text-xs px-3 py-1 shadow-lg`}
+                                      className={`bg-gradient-to-r ${TIER_COLORS[parentConfig.tier as keyof typeof TIER_COLORS]} border-0 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 shadow-lg`}
                                     >
                                       Tier {parentConfig.tier}
                                     </Badge>
@@ -2383,19 +2384,19 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                           <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="text-center py-16 bg-gradient-to-br from-gray-900/40 to-gray-800/40 rounded-xl border border-gray-700/50"
+                            className="text-center py-10 sm:py-12 md:py-16 bg-gradient-to-br from-gray-900/40 to-gray-800/40 rounded-xl border border-gray-700/50"
                           >
-                            <Lock className="w-20 h-20 mx-auto mb-4 text-gray-600" />
-                            <p className="text-gray-400 text-lg font-semibold">Origin Tank</p>
-                            <p className="text-gray-500 text-sm mt-2">No previous evolution required</p>
+                            <Lock className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4 text-gray-600" />
+                            <p className="text-gray-400 text-base sm:text-lg font-semibold">Origin Tank</p>
+                            <p className="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">No previous evolution required</p>
                           </motion.div>
                         )}
                       </TabsContent>
-                      <TabsContent value="to" className="space-y-4 mt-6">
+                      <TabsContent value="to" className="space-y-4 mt-4 sm:mt-6">
                         {(() => {
                           const upgrades = getUpgradeTree(selectedTank)
                           return upgrades.length > 0 ? (
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
                               {upgrades.map((upgradeKey, idx) => {
                                 const upgradeConfig = TANK_CONFIGS[upgradeKey]
                                 return (
@@ -2407,25 +2408,25 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                                     whileHover={{ scale: 1.08, y: -4 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => setSelectedTank(upgradeKey)}
-                                    className="relative p-5 bg-gradient-to-br from-black/70 via-purple-900/10 to-black/70 border border-purple-500/30 rounded-xl hover:border-purple-400/70 transition-all backdrop-blur-xl group shadow-xl overflow-hidden"
+                                    className="relative p-3 sm:p-4 md:p-5 bg-gradient-to-br from-black/70 via-purple-900/10 to-black/70 border border-purple-500/30 rounded-xl hover:border-purple-400/70 transition-all backdrop-blur-xl group shadow-xl overflow-hidden"
                                   >
                                     <motion.div
                                       className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent"
                                       animate={{ x: ['-100%', '200%'] }}
                                       transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
                                     />
-                                    <div className="relative z-10 flex flex-col items-center space-y-3">
+                                    <div className="relative z-10 flex flex-col items-center space-y-2 sm:space-y-3">
                                       <div className="relative">
-                                        <TankPreview tankKey={upgradeKey} size={64} animated={false} />
+                                        <TankPreview tankKey={upgradeKey} size={48} animated={false} />
                                         <motion.div
                                           className="absolute inset-0 rounded-full bg-purple-400/20 blur-xl"
                                           animate={{ scale: [1, 1.4, 1] }}
                                           transition={{ duration: 2, repeat: Infinity }}
                                         />
                                       </div>
-                                      <div className="text-white text-sm font-bold group-hover:text-purple-300 transition-colors">{upgradeConfig.name}</div>
+                                      <div className="text-white text-xs sm:text-sm font-bold group-hover:text-purple-300 transition-colors text-center">{upgradeConfig.name}</div>
                                       <Badge
-                                        className={`bg-gradient-to-r ${TIER_COLORS[upgradeConfig.tier as keyof typeof TIER_COLORS]} border-0 text-white text-xs px-3 py-1 shadow-lg`}
+                                        className={`bg-gradient-to-r ${TIER_COLORS[upgradeConfig.tier as keyof typeof TIER_COLORS]} border-0 text-white text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 shadow-lg`}
                                       >
                                         Tier {upgradeConfig.tier}
                                       </Badge>
@@ -2438,11 +2439,11 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                             <motion.div
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="text-center py-16 bg-gradient-to-br from-gray-900/40 to-gray-800/40 rounded-xl border border-gray-700/50"
+                              className="text-center py-10 sm:py-12 md:py-16 bg-gradient-to-br from-gray-900/40 to-gray-800/40 rounded-xl border border-gray-700/50"
                             >
-                              <Sparkles className="w-20 h-20 mx-auto mb-4 text-amber-600" />
-                              <p className="text-amber-400 text-lg font-semibold">Final Form</p>
-                              <p className="text-gray-500 text-sm mt-2">This tank has reached its ultimate evolution</p>
+                              <Sparkles className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4 text-amber-600" />
+                              <p className="text-amber-400 text-base sm:text-lg font-semibold">Final Form</p>
+                              <p className="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">This tank has reached its ultimate evolution</p>
                             </motion.div>
                           )
                         })()}

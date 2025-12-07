@@ -437,20 +437,20 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl"
+          className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="relative px-6 py-4 border-b border-slate-700/50 bg-gradient-to-r from-blue-900/30 via-purple-900/30 to-pink-900/30">
+          <div className="relative px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-slate-700/50 bg-gradient-to-r from-blue-900/30 via-purple-900/30 to-pink-900/30">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.1),transparent_50%)]" />
             <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30">
-                  <Target className="w-5 h-5 text-blue-400" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30">
+                  <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Build Planner</h2>
-                  <p className="text-xs text-slate-400">Plan your build before the battle</p>
+                  <h2 className="text-base sm:text-lg md:text-xl font-bold text-white">Build Planner</h2>
+                  <p className="text-[10px] sm:text-xs text-slate-400">Plan your build before the battle</p>
                 </div>
               </div>
               <Button
@@ -465,47 +465,47 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
           </div>
 
           {/* Content */}
-          <div className="flex flex-col lg:flex-row h-[calc(90vh-80px)] overflow-hidden">
+          <div className="flex flex-col lg:flex-row h-[calc(90vh-70px)] sm:h-[calc(90vh-80px)] overflow-hidden">
             {/* Left Panel - Tank Selection & Info */}
-            <div className="w-full lg:w-[340px] border-r border-slate-700/50 overflow-y-auto p-4 space-y-4">
+            <div className="w-full lg:w-[340px] border-r border-slate-700/50 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3 md:space-y-4">
               {/* Tank Selector Button */}
               <Card
-                className="p-4 bg-slate-800/50 border-slate-700/50 cursor-pointer hover:bg-slate-700/50 transition-colors"
+                className="p-2 sm:p-3 md:p-4 bg-slate-800/50 border-slate-700/50 cursor-pointer hover:bg-slate-700/50 transition-colors"
                 onClick={() => setShowTankSelector(!showTankSelector)}
               >
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <TankPreviewMini tankKey={selectedTank} size={64} />
+                <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+                  <div className="relative flex-shrink-0">
+                    <TankPreviewMini tankKey={selectedTank} size={48} />
                     <Badge
-                      className={`absolute -bottom-1 -right-1 text-[10px] bg-gradient-to-r ${TIER_COLORS[selectedConfig?.tier || 0]} border-0`}
+                      className={`absolute -bottom-1 -right-1 text-[8px] sm:text-[10px] px-1 py-0 bg-gradient-to-r ${TIER_COLORS[selectedConfig?.tier || 0]} border-0`}
                     >
                       T{selectedConfig?.tier || 0}
                     </Badge>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-white truncate">{selectedConfig?.name || 'Select Tank'}</h3>
-                    <p className="text-xs text-slate-400">
+                    <h3 className="font-bold text-sm sm:text-base text-white truncate">{selectedConfig?.name || 'Select Tank'}</h3>
+                    <p className="text-[10px] sm:text-xs text-slate-400">
                       {TIER_NAMES[selectedConfig?.tier || 0]} • Lvl {requiredLevel}+
                     </p>
-                    <div className="flex flex-wrap gap-1 mt-1">
+                    <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-0.5 sm:mt-1">
                       {selectedConfig?.isDroneClass && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-purple-500/50 text-purple-400">
+                        <Badge variant="outline" className="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0 border-purple-500/50 text-purple-400">
                           Drone
                         </Badge>
                       )}
                       {selectedConfig?.isTrapper && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-500/50 text-amber-400">
+                        <Badge variant="outline" className="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0 border-amber-500/50 text-amber-400">
                           Trapper
                         </Badge>
                       )}
                       {selectedConfig?.autoTurrets && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-cyan-500/50 text-cyan-400">
+                        <Badge variant="outline" className="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0 border-cyan-500/50 text-cyan-400">
                           Auto ×{selectedConfig.autoTurrets}
                         </Badge>
                       )}
                     </div>
                   </div>
-                  <ChevronRight className={`w-5 h-5 text-slate-500 transition-transform ${showTankSelector ? 'rotate-90' : ''}`} />
+                  <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 text-slate-500 transition-transform flex-shrink-0 ${showTankSelector ? 'rotate-90' : ''}`} />
                 </div>
               </Card>
 
@@ -653,34 +653,35 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
             </div>
 
             {/* Right Panel - Stat Allocation */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3 md:space-y-4">
               {/* Points Counter */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="text-sm text-slate-400">
-                    <span className="text-2xl font-bold text-white">{remainingPoints}</span>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="text-xs sm:text-sm text-slate-400">
+                    <span className="text-xl sm:text-2xl font-bold text-white">{remainingPoints}</span>
                     <span className="text-slate-500">/{TOTAL_SKILL_POINTS}</span>
                     <span className="ml-1">points remaining</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={copyBuild}
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700 text-xs px-2 py-1 h-auto"
                   >
-                    {copiedBuild ? <Check className="w-4 h-4 mr-1 text-green-400" /> : <Copy className="w-4 h-4 mr-1" />}
-                    {copiedBuild ? 'Copied!' : 'Copy Build'}
+                    {copiedBuild ? <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 text-green-400" /> : <Copy className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />}
+                    <span className="hidden xs:inline">{copiedBuild ? 'Copied!' : 'Copy Build'}</span>
+                    <span className="inline xs:hidden">{copiedBuild ? '✓' : 'Copy'}</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={resetStats}
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700 text-xs px-2 py-1 h-auto"
                   >
-                    <RotateCcw className="w-4 h-4 mr-1" />
-                    Reset
+                    <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                    <span className="hidden xs:inline">Reset</span>
                   </Button>
                 </div>
               </div>
@@ -696,7 +697,7 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
               </div>
 
               {/* Stat Sliders */}
-              <div className="grid gap-3">
+              <div className="grid gap-2 sm:gap-3">
                 {STAT_ORDER.map((stat) => {
                   const meta = STAT_META[stat]
                   const Icon = meta.icon
@@ -708,37 +709,45 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
                   return (
                     <Card
                       key={stat}
-                      className={`p-3 transition-all ${
+                      className={`p-2 sm:p-3 transition-all ${
                         isSynergy
                           ? 'bg-gradient-to-r from-amber-900/20 to-transparent border-amber-500/30'
                           : 'bg-slate-800/50 border-slate-700/50'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         {/* Icon */}
                         <div
-                          className={`p-2 rounded-lg ${
+                          className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${
                             isSynergy ? 'bg-amber-500/20' : 'bg-slate-700/50'
                           }`}
                         >
-                          <Icon className={`w-4 h-4 ${isSynergy ? 'text-amber-400' : `text-${meta.color}-400`}`} />
+                          <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${isSynergy ? 'text-amber-400' : `text-${meta.color}-400`}`} />
                         </div>
 
                         {/* Label & Value */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-white">{meta.label}</span>
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <span className="text-xs sm:text-sm font-medium text-white">{meta.label}</span>
                               {isSynergy && (
-                                <Badge className="text-[9px] px-1 py-0 bg-amber-500/20 text-amber-400 border-amber-500/30">
-                                  SYNERGY
-                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge className="text-[8px] sm:text-[9px] px-1 py-0 bg-amber-500/20 text-amber-400 border-amber-500/30 cursor-help">
+                                      <span className="hidden xs:inline">SYNERGY</span>
+                                      <span className="inline xs:hidden">SYN</span>
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="bg-slate-900 border-slate-700">
+                                    <p>Synergy Stat - Extra benefits for this tank</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-slate-400 font-mono">{formatStatValue(stat, value)}</span>
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <span className="text-[10px] sm:text-xs text-slate-400 font-mono">{formatStatValue(stat, value)}</span>
                               <span
-                                className={`text-[10px] font-medium ${
+                                className={`text-[9px] sm:text-[10px] font-medium ${
                                   stat === 'reload'
                                     ? points > 0
                                       ? 'text-green-400'
@@ -754,7 +763,7 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
                           </div>
 
                           {/* Slider */}
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3">
                             <Slider
                               value={[points]}
                               min={0}
@@ -763,21 +772,21 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
                               onValueChange={([v]) => handleStatChange(stat, v)}
                               className="flex-1"
                             />
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-0.5 sm:gap-1">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-slate-400 hover:text-white"
+                                className="h-6 w-6 sm:h-7 sm:w-7 text-slate-400 hover:text-white p-0 text-sm sm:text-base"
                                 onClick={() => handleStatChange(stat, points - 1)}
                                 disabled={points === 0}
                               >
                                 -
                               </Button>
-                              <span className="w-8 text-center text-sm font-mono text-white">{points}</span>
+                              <span className="w-6 sm:w-8 text-center text-xs sm:text-sm font-mono text-white">{points}</span>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-slate-400 hover:text-white"
+                                className="h-6 w-6 sm:h-7 sm:w-7 text-slate-400 hover:text-white p-0 text-sm sm:text-base"
                                 onClick={() => handleStatChange(stat, points + 1)}
                                 disabled={points >= MAX_STAT_POINTS || remainingPoints <= 0}
                               >
@@ -789,7 +798,7 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
                       </div>
                       
                       {/* Tooltip description */}
-                      <p className="text-[10px] text-slate-500 mt-1 pl-11">{meta.description}</p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 mt-1 pl-8 sm:pl-11">{meta.description}</p>
                     </Card>
                   )
                 })}
