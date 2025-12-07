@@ -731,9 +731,17 @@ export const BuildPlanner: React.FC<BuildPlannerProps> = ({ onClose, onStartSand
                             <div className="flex items-center gap-1 sm:gap-2">
                               <span className="text-xs sm:text-sm font-medium text-white">{meta.label}</span>
                               {isSynergy && (
-                                <Badge className="text-[8px] sm:text-[9px] px-1 py-0 bg-amber-500/20 text-amber-400 border-amber-500/30">
-                                  SYN
-                                </Badge>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge className="text-[8px] sm:text-[9px] px-1 py-0 bg-amber-500/20 text-amber-400 border-amber-500/30 cursor-help">
+                                      <span className="hidden xs:inline">SYNERGY</span>
+                                      <span className="inline xs:hidden">SYN</span>
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="bg-slate-900 border-slate-700">
+                                    <p>Synergy Stat - Extra benefits for this tank</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2">
