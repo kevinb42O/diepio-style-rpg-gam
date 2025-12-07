@@ -1,9 +1,9 @@
-import { Heart, Sword, Lightning, Wind, ShieldCheck, Target, FireExtinguisher, ArrowsOut, Magnet, Plus, Check } from '@phosphor-icons/react'
-import { motion } from 'framer-motion'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { Heart, Sword, Lightning, Wind, ShieldCheck, Target, FireExtinguisher, ArrowsOut, Magnet, Plus, Check, CaretUp, CaretDown } from '@phosphor-icons/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useDeviceInfo } from '@/hooks/use-mobile'
 import type { StatType } from '@/lib/upgradeSystem'
 import { getSynergyDescription, getSynergyStatsForClass } from '@/lib/synergyMeta'
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo, useState, useEffect } from 'react'
 
 interface InGameStatsPanelProps {
   availablePoints: number
@@ -227,14 +227,33 @@ const StatRowCompact = memo(({
 StatRowCompact.displayName = 'StatRowCompact'
 
 export const InGameStatsPanel = memo(function InGameStatsPanel({ availablePoints, statPoints, onAllocate, currentClass }: InGameStatsPanelProps) {
-  const isMobile = useIsMobile()
+  const { isMobile, isPortrait } = useDeviceInfo()
   const statEntries = Object.keys(STAT_INFO) as StatType[]
+  
+  // In portrait mode on mobile, start collapsed. In landscape or desktop, start expanded
+  const [isExpanded, setIsExpanded] = useState(!isPortrait || !isMobile)
   
   const synergyStats = useMemo(() => {
     return new Set(getSynergyStatsForClass(currentClass))
   }, [currentClass])
 
+  // Update expanded state when orientation changes
+  useEffect(() => {
+    if (!isMobile || !isPortrait) {
+      setIsExpanded(true)
+    }
+  }, [isMobile, isPortrait])
+
   if (availablePoints <= 0) return null
+
+  // Calculate positioning based on orientation
+  const position = isMobile && isPortrait
+    ? 'left-2 bottom-32'
+    : isMobile && !isPortrait
+    ? 'left-3 bottom-6'
+    : 'left-3 bottom-6'
+  
+  const width = isMobile ? 'w-44' : 'w-56'
 
   return (
     <motion.div
@@ -244,55 +263,87 @@ export const InGameStatsPanel = memo(function InGameStatsPanel({ availablePoints
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
       className={`
         absolute z-30 pointer-events-auto
-        ${isMobile ? 'left-2 bottom-32 w-44' : 'left-3 bottom-6 w-56'}
+        ${position} ${width}
         bg-gradient-to-b from-black/80 via-black/70 to-black/80
         backdrop-blur-xl
         rounded-xl
         border border-white/10
         shadow-2xl
       `}
+      style={{
+        bottom: isMobile && isPortrait 
+          ? `calc(8rem + var(--safe-area-inset-bottom))` 
+          : `calc(1.5rem + var(--safe-area-inset-bottom))`,
+        left: `calc(${isMobile ? '0.5rem' : '0.75rem'} + var(--safe-area-inset-left))`
+      }}
     >
-      {/* Header */}
-      <div className={`${isMobile ? 'px-3 py-2' : 'px-4 py-2.5'} border-b border-white/[0.06]`}>
-        <div className="flex items-center gap-2">
-          <div className={`
-            flex items-center justify-center
-            ${isMobile ? 'w-6 h-6' : 'w-7 h-7'}
-            rounded-full
-            bg-gradient-to-br from-amber-400 to-orange-500
-            shadow-md
-          `}>
-            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-bold text-black`}>
-              {availablePoints}
-            </span>
-          </div>
-          <div>
-            <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-white`}>
-              Skill Points
-            </span>
-            <div className="text-[9px] text-white/40">
-              Click to upgrade
+      {/* Header - always visible, clickable in portrait mode */}
+      <div 
+        className={`${isMobile ? 'px-3 py-2' : 'px-4 py-2.5'} border-b border-white/[0.06] ${isMobile && isPortrait ? 'cursor-pointer' : ''}`}
+        onClick={() => {
+          if (isMobile && isPortrait) {
+            setIsExpanded(!isExpanded)
+          }
+        }}
+      >
+        <div className="flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`
+              flex items-center justify-center
+              ${isMobile ? 'w-6 h-6' : 'w-7 h-7'}
+              rounded-full
+              bg-gradient-to-br from-amber-400 to-orange-500
+              shadow-md
+            `}>
+              <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-bold text-black`}>
+                {availablePoints}
+              </span>
+            </div>
+            <div>
+              <span className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold text-white`}>
+                Skill Points
+              </span>
+              <div className="text-[9px] text-white/40">
+                {isMobile && isPortrait ? 'Tap to expand' : 'Click to upgrade'}
+              </div>
             </div>
           </div>
+          {isMobile && isPortrait && (
+            <div className="text-white/60">
+              {isExpanded ? <CaretDown size={16} weight="bold" /> : <CaretUp size={16} weight="bold" />}
+            </div>
+          )}
         </div>
       </div>
       
-      {/* Stats List */}
-      <div className={`${isMobile ? 'p-2' : 'p-3'}`}>
-        <div className={`space-y-${isMobile ? '1' : '1.5'}`}>
-          {statEntries.map((stat) => (
-            <StatRowCompact
-              key={stat}
-              stat={stat}
-              points={statPoints[stat]}
-              availablePoints={availablePoints}
-              onAllocate={onAllocate}
-              isMobile={isMobile}
-              hasSynergy={synergyStats.has(stat)}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Stats List - collapsible in portrait mode */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className={`${isMobile ? 'p-2' : 'p-3'}`}>
+              <div className={`space-y-${isMobile ? '1' : '1.5'}`}>
+                {statEntries.map((stat) => (
+                  <StatRowCompact
+                    key={stat}
+                    stat={stat}
+                    points={statPoints[stat]}
+                    availablePoints={availablePoints}
+                    onAllocate={onAllocate}
+                    isMobile={isMobile}
+                    hasSynergy={synergyStats.has(stat)}
+                  />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 })
