@@ -114,7 +114,8 @@ export class RenderEngine {
     this.drawScreenEffects(engine)
     this.drawPredatorScopeOverlay(engine)
     // Event notifications now use toast system, not screen overlays
-    this.drawControlPointHUD(engine)
+    // CONTROL bar removed for cleaner UI
+    // this.drawControlPointHUD(engine)
   }
   
   private drawBloodMoonOverlay(engine: GameEngine) {
