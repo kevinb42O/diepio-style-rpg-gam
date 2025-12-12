@@ -4,8 +4,8 @@
   "description": "A diep.io style RPG survival game",
   "start_url": "/diepio-style-rpg-gam/",
   "scope": "/diepio-style-rpg-gam/",
-  "display": "standalone",
-  "orientation": "landscape",
+  "display": "fullscreen",
+  "orientation": "any",
   "background_color": "#1a1a2e",
   "theme_color": "#4a00e0",
   "icons": [
