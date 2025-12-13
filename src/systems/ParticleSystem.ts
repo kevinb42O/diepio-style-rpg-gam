@@ -5,6 +5,7 @@
 
 import { ObjectPool } from '@/utils/ObjectPool'
 import type { Vector2 } from '@/lib/types'
+import { isMobileDevice } from '@/utils/deviceDetection'
 
 export interface Particle {
   position: Vector2
@@ -37,8 +38,7 @@ export class ParticleSystem {
 
   constructor() {
     // Detect mobile device
-    this.isMobile = typeof window !== 'undefined' && 
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    this.isMobile = isMobileDevice
     
     // Reduce maxParticles from 500 to 150 on mobile
     this.maxParticles = this.isMobile ? 150 : 500

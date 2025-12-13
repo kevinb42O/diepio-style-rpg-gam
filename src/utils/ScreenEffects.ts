@@ -3,6 +3,8 @@
  * Provides meaningful visual feedback tied to game events.
  */
 
+import { isMobileDevice } from './deviceDetection'
+
 export interface ScreenShake {
   intensity: number
   duration: number
@@ -50,12 +52,9 @@ export class ScreenEffects {
   private screenTint: { color: string; alpha: number } | null = null
 
   // Mobile detection and performance mode
-  static isMobileDevice = (() => {
-    if (typeof window === 'undefined') return false
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  })()
+  static isMobileDevice = isMobileDevice
   
-  performanceMode = ScreenEffects.isMobileDevice
+  performanceMode = isMobileDevice
 
   /**
    * Trigger screen shake with context
