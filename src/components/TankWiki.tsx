@@ -1787,25 +1787,25 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
 
       <div className="relative h-full w-full flex flex-col">
         {/* Glassmorphic Header */}
-        <div className="relative backdrop-blur-xl bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 border-b border-cyan-500/20 p-6 shadow-2xl">
+        <div className="relative backdrop-blur-xl bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 border-b border-cyan-500/20 p-2 sm:p-3 shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-purple-500/5"></div>
           <div className="relative max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 className="relative"
               >
-                <Target className="w-10 h-10 text-cyan-400" />
+                <Target className="w-6 h-6 text-cyan-400" />
                 <div className="absolute inset-0 bg-cyan-400/20 rounded-full blur-xl"></div>
               </motion.div>
               <div>
-                <h1 className="text-4xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <h1 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
                   TANK ARSENAL
                 </h1>
-                <p className="text-sm text-gray-400 font-mono">Complete Combat Database</p>
+                <p className="text-xs text-gray-400 font-mono">Complete Combat Database</p>
               </div>
-              <Badge variant="outline" className="ml-2 text-cyan-400 border-cyan-400/50 bg-cyan-500/10 backdrop-blur-sm px-3 py-1">
+              <Badge variant="outline" className="ml-1 sm:ml-2 text-cyan-400 border-cyan-400/50 bg-cyan-500/10 backdrop-blur-sm px-2 py-0.5 text-xs">
                 <Sparkles className="w-3 h-3 mr-1" />
                 {allTanks.length} Units
               </Badge>
@@ -1814,18 +1814,18 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="text-white hover:bg-white/10 hover:rotate-90 transition-all duration-300 rounded-full w-12 h-12"
+              className="text-white hover:bg-white/10 hover:rotate-90 transition-all duration-300 rounded-full w-8 h-8"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar - Tank List */}
-          <div className="w-full sm:w-80 md:w-96 lg:w-96 border-r border-cyan-500/20 backdrop-blur-xl bg-black/30 flex flex-col">
+          <div className="w-full sm:w-80 md:w-96 lg:w-96 border-r border-cyan-500/20 backdrop-blur-xl bg-black/30 overflow-y-auto custom-scrollbar">
             {/* Search and Filters */}
-            <div className="p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3 border-b border-cyan-500/20 bg-gradient-to-b from-blue-500/5 to-transparent">
+            <div className="p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3 bg-gradient-to-b from-blue-500/5 to-transparent">
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400/70 group-focus-within:text-cyan-400 transition-colors" />
                 <Input
@@ -1889,27 +1889,26 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
               </div>
             </div>
 
-            {/* Tank List - Custom styled scrollbar */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <style>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                  width: 8px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                  background: rgba(0, 0, 0, 0.2);
-                  border-radius: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                  background: linear-gradient(180deg, #06b6d4, #3b82f6);
-                  border-radius: 4px;
-                  transition: all 0.3s;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                  background: linear-gradient(180deg, #0891b2, #2563eb);
-                  box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-                }
-              `}</style>
-              <div className="space-y-1 p-2">
+            {/* Tank List */}
+            <style>{`
+              .custom-scrollbar::-webkit-scrollbar {
+                width: 8px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-track {
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 4px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #06b6d4, #3b82f6);
+                border-radius: 4px;
+                transition: all 0.3s;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(180deg, #0891b2, #2563eb);
+                box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+              }
+            `}</style>
+            <div className="space-y-1 p-2">
                 {filteredTanks.reduce((acc: { elements: React.JSX.Element[], renderedTiers: Set<number> }, tank, idx, arr) => {
                   // Check if we need to add a tier header
                   const prevTank = arr[idx - 1];
@@ -2001,7 +2000,6 @@ export const TankWiki: React.FC<TankWikiProps> = ({ onClose }) => {
                   return acc;
                 }, { elements: [], renderedTiers: new Set<number>() }).elements}
               </div>
-            </div>
           </div>
 
           {/* Main Content - Tank Details */}
