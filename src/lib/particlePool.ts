@@ -7,9 +7,17 @@ import type { Vector2, PooledParticle } from './types'
 
 export class ParticlePool {
   private pool: PooledParticle[] = []
-  private readonly maxParticles = 500
+  private readonly isMobile: boolean
+  private readonly maxParticles: number
 
   constructor() {
+    // Detect mobile device
+    this.isMobile = typeof window !== 'undefined' && 
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    // Reduce maxParticles from 500 to 150 on mobile
+    this.maxParticles = this.isMobile ? 150 : 500
+    
     this.initializePool()
   }
 
@@ -159,7 +167,8 @@ export class ParticlePool {
    * Emit golden burst on level up
    */
   emitLevelUpBurst(position: Vector2) {
-    const count = 20
+    // Reduce from 20 to 5 particles on mobile
+    const count = this.isMobile ? 5 : 20
     for (let i = 0; i < count; i++) {
       const particle = this.getParticle()
       if (!particle) return
@@ -187,7 +196,8 @@ export class ParticlePool {
    * Emit debris on shape destruction
    */
   emitDebris(position: Vector2, velocity: Vector2, color: string = '#888888') {
-    const count = 6
+    // Reduce from 6 to 2 particles on mobile
+    const count = this.isMobile ? 2 : 6
     for (let i = 0; i < count; i++) {
       const particle = this.getParticle()
       if (!particle) return

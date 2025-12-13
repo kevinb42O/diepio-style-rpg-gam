@@ -2759,7 +2759,7 @@ export class GameEngine {
             
             // Enhanced level up effect
             this.particleSystem.createLevelUpEffect(this.player.position)
-            this.screenEffects.startShake(8, 0.4)
+            // Screen shake removed for mobile performance
             this.screenEffects.triggerFlash('levelUp', 1)
             audioManager.play('levelUp')
             
@@ -3688,7 +3688,7 @@ export class GameEngine {
                 
                 // Enhanced level up effect
                 this.particleSystem.createLevelUpEffect(this.player.position)
-                this.screenEffects.startShake(8, 0.4)
+                // Screen shake removed for mobile performance
                 this.screenEffects.triggerFlash('levelUp', 1)
                 audioManager.play('levelUp')
                 
@@ -3785,7 +3785,7 @@ export class GameEngine {
                   this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
                   this.invincibilityFrames = 2.0
                   this.particleSystem.createLevelUpEffect(this.player.position)
-                  this.screenEffects.startShake(8, 0.4)
+                  // Screen shake removed for mobile performance
                   this.screenEffects.triggerFlash('levelUp', 1)
                   audioManager.play('levelUp')
                   if (this.onLevelUp) {
@@ -4101,7 +4101,7 @@ export class GameEngine {
                 this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
                 this.invincibilityFrames = 2.0
                 this.particleSystem.createLevelUpEffect(this.player.position)
-                this.screenEffects.startShake(8, 0.4)
+                // Screen shake removed for mobile performance
                 this.screenEffects.triggerFlash('levelUp', 1)
                 audioManager.play('levelUp')
                 
@@ -4433,8 +4433,7 @@ export class GameEngine {
       this.player.xpToNextLevel = this.upgradeManager.getXPToNextLevel()
       this.invincibilityFrames = 2.0
       this.particleSystem.createLevelUpEffect(this.player.position)
-      this.screenEffects.startShake(8, 0.4)
-      // Use contextual level up flash
+      // Screen shake removed for mobile performance
       this.screenEffects.triggerFlash('levelUp', 1)
       audioManager.play('levelUp')
 
@@ -4619,7 +4618,7 @@ export class GameEngine {
         
         // Enhanced level up effect
         this.particleSystem.createLevelUpEffect(this.player.position)
-        this.screenEffects.startShake(8, 0.4)
+        // Screen shake removed for mobile performance
         this.screenEffects.triggerFlash('levelUp', 1)
         audioManager.play('levelUp')
         
