@@ -54,6 +54,7 @@ export class ScreenEffects {
   // Mobile detection and performance mode
   static isMobileDevice = isMobileDevice
   
+  // Enable performance mode on mobile to reduce visual effects and improve FPS
   performanceMode = isMobileDevice
 
   /**
