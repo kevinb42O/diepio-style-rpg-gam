@@ -5,6 +5,7 @@
 
 import { ObjectPool } from '@/utils/ObjectPool'
 import type { Vector2 } from '@/lib/types'
+import { isMobileDevice } from '@/utils/deviceDetection'
 
 export interface Particle {
   position: Vector2
@@ -32,9 +33,16 @@ export type ParticleType =
 export class ParticleSystem {
   private particles: Particle[] = []
   private particlePool: ObjectPool<Particle>
-  private maxParticles: number = 500
+  private maxParticles: number
+  private isMobile: boolean
 
   constructor() {
+    // Detect mobile device
+    this.isMobile = isMobileDevice
+    
+    // Reduce maxParticles from 500 to 150 on mobile
+    this.maxParticles = this.isMobile ? 150 : 500
+    
     this.particlePool = new ObjectPool<Particle>(
       () => ({
         position: { x: 0, y: 0 },
@@ -53,8 +61,8 @@ export class ParticleSystem {
         p.rotation = 0
         p.rotationSpeed = 0
       },
-      100,
-      500
+      this.isMobile ? 50 : 100,
+      this.maxParticles
     )
   }
 
@@ -124,7 +132,9 @@ export class ParticleSystem {
    * Create explosion effect
    */
   createExplosion(position: Vector2, size: number = 20, color: string = '#ff8800'): void {
-    const particleCount = Math.floor(size / 3)
+    // Reduce particle count on mobile (reduce from ~15 to ~5 for typical size)
+    const baseCount = Math.floor(size / 3)
+    const particleCount = this.isMobile ? Math.max(3, Math.floor(baseCount / 3)) : baseCount
     this.createBurst(position, particleCount, {
       color,
       size: 3 + size / 10,
@@ -138,7 +148,9 @@ export class ParticleSystem {
    * Create level-up celebration particles
    */
   createLevelUpEffect(position: Vector2): void {
-    this.createBurst(position, 12, {
+    // Reduce from 12 to 5 particles on mobile
+    const count = this.isMobile ? 5 : 12
+    this.createBurst(position, count, {
       color: '#bb88ff',
       size: 5,
       speed: 150,
@@ -168,7 +180,9 @@ export class ParticleSystem {
    * Create debris particles
    */
   createDebris(position: Vector2, count: number = 4, color: string = '#ffaa44'): void {
-    this.createBurst(position, count, {
+    // Reduce particle count to 3 on mobile
+    const adjustedCount = this.isMobile ? Math.max(2, Math.min(3, count)) : count
+    this.createBurst(position, adjustedCount, {
       color,
       size: 3,
       speed: 120,

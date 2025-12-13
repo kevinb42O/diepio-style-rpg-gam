@@ -3,6 +3,8 @@
  * Provides meaningful visual feedback tied to game events.
  */
 
+import { isMobileDevice } from './deviceDetection'
+
 export interface ScreenShake {
   intensity: number
   duration: number
@@ -49,6 +51,12 @@ export class ScreenEffects {
   // Screen tint for status effects
   private screenTint: { color: string; alpha: number } | null = null
 
+  // Mobile detection and performance mode
+  static isMobileDevice = isMobileDevice
+  
+  // Enable performance mode on mobile to reduce visual effects and improve FPS
+  performanceMode = isMobileDevice
+
   /**
    * Trigger screen shake with context
    * Intensity guide:
@@ -58,6 +66,11 @@ export class ScreenEffects {
    * - 10+: Epic (boss kills, major events)
    */
   startShake(intensity: number, duration: number): void {
+    // Disable screen shake completely on mobile for performance
+    if (this.performanceMode) {
+      return
+    }
+    
     if (!this.shake || this.shake.intensity < intensity) {
       this.shake = {
         intensity,
@@ -81,8 +94,8 @@ export class ScreenEffects {
     const configs: Record<EffectType, { color: string; alpha: number; fadeSpeed: number }> = {
       damage: { color: '#ff2222', alpha: 0.35 * intensity, fadeSpeed: 0.88 },
       heal: { color: '#44ff66', alpha: 0.25 * intensity, fadeSpeed: 0.94 },
-      levelUp: { color: '#bb88ff', alpha: 0.4 * intensity, fadeSpeed: 0.90 },
-      kill: { color: '#ffffff', alpha: 0.15 * intensity, fadeSpeed: 0.95 },
+      levelUp: { color: '#bb88ff', alpha: 0.15 * intensity, fadeSpeed: 0.90 },
+      kill: { color: '#ffffff', alpha: 0.05 * intensity, fadeSpeed: 0.95 },
       critical: { color: '#ffdd00', alpha: 0.3 * intensity, fadeSpeed: 0.90 },
       ability: { color: '#4488ff', alpha: 0.2 * intensity, fadeSpeed: 0.93 },
       shield: { color: '#44ffff', alpha: 0.25 * intensity, fadeSpeed: 0.92 },
@@ -90,9 +103,13 @@ export class ScreenEffects {
     }
     
     const config = configs[type]
+    // Reduce flash opacity by 50% on mobile for performance
+    const mobileMultiplier = this.performanceMode ? 0.5 : 1
+    const adjustedAlpha = config.alpha * mobileMultiplier
+    
     // Only override if this flash is more intense
-    if (!this.flash || this.flash.alpha < config.alpha) {
-      this.flash = config
+    if (!this.flash || this.flash.alpha < adjustedAlpha) {
+      this.flash = { ...config, alpha: adjustedAlpha }
     }
   }
 
@@ -115,6 +132,11 @@ export class ScreenEffects {
    * Trigger chromatic aberration for heavy impacts
    */
   triggerChromaticAberration(intensity: number = 1): void {
+    // Disable chromatic aberration on mobile for performance
+    if (this.performanceMode) {
+      return
+    }
+    
     this.chromaticAberration = Math.max(this.chromaticAberration, Math.min(1, intensity))
   }
   
